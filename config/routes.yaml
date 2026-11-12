@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=../vendor/symfony/routing/Loader/schema/routing.schema.json
+
+# Explicit API routes live here (routing stays in config, not in controllers).
+# routing.controllers additionally imports any controller action carrying #[Route].
+
+controllers:
+    resource: routing.controllers
+
+api_ping:
+    path: /api/ping
+    controller: App\Common\Infrastructure\Controller\PingController::ping
+    methods: GET

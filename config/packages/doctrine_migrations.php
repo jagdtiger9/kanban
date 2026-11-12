@@ -1,0 +1,17 @@
+<?php
+
+use Symfony\Component\DependencyInjection\Loader\Configurator\App;
+
+return App::config([
+    'doctrine_migrations' => [
+        'migrations_paths' => [
+            'App\Migrations' => '%kernel.project_dir%/migrations',
+        ],
+        'storage' => [
+            'table_storage' => [
+                'table_name' => 'doctrine_migration_versions',
+            ],
+        ],
+        'enable_profiler' => false,
+    ],
+]);

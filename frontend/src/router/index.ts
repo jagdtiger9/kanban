@@ -1,0 +1,11 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', name: 'board', component: () => import('../views/ShellView.vue') },
+    { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
+  ],
+})
+
+export default router

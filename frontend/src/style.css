@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
+body {
+  @apply bg-zinc-950 text-zinc-100 antialiased;
+}
+
+.light body {
+  @apply bg-zinc-100 text-zinc-900;
+}
