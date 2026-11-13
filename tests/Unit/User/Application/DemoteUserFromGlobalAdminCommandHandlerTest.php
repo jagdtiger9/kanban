@@ -16,17 +16,18 @@ final class DemoteUserFromGlobalAdminCommandHandlerTest extends TestCase
 {
     public function testUnknownUser(): void
     {
+        $missingId = (string) Uuid::uuid4();
         $repo = $this->createMock(UserRepository::class);
         $repo->expects(self::once())
-            ->method('findByEmail')
-            ->with('nobody@example.com')
+            ->method('findById')
+            ->with(Uuid::fromString($missingId))
             ->willReturn(null);
         $repo->expects(self::never())->method('save');
 
         $handler = new DemoteUserFromGlobalAdminCommandHandler($repo);
 
         $this->expectException(UserNotFoundException::class);
-        $handler->__invoke(new DemoteUserFromGlobalAdminCommand(' NOBODY@Example.COM '));
+        $handler->__invoke(new DemoteUserFromGlobalAdminCommand($missingId));
     }
 
     public function testDemotesAndSavesUser(): void
@@ -36,15 +37,15 @@ final class DemoteUserFromGlobalAdminCommandHandlerTest extends TestCase
 
         $repo = $this->createMock(UserRepository::class);
         $repo->expects(self::once())
-            ->method('findByEmail')
-            ->with('alice@example.com')
+            ->method('findById')
+            ->with($user->id())
             ->willReturn($user);
         $repo->expects(self::once())
             ->method('save')
             ->with($user);
 
         $handler = new DemoteUserFromGlobalAdminCommandHandler($repo);
-        $result = $handler->__invoke(new DemoteUserFromGlobalAdminCommand(' ALICE@Example.com '));
+        $result = $handler->__invoke(new DemoteUserFromGlobalAdminCommand((string) $user->id()));
 
         self::assertSame($user, $result);
         self::assertFalse($user->isGlobalAdmin());

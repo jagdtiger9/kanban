@@ -221,6 +221,16 @@ $config = Routes::config([
         'controller' => [AuthController::class, 'register'],
         'methods' => ['POST'],
     ],
+    'api_auth_confirm' => [
+        'path' => '/api/auth/confirm',
+        'controller' => [AuthController::class, 'confirm'],
+        'methods' => ['POST'],
+    ],
+    'api_auth_password' => [
+        'path' => '/api/auth/password',
+        'controller' => [AuthController::class, 'changePassword'],
+        'methods' => ['POST'],
+    ],
     'api_auth_me' => [
         'path' => '/api/auth/me',
         'controller' => [AuthController::class, 'me'],
@@ -280,6 +290,26 @@ $config = Routes::config([
         'path' => '/api/users/search',
         'controller' => [UserController::class, 'search'],
         'methods' => ['GET'],
+    ],
+    'api_users_list' => [
+        'path' => '/api/users',
+        'controller' => [UserController::class, 'list'],
+        'methods' => ['GET'],
+    ],
+    'api_user_confirm' => [
+        'path' => '/api/users/{userId}/confirm',
+        'controller' => [UserController::class, 'confirmUser'],
+        'methods' => ['POST'],
+    ],
+    'api_user_promote' => [
+        'path' => '/api/users/{userId}/promote',
+        'controller' => [UserController::class, 'promote'],
+        'methods' => ['POST'],
+    ],
+    'api_user_demote' => [
+        'path' => '/api/users/{userId}/demote',
+        'controller' => [UserController::class, 'demote'],
+        'methods' => ['POST'],
     ],
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',

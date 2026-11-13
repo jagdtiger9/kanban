@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
-const router = useRouter()
 const auth = useAuthStore()
 
 const displayName = ref('')
@@ -16,6 +14,7 @@ const passwordConfirmation = ref('')
 const error = ref<string | null>(null)
 const fieldErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
+const registered = ref(false)
 
 async function submit(): Promise<void> {
     error.value = null
@@ -23,7 +22,7 @@ async function submit(): Promise<void> {
     submitting.value = true
     try {
         await auth.register(email.value, password.value, passwordConfirmation.value, displayName.value)
-        router.push({ name: 'board' })
+        registered.value = true
     } catch (e) {
         if (e instanceof ApiError) {
             for (const fieldError of e.errors) {
@@ -49,10 +48,23 @@ async function submit(): Promise<void> {
                     C
                 </div>
                 <h1 class="text-2xl font-semibold">Canban</h1>
-                <p class="mt-1 text-sm text-muted">Create your account</p>
+                <p class="mt-1 text-sm text-muted">{{ registered ? 'Check your inbox' : 'Create your account' }}</p>
             </div>
 
-            <form class="space-y-4" @submit.prevent="submit">
+            <div v-if="registered" class="space-y-4 text-center">
+                <p class="text-sm text-body">
+                    We sent a confirmation email to <span class="font-medium break-all">{{ email }}</span>.
+                </p>
+                <p class="text-sm text-muted">
+                    Open the link in the message to activate your account. Can't find it? Ask a project admin to
+                    confirm your account.
+                </p>
+                <p class="pt-2 text-sm">
+                    <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Back to sign in</RouterLink>
+                </p>
+            </div>
+
+            <form v-else class="space-y-4" @submit.prevent="submit">
                 <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
                     {{ error }}
                 </p>

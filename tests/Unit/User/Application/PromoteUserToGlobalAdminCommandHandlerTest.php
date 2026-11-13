@@ -16,17 +16,18 @@ final class PromoteUserToGlobalAdminCommandHandlerTest extends TestCase
 {
     public function testUnknownUser(): void
     {
+        $missingId = (string) Uuid::uuid4();
         $repo = $this->createMock(UserRepository::class);
         $repo->expects(self::once())
-            ->method('findByEmail')
-            ->with('nobody@example.com')
+            ->method('findById')
+            ->with(Uuid::fromString($missingId))
             ->willReturn(null);
         $repo->expects(self::never())->method('save');
 
         $handler = new PromoteUserToGlobalAdminCommandHandler($repo);
 
         $this->expectException(UserNotFoundException::class);
-        $handler->__invoke(new PromoteUserToGlobalAdminCommand(' NOBODY@Example.COM '));
+        $handler->__invoke(new PromoteUserToGlobalAdminCommand($missingId));
     }
 
     public function testPromotesAndSavesUser(): void
@@ -34,15 +35,15 @@ final class PromoteUserToGlobalAdminCommandHandlerTest extends TestCase
         $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
         $repo = $this->createMock(UserRepository::class);
         $repo->expects(self::once())
-            ->method('findByEmail')
-            ->with('alice@example.com')
+            ->method('findById')
+            ->with($user->id())
             ->willReturn($user);
         $repo->expects(self::once())
             ->method('save')
             ->with($user);
 
         $handler = new PromoteUserToGlobalAdminCommandHandler($repo);
-        $result = $handler->__invoke(new PromoteUserToGlobalAdminCommand(' ALICE@Example.com '));
+        $result = $handler->__invoke(new PromoteUserToGlobalAdminCommand((string) $user->id()));
 
         self::assertSame($user, $result);
         self::assertTrue($user->isGlobalAdmin());

@@ -6,7 +6,7 @@ namespace App\User\Infrastructure\Cli;
 
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use App\User\Application\Message\Command\PromoteUserToGlobalAdminCommand;
-use App\User\Domain\Exception\UserNotFoundException;
+use App\User\Domain\Repository\UserRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -19,6 +19,7 @@ final class PromoteAdminCommand extends Command
 {
     public function __construct(
         private CommandBus $commandBus,
+        private UserRepository $userRepository,
     ) {
         parent::__construct();
     }
@@ -32,15 +33,14 @@ final class PromoteAdminCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        try {
-            $user = $this->commandBus->dispatch(
-                new PromoteUserToGlobalAdminCommand((string) $input->getArgument('email')),
-            );
-        } catch (UserNotFoundException) {
+        $user = $this->userRepository->findByEmail(strtolower(trim((string) $input->getArgument('email'))));
+        if ($user === null) {
             $io->error('User not found');
 
             return self::FAILURE;
         }
+
+        $user = $this->commandBus->dispatch(new PromoteUserToGlobalAdminCommand((string) $user->id()));
 
         $io->success(sprintf('%s is now a global admin (%s)', $user->email(), implode(', ', $user->roles())));
 

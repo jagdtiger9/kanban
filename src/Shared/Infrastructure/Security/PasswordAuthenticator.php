@@ -59,6 +59,12 @@ final class PasswordAuthenticator extends AbstractAuthenticator implements Inter
             throw new CustomUserMessageAuthenticationException('Invalid credentials');
         }
 
+        // check after the password so an unconfirmed account isn't distinguishable
+        // from a wrong password for someone who doesn't know the credentials
+        if (!$user->user()->isConfirmed()) {
+            throw new CustomUserMessageAuthenticationException('Please confirm your email address before signing in.');
+        }
+
         $passport = new SelfValidatingPassport(
             new UserBadge($user->getUserIdentifier(), fn () => $user),
         );

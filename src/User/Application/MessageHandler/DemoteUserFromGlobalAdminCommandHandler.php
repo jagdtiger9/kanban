@@ -8,6 +8,7 @@ use App\User\Application\Message\Command\DemoteUserFromGlobalAdminCommand;
 use App\User\Domain\Entity\User;
 use App\User\Domain\Exception\UserNotFoundException;
 use App\User\Domain\Repository\UserRepository;
+use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -20,7 +21,7 @@ final class DemoteUserFromGlobalAdminCommandHandler
 
     public function __invoke(DemoteUserFromGlobalAdminCommand $command): User
     {
-        $user = $this->userRepository->findByEmail(strtolower(trim($command->email)));
+        $user = $this->userRepository->findById(Uuid::fromString($command->userId));
         if ($user === null) {
             throw new UserNotFoundException('User not found');
         }

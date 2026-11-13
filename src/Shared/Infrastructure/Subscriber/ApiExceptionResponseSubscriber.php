@@ -17,8 +17,13 @@ use App\Project\Domain\Exception\ProjectForbiddenException;
 use App\Project\Domain\Exception\ProjectMemberAlreadyExistsException;
 use App\Project\Domain\Exception\ProjectMemberNotFoundException;
 use App\Project\Domain\Exception\ProjectNotFoundException;
+use App\User\Domain\Exception\ConfirmationTokenExpiredException;
+use App\User\Domain\Exception\ConfirmationTokenInvalidException;
+use App\User\Domain\Exception\CurrentPasswordInvalidException;
 use App\User\Domain\Exception\PasswordsDoNotMatchException;
+use App\User\Domain\Exception\UserAlreadyConfirmedException;
 use App\User\Domain\Exception\UserAlreadyRegisteredException;
+use App\User\Domain\Exception\UserNotFoundException;
 use Doctrine\DBAL\Exception\ConnectionException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
@@ -91,7 +96,11 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
         if ($throwable instanceof UserAlreadyRegisteredException) {
             return [Response::HTTP_CONFLICT, $throwable->getMessage()];
         }
-        if ($throwable instanceof PasswordsDoNotMatchException) {
+        if ($throwable instanceof PasswordsDoNotMatchException
+            || $throwable instanceof CurrentPasswordInvalidException
+            || $throwable instanceof ConfirmationTokenInvalidException
+            || $throwable instanceof ConfirmationTokenExpiredException
+        ) {
             return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
         }
         if ($throwable instanceof ProjectNotFoundException
@@ -100,6 +109,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof CardNotFoundException
             || $throwable instanceof LabelNotFoundException
             || $throwable instanceof CommentNotFoundException
+            || $throwable instanceof UserNotFoundException
         ) {
             return [Response::HTTP_NOT_FOUND, $throwable->getMessage()];
         }
@@ -112,6 +122,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
         if ($throwable instanceof LastProjectAdminException
             || $throwable instanceof ProjectMemberAlreadyExistsException
             || $throwable instanceof ColumnNotEmptyException
+            || $throwable instanceof UserAlreadyConfirmedException
         ) {
             return [Response::HTTP_CONFLICT, $throwable->getMessage()];
         }

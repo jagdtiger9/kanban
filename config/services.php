@@ -15,6 +15,7 @@ return App::config([
     'parameters' => [
         'security.remember_me.name' => 'remember_me',
         'security.login_check.url' => 'login_check',
+        'frontend_url' => env('FRONTEND_URL'),
     ],
     'services' => [
         // default configuration for services in *this* file

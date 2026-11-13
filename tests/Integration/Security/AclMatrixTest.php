@@ -26,6 +26,7 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
 
 /**
  * Route × actor matrix over the HTTP edge: every route must answer the agreed
@@ -80,6 +81,12 @@ final class AclMatrixTest extends DatabaseTestCase
             'project.create' => self::userRoute(201),
             'users.search' => self::userRoute(200),
             'auth.me' => self::userRoute(200),
+            'auth.password' => self::userRoute(200),
+
+            // Public
+            'auth.register' => ['anon' => 201],
+            'auth.confirm' => ['anon' => 200],
+            'auth.login' => ['anon' => 200],
 
             // Project members
             'project.get' => self::memberRoute(200),
@@ -120,6 +127,10 @@ final class AclMatrixTest extends DatabaseTestCase
 
             // Global admins only
             'project.delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
+            'users.list' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+            'user.confirm' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+            'user.promote' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+            'user.demote' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
         ];
 
         foreach ($matrix as $route => $byActor) {
@@ -156,18 +167,30 @@ final class AclMatrixTest extends DatabaseTestCase
     /**
      * Actors: member authored the seeded card and comment; other is a plain
      * member; admin holds the project admin role; global is a global admin
-     * with no project membership; outsider has no access at all.
+     * with no project membership; admin2 is a second global admin used as the
+     * demote target so the acting global user stays untouched; outsider has no
+     * access at all; candidate is unconfirmed with a pending token.
      *
-     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string}
+     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, confirmationToken: string}
      */
     private function seedFixture(): array
     {
         $usersRepo = $this->repo(UserRepository::class);
+        $confirmationToken = 'candidate-confirmation-token';
+        $passwordHash = self::getContainer()
+            ->get(PasswordHasherFactoryInterface::class)
+            ->getPasswordHasher(User::class)
+            ->hash('secret123');
         $users = [];
-        foreach (['outsider', 'member', 'other', 'admin', 'global', 'candidate'] as $name) {
-            $user = User::create(Uuid::uuid4(), sprintf('%s@acl.test', $name), 'hash', ucfirst($name));
-            if ($name === 'global') {
+        foreach (['outsider', 'member', 'other', 'admin', 'global', 'admin2', 'candidate'] as $name) {
+            $user = User::create(Uuid::uuid4(), sprintf('%s@acl.test', $name), $passwordHash, ucfirst($name));
+            if ($name === 'global' || $name === 'admin2') {
                 $user->promoteToGlobalAdmin();
+            }
+            if ($name === 'candidate') {
+                $user->beginEmailConfirmation(hash('sha256', $confirmationToken), new \DateTimeImmutable('+24 hours'));
+            } else {
+                $user->confirmAccount();
             }
             $usersRepo->save($user);
             $users[$name] = $user;
@@ -207,11 +230,12 @@ final class AclMatrixTest extends DatabaseTestCase
             'labelId' => (string) $label->id(),
             'cardId' => (string) $card->id(),
             'commentId' => (string) $comment->id(),
+            'confirmationToken' => $confirmationToken,
         ];
     }
 
     /**
-     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string} $fx
+     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, confirmationToken: string} $fx
      *
      * @return array<string, array{string, string, array<string, mixed>|null}>
      */
@@ -226,12 +250,17 @@ final class AclMatrixTest extends DatabaseTestCase
         $memberId = (string) $fx['users']['member']->id();
         $otherId = (string) $fx['users']['other']->id();
         $candidateId = (string) $fx['users']['candidate']->id();
+        $admin2Id = (string) $fx['users']['admin2']->id();
 
         return [
             'projects.list' => ['GET', '/api/projects', null],
             'project.create' => ['POST', '/api/projects', ['name' => 'Created project']],
             'users.search' => ['GET', '/api/users/search?term=acl', null],
             'auth.me' => ['GET', '/api/auth/me', null],
+            'auth.password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
+            'auth.register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
+            'auth.confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],
+            'auth.login' => ['POST', '/api/auth/login', ['email' => 'member@acl.test', 'password' => 'secret123']],
 
             'project.get' => ['GET', "/api/projects/$project", null],
             'board.get' => ['GET', "/api/projects/$project/board", null],
@@ -265,6 +294,11 @@ final class AclMatrixTest extends DatabaseTestCase
             'comment.delete' => ['DELETE', "/api/comments/$comment", null],
 
             'project.delete' => ['DELETE', "/api/projects/$project", null],
+
+            'users.list' => ['GET', '/api/users', null],
+            'user.confirm' => ['POST', "/api/users/$candidateId/confirm", null],
+            'user.promote' => ['POST', "/api/users/$otherId/promote", null],
+            'user.demote' => ['POST', "/api/users/$admin2Id/demote", null],
         ];
     }
 }

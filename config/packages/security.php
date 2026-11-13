@@ -63,6 +63,7 @@ return App::config([
         'access_control' => [
             ['path' => '^/api/ping', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/api/auth/register', 'roles' => ['PUBLIC_ACCESS']],
+            ['path' => '^/api/auth/confirm', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/api/auth/login', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/login_check', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/api/.+$', 'roles' => [UserRole::ROLE_USER->name]],

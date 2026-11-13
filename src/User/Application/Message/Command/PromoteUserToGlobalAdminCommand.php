@@ -11,8 +11,8 @@ final class PromoteUserToGlobalAdminCommand implements Command
 {
     public function __construct(
         #[Assert\NotBlank]
-        #[Assert\Email]
-        public string $email,
+        #[Assert\Uuid]
+        public string $userId,
     ) {
     }
 }

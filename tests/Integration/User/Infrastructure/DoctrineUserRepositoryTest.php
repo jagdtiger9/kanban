@@ -74,4 +74,30 @@ final class DoctrineUserRepositoryTest extends DatabaseTestCase
         self::assertSame([], $this->repo->findBySearchTerm('zzz'));
         self::assertSame([], $this->repo->findBySearchTerm('  '));
     }
+
+    public function testFindByConfirmationTokenHash(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->beginEmailConfirmation(hash('sha256', 'secret-token'), new \DateTimeImmutable('+24 hours'));
+        $this->repo->save($user);
+        $this->em()->clear();
+
+        $found = $this->repo->findByConfirmationTokenHash(hash('sha256', 'secret-token'));
+
+        self::assertNotNull($found);
+        self::assertTrue($found->id()->equals($user->id()));
+        self::assertNull($this->repo->findByConfirmationTokenHash(hash('sha256', 'other')));
+    }
+
+    public function testFindAllOrderedByDisplayName(): void
+    {
+        $this->repo->save(User::create(Uuid::uuid4(), 'zed@example.com', 'hash', 'Zed'));
+        $this->repo->save(User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice'));
+        $this->repo->save(User::create(Uuid::uuid4(), 'bob@example.com', 'hash', 'Bob'));
+        $this->em()->clear();
+
+        $all = $this->repo->findAllOrderedByDisplayName();
+
+        self::assertSame(['Alice', 'Bob', 'Zed'], array_map(static fn (User $u): string => $u->displayName(), $all));
+    }
 }

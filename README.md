@@ -28,6 +28,21 @@ Prerequisites:
 API: https://canban.local (caddy edge → angie → php-fpm). Database: the base env `pg`
 container, database/user `canban`.
 
+Email: the shared env runs Mailpit in its `main` profile. Confirmation emails are sent
+to `smtp://mailpit:1025` and captured there instead of being delivered — open
+http://localhost:8025 to read them. No real SMTP transport is configured in dev.
+
+New accounts stay unconfirmed until the user opens the emailed link
+(`/confirm/<token>`, valid for 24 hours) or a global admin confirms them from
+`/admin/users`. Unconfirmed accounts cannot sign in.
+
+## Configuration
+
+| Variable | Development value | Purpose |
+| --- | --- | --- |
+| `MAILER_DSN` | `smtp://mailpit:1025` | Mailer transport (`.env.test` overrides with `null://null`) |
+| `FRONTEND_URL` | `https://canban.local` | Base URL for links embedded in emails (confirmation link) |
+
 ## Commands
 
 | Command | What it does |

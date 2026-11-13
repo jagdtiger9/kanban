@@ -10,6 +10,7 @@ import RenameProjectDialog from '../components/RenameProjectDialog.vue'
 import { useAuthStore } from '../stores/auth'
 import { useProjectsStore } from '../stores/projects'
 import { useTheme } from '../composables/useTheme'
+import { isGlobalAdmin } from '../utils/roles'
 
 type ApiState = 'checking' | 'ok' | 'down'
 
@@ -29,7 +30,7 @@ const { isDark, toggleTheme } = useTheme()
 
 const apiState = ref<ApiState>('checking')
 const userInitial = computed(() => (auth.user?.displayName[0] ?? '?').toUpperCase())
-const isGlobalAdmin = computed(() => auth.user?.roles.includes('ROLE_GLOBAL_ADMIN') ?? false)
+const isAdmin = computed(() => isGlobalAdmin(auth.user))
 
 const showCreate = ref(false)
 const renameTarget = ref<ProjectPayload | null>(null)
@@ -140,6 +141,19 @@ async function runConfirm(): Promise<void> {
                 >
                     {{ isDark ? '☀' : '☾' }}
                 </button>
+                <RouterLink
+                    v-if="isAdmin"
+                    to="/admin/users"
+                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                >
+                    Users
+                </RouterLink>
+                <RouterLink
+                    to="/settings"
+                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                >
+                    Settings
+                </RouterLink>
                 <button
                     type="button"
                     class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
@@ -237,7 +251,7 @@ async function runConfirm(): Promise<void> {
                                 Archive
                             </button>
                             <button
-                                v-if="isGlobalAdmin"
+                                v-if="isAdmin"
                                 type="button"
                                 class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover"
                                 @click="askDelete(project)"

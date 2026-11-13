@@ -12,6 +12,10 @@ export interface AuthResponse {
     isAuth: boolean
 }
 
+export interface MessageResponse {
+    message: string
+}
+
 export function login(email: string, password: string, rememberMe: boolean): Promise<AuthResponse> {
     return api<AuthResponse>('/auth/login', {
         method: 'POST',
@@ -24,10 +28,28 @@ export function register(
     password: string,
     passwordConfirmation: string,
     displayName: string,
-): Promise<AuthResponse> {
-    return api<AuthResponse>('/auth/register', {
+): Promise<MessageResponse> {
+    return api<MessageResponse>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ email, password, passwordConfirmation, displayName }),
+    })
+}
+
+export function confirmEmail(token: string): Promise<MessageResponse> {
+    return api<MessageResponse>('/auth/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+    })
+}
+
+export function changePassword(
+    currentPassword: string,
+    newPassword: string,
+    newPasswordConfirmation: string,
+): Promise<MessageResponse> {
+    return api<MessageResponse>('/auth/password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword, newPasswordConfirmation }),
     })
 }
 

@@ -42,6 +42,11 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   `columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE'` on the attributes for the DDL.
   The comparator ignores `columnDefinition` and the type's inherited declaration
   mirrors introspection, so schema diffs stay clean.
+- Email confirmation: the raw token goes out in the link (`/confirm/<token>`), only its
+  SHA-256 hash is stored (`confirmation_token_hash`, 64 chars) with a 24h expiry.
+  Sending is driven by the `UserRegistered` domain event → listener →
+  `ConfirmationEmailSender`. Mailer config lives under `framework.mailer` in
+  `config/packages/mailer.php` (with `message_bus: false`).
 - TDD: every Domain and Application class gets unit tests; repositories get integration
   tests against the real Postgres in the Docker stack.
 
@@ -85,6 +90,15 @@ Approved 2026-11-12. One step at a time; explicit approval after each step. Step
 
 - Card status list = checklist inside a card.
 
+### Accounts round (approved 2026-11-13)
+
+- Self-service change password on a Settings page (current password verified).
+- Email confirmation on registration: unconfirmed users cannot sign in; the link opens
+  a frontend `/confirm/<token>` page; a global admin can confirm manually. Mail is
+  captured by Mailpit in the shared base env (no real SMTP in v1).
+- Global-admin users list at `/admin/users`: confirm accounts, promote/demote global
+  admins. Project admins do NOT get access (global admin only).
+
 ### Steps
 
 1. `[x]` **Scaffold** — Symfony 8.1 skeleton + Docker stack (verified `GET /api/ping`
@@ -113,6 +127,15 @@ Approved 2026-11-12. One step at a time; explicit approval after each step. Step
     built frontend served directly by angie, Yarn 4 migration, security-interface
     cleanup (Domain `User` + `SecurityUser` adapter). Production deployment docs
     deferred by decision (docs-only for now).
+11. `[x]` **Change password** — `POST /api/auth/password` (current password verified,
+    confirmation must match) + Settings page.
+12. `[x]` **Email confirmation** — `User` confirmation token fields + migration (existing
+    users backfilled confirmed); `UserRegistered` event → Mailer listener (Mailpit);
+    public `POST /api/auth/confirm` + `/confirm/:token` page; login gated on
+    `isConfirmed()` after the password check.
+13. `[x]` **Admin users list** — `GET /api/users` + confirm/promote/demote actions gated
+    by `ProjectAccessVoter::GLOBAL_ADMIN`; promote/demote commands switched email →
+    `userId` (CLI resolves email); `/admin/users` table in the frontend.
 
 After the baseline works: dedicated discussion of SaaS scenarios (multi-tenant flavor)
 before any of it is built.

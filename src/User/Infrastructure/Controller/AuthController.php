@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\User\Infrastructure\Controller;
 
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
-use App\Shared\Infrastructure\Security\PasswordAuthenticator;
 use App\Shared\Infrastructure\Security\SecurityUser;
+use App\User\Application\Message\Command\ChangePasswordCommand;
+use App\User\Application\Message\Command\ConfirmEmailCommand;
 use App\User\Application\Message\Command\RegisterCommand;
 use App\User\Domain\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,15 +35,40 @@ final class AuthController extends AbstractController
         return $this->json($this->userPayload($this->domainUser($security->getUser())));
     }
 
-    public function register(RegisterCommand $command, Security $security): JsonResponse
+    public function register(RegisterCommand $command): JsonResponse
     {
-        $user = $this->commandBus->dispatch($command);
+        $this->commandBus->dispatch($command);
 
-        // auto-login right after registration; the explicit authenticator name
-        // is required because the firewall has more than one
-        $security->login(SecurityUser::fromUser($user), PasswordAuthenticator::class);
+        return $this->json(
+            ['message' => 'Registration successful. Check your inbox to confirm your email address.'],
+            Response::HTTP_CREATED,
+        );
+    }
 
-        return $this->json($this->userPayload($user), Response::HTTP_CREATED);
+    public function confirm(ConfirmEmailCommand $command): JsonResponse
+    {
+        $this->commandBus->dispatch($command);
+
+        return $this->json(['message' => 'Your email address has been confirmed. You can now sign in.']);
+    }
+
+    #[IsGranted('ROLE_USER')]
+    public function changePassword(ChangePasswordCommand $command, Security $security): JsonResponse
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return $this->json(['message' => 'Your password has been updated.']);
+    }
+
+    private function actorId(Security $security): string
+    {
+        $user = $security->getUser();
+        if (!$user instanceof SecurityUser) {
+            throw new \LogicException('Unexpected user type');
+        }
+
+        return (string) $user->getId();
     }
 
     private function domainUser(?UserInterface $user): User

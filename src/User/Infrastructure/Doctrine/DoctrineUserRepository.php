@@ -36,6 +36,20 @@ final class DoctrineUserRepository extends ServiceEntityRepository implements Us
         return $this->findOneBy(['email' => $email]);
     }
 
+    public function findByConfirmationTokenHash(string $tokenHash): ?User
+    {
+        return $this->findOneBy(['confirmationTokenHash' => $tokenHash]);
+    }
+
+    public function findAllOrderedByDisplayName(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->orderBy('u.displayName', 'ASC')
+            ->addOrderBy('u.email', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findBySearchTerm(string $term): array
     {
         $term = strtolower(trim($term));
