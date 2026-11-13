@@ -1,35 +1,68 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
+import { useAuthStore } from '../stores/auth'
+import { ApiError } from '../api/client'
+
+const router = useRouter()
+const auth = useAuthStore()
 
 const email = ref('')
 const password = ref('')
+const rememberMe = ref(false)
+const error = ref<string | null>(null)
+const submitting = ref(false)
+
+async function submit(): Promise<void> {
+    error.value = null
+    submitting.value = true
+    try {
+        await auth.login(email.value, password.value, rememberMe.value)
+        router.push({ name: 'board' })
+    } catch (e) {
+        error.value = e instanceof ApiError ? e.message : 'Something went wrong'
+    } finally {
+        submitting.value = false
+    }
+}
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
-    <div class="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 shadow-xl">
-      <div class="mb-8 text-center">
-        <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-sky-600 text-xl font-bold text-white">
-          C
-        </div>
-        <h1 class="text-2xl font-semibold">Canban</h1>
-        <p class="mt-1 text-sm text-zinc-400">A small Trello-style board for your projects</p>
-      </div>
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
+            <div class="mb-8 text-center">
+                <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand text-xl font-bold text-white">
+                    C
+                </div>
+                <h1 class="text-2xl font-semibold">Canban</h1>
+                <p class="mt-1 text-sm text-muted">A small Trello-style board for your projects</p>
+            </div>
 
-      <form class="space-y-4" @submit.prevent>
-        <div>
-          <label for="email" class="mb-1 block text-sm font-medium text-zinc-300">Email</label>
-          <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" />
+            <form class="space-y-4" @submit.prevent="submit">
+                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                    {{ error }}
+                </p>
+                <div>
+                    <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
+                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com"/>
+                </div>
+                <div>
+                    <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
+                    <InputText id="password" v-model="password" type="password" autocomplete="current-password" placeholder="••••••••"/>
+                </div>
+                <label for="remember-me" class="flex cursor-pointer items-center gap-2 text-sm text-body">
+                    <Checkbox v-model="rememberMe" :binary="true" input-id="remember-me"/>
+                    Remember me
+                </label>
+                <Button type="submit" label="Sign in" class="w-full" :disabled="submitting"/>
+                <p class="text-center text-sm text-muted">
+                    No account yet?
+                    <RouterLink to="/register" class="text-brand-text hover:text-brand-text-hover">Create one</RouterLink>
+                </p>
+            </form>
         </div>
-        <div>
-          <label for="password" class="mb-1 block text-sm font-medium text-zinc-300">Password</label>
-          <InputText id="password" v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" />
-        </div>
-        <Button type="submit" label="Sign in" class="w-full" disabled />
-        <p class="text-center text-xs text-zinc-500">Auth arrives in step 3</p>
-      </form>
     </div>
-  </div>
 </template>

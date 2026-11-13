@@ -1,40 +1,62 @@
-.PHONY: up down restart ps logs console cc migrate db-shell ping fe-install fe-dev fe-build
+.PHONY: console cc migrate db-shell ping test fe-install fe-dev fe-build
 
-up: ## Build and start the Docker stack (db, php-fpm, nginx)
-	docker compose up -d --build
+##
+## —— 🏰 Caban Makefile ——————————————————————————————————————————————————
+help: ## Print this help screen
+	@grep -E '(^[a-zA-Z0-9\./_-]+:.*?##.*$$)|(^##)' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}{printf "\033[32m%-30s\033[0m %s\n", $$1, $$2}' | sed -e 's/\[32m##/[33m/'
 
-down: ## Stop the Docker stack
-	docker compose down
+##
+## —— Permissions 🔐 ——————————————————————————————————————————————————————
+# Usage: make permissions
+permissions: ## Set filesystem ACLs for web-user on public/uploads/ and var/
+	HTTPDUSER=web-user && HTTPDGROUP=web-group \
+	&& echo $$HTTPDUSER \
+	&& sudo chown -R "$$HTTPDUSER:$$HTTPDGROUP" public/uploads/ var/ \
+	&& sudo setfacl -R -m d:u:"$$HTTPDUSER":rwX,u:"$$HTTPDUSER":rwX -m d:u:$$(whoami):rwX,u:$$(whoami):rwX public/uploads/ \
+	&& sudo setfacl -R -m d:u:"$$HTTPDUSER":rwX,u:"$$HTTPDUSER":rwX -m d:u:$$(whoami):rwX,u:$$(whoami):rwX public/var/
 
-restart: ## Restart the Docker stack
-	docker compose restart
+##
+## —— Packages 📦 ————————————————————————————————————————————————————————
+## Useful for PROD to avoid composer.lock conflicts when using local filesystem packages
+packages: ## Update aljerom/simple-hydrator and aljerom/cqrs-events
+	composer update aljerom/simple-hydrator aljerom/cqrs-events
 
-ps: ## Show container status
-	docker compose ps
+##
+## —— Doctrine Migrations 🗄️ ————————————————————————————————————————————
+migrations.diff: ## Generate main DB migration diff
+	php bin/console doctrine:migrations:diff --configuration=config/migrations/main.php
+migrations.diff.tenant: ## Generate tenant DB migration diff
+	php bin/console doctrine:migrations:diff --configuration=config/migrations/tenant.php
 
-logs: ## Tail logs from all services
-	docker compose logs -f --tail=100
+migrations.migrate: ## Run main DB migrations
+	php bin/console doctrine:migrations:migrate --configuration=config/migrations/main.php --no-interaction --allow-no-migration
+migrations.migrate.tenant: ## Run tenant migrations on the base copies of tenant tables
+	php bin/console doctrine:migrations:migrate --configuration=config/migrations/tenant.php --no-interaction --allow-no-migration
+migrations.migrate.schema: ## Run tenant migrations on a specific tenant schema, e.g. make migrations.migrate.schema SCHEMA=shop__aljerom
+	php bin/console app:tenant:migrate $(SCHEMA)
+migrations.migrate.tenants: ## Run tenant migrations on all tenant schemas (shop__*)
+	php bin/console app:tenant:migrate --all
 
-console: ## Run a Symfony console command inside php, e.g. make console ARGS="debug:router"
-	docker compose exec php bin/console $(ARGS)
+console: ## Run a Symfony console command, e.g. make console ARGS="debug:router"
+	make -C ../../Docker run PROJECT=canban CMD="bin/console $(ARGS)"
 
-cc: ## Clear the Symfony cache inside php
-	docker compose exec php bin/console cache:clear
+cc: ## Clear the Symfony cache
+	make -C ../../Docker run PROJECT=canban CMD="bin/console cache:clear"
 
 migrate: ## Run pending Doctrine migrations
-	docker compose exec php bin/console doctrine:migrations:migrate --no-interaction
+	make -C ../../Docker run PROJECT=canban CMD="bin/console doctrine:migrations:migrate --no-interaction"
 
-db-shell: ## Open a psql shell on the dev database
-	docker compose exec db psql -U canban canban
+db-shell: ## Open a psql shell on the dev database (base env pg)
+	docker exec -it pg psql -U canban canban
 
-ping: ## Check the API ping endpoint
-	curl -s http://localhost:8080/api/ping
+ping: ## Check the API ping endpoint (needs canban.local in /etc/hosts)
+	curl -s https://canban.local/api/ping
+
+test: ## Run the PHPUnit suite in the fpm container
+	make -C ../../Docker run PROJECT=canban CMD="bin/phpunit"
 
 fe-install: ## Install frontend dependencies
-	cd frontend && npm install
+	cd frontend && yarn install
 
-fe-dev: ## Start the Vite dev server (http://localhost:5173, /api proxied to :8080)
-	cd frontend && npm run dev
-
-fe-build: ## Type-check and build the frontend into frontend/dist
-	cd frontend && npm run build
+fe-build: ## Type-check and build the frontend into public/build (served by angie)
+	cd frontend && yarn build

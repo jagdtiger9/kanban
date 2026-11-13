@@ -1,0 +1,95 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import { useAuthStore } from '../stores/auth'
+import { ApiError } from '../api/client'
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const displayName = ref('')
+const email = ref('')
+const password = ref('')
+const passwordConfirmation = ref('')
+const error = ref<string | null>(null)
+const fieldErrors = ref<Record<string, string>>({})
+const submitting = ref(false)
+
+async function submit(): Promise<void> {
+    error.value = null
+    fieldErrors.value = {}
+    submitting.value = true
+    try {
+        await auth.register(email.value, password.value, passwordConfirmation.value, displayName.value)
+        router.push({ name: 'board' })
+    } catch (e) {
+        if (e instanceof ApiError) {
+            for (const fieldError of e.errors) {
+                fieldErrors.value[fieldError.property] = fieldError.message
+            }
+            if (e.errors.length === 0) {
+                error.value = e.message
+            }
+        } else {
+            error.value = 'Something went wrong'
+        }
+    } finally {
+        submitting.value = false
+    }
+}
+</script>
+
+<template>
+    <div class="flex min-h-screen items-center justify-center p-4">
+        <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
+            <div class="mb-8 text-center">
+                <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand text-xl font-bold text-white">
+                    C
+                </div>
+                <h1 class="text-2xl font-semibold">Canban</h1>
+                <p class="mt-1 text-sm text-muted">Create your account</p>
+            </div>
+
+            <form class="space-y-4" @submit.prevent="submit">
+                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                    {{ error }}
+                </p>
+                <div>
+                    <label for="display-name" class="mb-1 block text-sm font-medium text-body">Display name</label>
+                    <InputText id="display-name" v-model="displayName" autocomplete="name" placeholder="Alice"/>
+                    <p v-if="fieldErrors.displayName" class="mt-1 text-xs text-danger-text">{{ fieldErrors.displayName }}</p>
+                </div>
+                <div>
+                    <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
+                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com"/>
+                    <p v-if="fieldErrors.email" class="mt-1 text-xs text-danger-text">{{ fieldErrors.email }}</p>
+                </div>
+                <div>
+                    <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
+                    <InputText id="password" v-model="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"/>
+                    <p v-if="fieldErrors.password" class="mt-1 text-xs text-danger-text">{{ fieldErrors.password }}</p>
+                </div>
+                <div>
+                    <label for="password-confirmation" class="mb-1 block text-sm font-medium text-body">Confirm password</label>
+                    <InputText
+                        id="password-confirmation"
+                        v-model="passwordConfirmation"
+                        type="password"
+                        autocomplete="new-password"
+                        placeholder="Repeat the password"
+                    />
+                    <p v-if="fieldErrors.passwordConfirmation" class="mt-1 text-xs text-danger-text">
+                        {{ fieldErrors.passwordConfirmation }}
+                    </p>
+                </div>
+                <Button type="submit" label="Create account" class="w-full" :disabled="submitting"/>
+                <p class="text-center text-sm text-muted">
+                    Already registered?
+                    <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Sign in</RouterLink>
+                </p>
+            </form>
+        </div>
+    </div>
+</template>

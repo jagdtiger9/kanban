@@ -1,12 +1,82 @@
 @import 'tailwindcss';
 
-@custom-variant dark (&:where(.dark, .dark *));
-@custom-variant light (&:where(.light, .light *));
-
-body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
+/* Semantic surface/text/border tokens. Dark values mirror the original zinc
+   palette; light values are designed counterparts. The html element always
+   carries exactly one of .dark / .light (set before mount in index.html). */
+.dark {
+    color-scheme: dark;
+    --app-page: #09090b;
+    --app-panel: #18181b;
+    --app-raised: #27272a;
+    --app-active: #3f3f46;
+    --app-line: #27272a;
+    --app-line-strong: #3f3f46;
+    --app-line-emphasis: #71717a;
+    --app-strong: #f4f4f5;
+    --app-body: #d4d4d8;
+    --app-muted: #a1a1aa;
+    --app-faint: #71717a;
+    --app-brand: #0284c7;
+    --app-brand-hover: #0ea5e9;
+    --app-brand-text: #38bdf8;
+    --app-brand-text-hover: #7dd3fc;
+    --app-danger: #dc2626;
+    --app-danger-hover: #ef4444;
+    --app-danger-text: #f87171;
+    --app-danger-text-hover: #fca5a5;
+    --app-warn: #f59e0b;
+    --app-warn-text: #fbbf24;
 }
 
-.light body {
-  @apply bg-zinc-100 text-zinc-900;
+.light {
+    color-scheme: light;
+    --app-page: #f4f4f5;
+    --app-panel: #ffffff;
+    --app-raised: #f4f4f5;
+    --app-active: #e4e4e7;
+    --app-line: #e4e4e7;
+    --app-line-strong: #d4d4d8;
+    --app-line-emphasis: #a1a1aa;
+    --app-strong: #18181b;
+    --app-body: #3f3f46;
+    --app-muted: #52525b;
+    --app-faint: #71717a;
+    --app-brand: #0284c7;
+    --app-brand-hover: #0ea5e9;
+    --app-brand-text: #0369a1;
+    --app-brand-text-hover: #075985;
+    --app-danger: #dc2626;
+    --app-danger-hover: #ef4444;
+    --app-danger-text: #b91c1c;
+    --app-danger-text-hover: #991b1b;
+    --app-warn: #d97706;
+    --app-warn-text: #b45309;
+}
+
+@theme inline {
+    --color-page: var(--app-page);
+    --color-panel: var(--app-panel);
+    --color-raised: var(--app-raised);
+    --color-active: var(--app-active);
+    --color-line: var(--app-line);
+    --color-line-strong: var(--app-line-strong);
+    --color-line-emphasis: var(--app-line-emphasis);
+    --color-strong: var(--app-strong);
+    --color-body: var(--app-body);
+    --color-muted: var(--app-muted);
+    --color-faint: var(--app-faint);
+    --color-brand: var(--app-brand);
+    --color-brand-hover: var(--app-brand-hover);
+    --color-brand-text: var(--app-brand-text);
+    --color-brand-text-hover: var(--app-brand-text-hover);
+    --color-danger: var(--app-danger);
+    --color-danger-hover: var(--app-danger-hover);
+    --color-danger-text: var(--app-danger-text);
+    --color-danger-text-hover: var(--app-danger-text-hover);
+    --color-warn: var(--app-warn);
+    --color-warn-text: var(--app-warn-text);
+}
+
+body {
+    @apply bg-page text-strong antialiased;
 }
