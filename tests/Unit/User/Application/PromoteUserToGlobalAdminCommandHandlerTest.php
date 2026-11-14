@@ -47,6 +47,29 @@ final class PromoteUserToGlobalAdminCommandHandlerTest extends TestCase
 
         self::assertSame($user, $result);
         self::assertTrue($user->isGlobalAdmin());
+        self::assertTrue($user->isConfirmed());
         self::assertSame(['ROLE_USER', 'ROLE_GLOBAL_ADMIN'], $user->roles());
+    }
+
+    public function testKeepsExistingConfirmation(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->confirmAccount();
+        $confirmedAt = $user->confirmedAt();
+
+        $repo = $this->createMock(UserRepository::class);
+        $repo->expects(self::once())
+            ->method('findById')
+            ->with($user->id())
+            ->willReturn($user);
+        $repo->expects(self::once())
+            ->method('save')
+            ->with($user);
+
+        $handler = new PromoteUserToGlobalAdminCommandHandler($repo);
+        $handler->__invoke(new PromoteUserToGlobalAdminCommand((string) $user->id()));
+
+        self::assertTrue($user->isGlobalAdmin());
+        self::assertSame($confirmedAt, $user->confirmedAt());
     }
 }

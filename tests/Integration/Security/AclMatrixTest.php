@@ -129,8 +129,6 @@ final class AclMatrixTest extends DatabaseTestCase
             'project.delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
             'users.list' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
             'user.confirm' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
-            'user.promote' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
-            'user.demote' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
         ];
 
         foreach ($matrix as $route => $byActor) {
@@ -167,9 +165,8 @@ final class AclMatrixTest extends DatabaseTestCase
     /**
      * Actors: member authored the seeded card and comment; other is a plain
      * member; admin holds the project admin role; global is a global admin
-     * with no project membership; admin2 is a second global admin used as the
-     * demote target so the acting global user stays untouched; outsider has no
-     * access at all; candidate is unconfirmed with a pending token.
+     * with no project membership; outsider has no access at all; candidate is
+     * unconfirmed with a pending token.
      *
      * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, confirmationToken: string}
      */
@@ -182,9 +179,9 @@ final class AclMatrixTest extends DatabaseTestCase
             ->getPasswordHasher(User::class)
             ->hash('secret123');
         $users = [];
-        foreach (['outsider', 'member', 'other', 'admin', 'global', 'admin2', 'candidate'] as $name) {
+        foreach (['outsider', 'member', 'other', 'admin', 'global', 'candidate'] as $name) {
             $user = User::create(Uuid::uuid4(), sprintf('%s@acl.test', $name), $passwordHash, ucfirst($name));
-            if ($name === 'global' || $name === 'admin2') {
+            if ($name === 'global') {
                 $user->promoteToGlobalAdmin();
             }
             if ($name === 'candidate') {
@@ -250,7 +247,6 @@ final class AclMatrixTest extends DatabaseTestCase
         $memberId = (string) $fx['users']['member']->id();
         $otherId = (string) $fx['users']['other']->id();
         $candidateId = (string) $fx['users']['candidate']->id();
-        $admin2Id = (string) $fx['users']['admin2']->id();
 
         return [
             'projects.list' => ['GET', '/api/projects', null],
@@ -297,8 +293,6 @@ final class AclMatrixTest extends DatabaseTestCase
 
             'users.list' => ['GET', '/api/users', null],
             'user.confirm' => ['POST', "/api/users/$candidateId/confirm", null],
-            'user.promote' => ['POST', "/api/users/$otherId/promote", null],
-            'user.demote' => ['POST', "/api/users/$admin2Id/demote", null],
         ];
     }
 }

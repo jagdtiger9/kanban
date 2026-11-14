@@ -26,11 +26,3 @@ export function listUsers(): Promise<AdminUserPayload[]> {
 export function confirmUser(id: string): Promise<AdminUserPayload> {
     return api<AdminUserPayload>(`/users/${id}/confirm`, { method: 'POST' })
 }
-
-export function promoteUser(id: string): Promise<AdminUserPayload> {
-    return api<AdminUserPayload>(`/users/${id}/promote`, { method: 'POST' })
-}
-
-export function demoteUser(id: string): Promise<AdminUserPayload> {
-    return api<AdminUserPayload>(`/users/${id}/demote`, { method: 'POST' })
-}

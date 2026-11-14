@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { ApiError } from '../api/client'
-import { confirmUser, demoteUser, listUsers, promoteUser } from '../api/users'
+import { confirmUser, listUsers } from '../api/users'
 import type { AdminUserPayload } from '../api/users'
 import { useAuthStore } from '../stores/auth'
 
@@ -12,7 +11,6 @@ const users = ref<AdminUserPayload[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const busyUserId = ref<string | null>(null)
-const demoteTarget = ref<AdminUserPayload | null>(null)
 
 async function load(): Promise<void> {
     loading.value = true
@@ -46,18 +44,6 @@ function confirmAccount(user: AdminUserPayload): Promise<void> {
     return run(user, confirmUser)
 }
 
-function promote(user: AdminUserPayload): Promise<void> {
-    return run(user, promoteUser)
-}
-
-async function runDemote(): Promise<void> {
-    const user = demoteTarget.value
-    demoteTarget.value = null
-    if (user) {
-        await run(user, demoteUser)
-    }
-}
-
 onMounted(load)
 </script>
 
@@ -66,7 +52,7 @@ onMounted(load)
         <div class="mx-auto max-w-3xl">
             <div class="mb-6">
                 <h1 class="text-xl font-semibold">Users</h1>
-                <p class="mt-1 text-sm text-muted">Confirm accounts and manage global admins.</p>
+                <p class="mt-1 text-sm text-muted">Confirm accounts.</p>
             </div>
 
             <p
@@ -127,40 +113,12 @@ onMounted(load)
                                     >
                                         Confirm
                                     </button>
-                                    <button
-                                        v-if="!user.isGlobalAdmin"
-                                        type="button"
-                                        :disabled="busyUserId === user.id"
-                                        class="cursor-pointer rounded-lg px-2 py-1 text-xs text-body transition-colors hover:bg-active hover:text-strong disabled:cursor-wait disabled:opacity-50"
-                                        @click="promote(user)"
-                                    >
-                                        Promote
-                                    </button>
-                                    <button
-                                        v-else
-                                        type="button"
-                                        :disabled="busyUserId === user.id"
-                                        class="cursor-pointer rounded-lg px-2 py-1 text-xs text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover disabled:cursor-wait disabled:opacity-50"
-                                        @click="demoteTarget = user"
-                                    >
-                                        Demote
-                                    </button>
                                 </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-
-            <ConfirmDialog
-                v-if="demoteTarget"
-                title="Demote admin"
-                :message="`Remove the global admin role from “${demoteTarget.displayName}”?`"
-                confirm-label="Demote"
-                :danger="true"
-                @confirm="runDemote"
-                @cancel="demoteTarget = null"
-            />
         </div>
     </main>
 </template>

@@ -27,6 +27,9 @@ final class PromoteUserToGlobalAdminCommandHandler
         }
 
         $user->promoteToGlobalAdmin();
+        if (!$user->isConfirmed()) {
+            $user->confirmAccount();
+        }
         $this->userRepository->save($user);
 
         return $user;

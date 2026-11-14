@@ -8,8 +8,6 @@ use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
 use App\Shared\Infrastructure\Security\ProjectAccessVoter;
 use App\User\Application\Message\Command\ConfirmUserAccountCommand;
-use App\User\Application\Message\Command\DemoteUserFromGlobalAdminCommand;
-use App\User\Application\Message\Command\PromoteUserToGlobalAdminCommand;
 use App\User\Application\Message\Query\ListUsersQuery;
 use App\User\Application\Message\Query\SearchUsersQuery;
 use App\User\Domain\Entity\User;
@@ -49,20 +47,6 @@ final class UserController extends AbstractController
     }
 
     public function confirmUser(ConfirmUserAccountCommand $command): JsonResponse
-    {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
-
-        return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
-    }
-
-    public function promote(PromoteUserToGlobalAdminCommand $command): JsonResponse
-    {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
-
-        return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
-    }
-
-    public function demote(DemoteUserFromGlobalAdminCommand $command): JsonResponse
     {
         $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
 

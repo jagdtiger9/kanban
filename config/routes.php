@@ -302,16 +302,6 @@ $config = Routes::config([
         'controller' => [UserController::class, 'confirmUser'],
         'methods' => ['POST'],
     ],
-    'api_user_promote' => [
-        'path' => '/api/users/{userId}/promote',
-        'controller' => [UserController::class, 'promote'],
-        'methods' => ['POST'],
-    ],
-    'api_user_demote' => [
-        'path' => '/api/users/{userId}/demote',
-        'controller' => [UserController::class, 'demote'],
-        'methods' => ['POST'],
-    ],
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',
         'controller' => [BoardController::class, 'get'],
