@@ -44,9 +44,31 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   mirrors introspection, so schema diffs stay clean.
 - Email confirmation: the raw token goes out in the link (`/confirm/<token>`), only its
   SHA-256 hash is stored (`confirmation_token_hash`, 64 chars) with a 24h expiry.
-  Sending is driven by the `UserRegistered` domain event → listener →
-  `ConfirmationEmailSender`. Mailer config lives under `framework.mailer` in
+  Registration records only the `UserRegistered` event (no token) → outbox → Messenger
+  async → `SendConfirmationEmailHandler` issues the raw token in the worker, stores its
+  hash, then sends via `ConfirmationEmailSender` — so the token never enters the outbox
+  or RabbitMQ. Mailer config lives under `framework.mailer` in
   `config/packages/mailer.php` (with `message_bus: false`).
+- Realtime: Centrifugo v6 (`canban-centrifugo` in `~/work/Docker/custom.yaml`) serves
+  `wss://canban.local/connection/websocket`; channels are `project:<projectId>`, and
+  the `project` namespace requires subscription tokens (HS256,
+  `CENTRIFUGO_TOKEN_SECRET`, 600 s TTL). `GET /api/realtime/token` verifies membership
+  and returns connection + subscription tokens. Domain events are forwarded by
+  `RealtimeEventForwarder` → `CentrifugoNotifier` (`POST /api/publish`, using
+  `CENTRIFUGO_URL` / `CENTRIFUGO_API_KEY`); publications are invalidations only
+  (`{type: board.changed, event, actorId}`) and the frontend refetches. Forwarding runs
+  asynchronously in the shared worker (see the outbox note below).
+- Domain events & outbox: entities record events (`DomainEventAwareInterface` +
+  `EventStoreTrait`), handlers never dispatch. The bundle's `onFlush` listener appends
+  them to `domain_event` in the same transaction; the bundle's
+  `DomainEventPublishSubscriber` dispatches them on `event.bus` at `kernel.terminate`,
+  console terminate, and after each handled worker message, then deletes the row. Both
+  classes (and `DomainEventTrait`) come from `aljerom/symfony-boilerplate`; the app only
+  supplies the `DomainEvent` entity and a two-method `DoctrineEventRepository`. Routing
+  sends `App\{Board,Project,User}\Domain\Event\*` to the `async` transport (AMQP
+  exchange `canban`, queue `canban_default`); the shared `php-worker` consumes it, and
+  exhausted messages go to the Doctrine `failed` transport. Tests use `sync://`, so
+  events run in-process. Details: `docs/plans/outbox.md`.
 - TDD: every Domain and Application class gets unit tests; repositories get integration
   tests against the real Postgres in the Docker stack.
 
@@ -57,6 +79,14 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   compose stack. `127.0.0.1 canban.local` must be in `/etc/hosts`.
 - `make console ARGS="..."`, `make cc`, `make migrate`, `make db-shell` (opens psql in
   the base `pg` container), `make ping`, `make test` (PHPUnit in the fpm container)
+- Realtime env (untracked `.env`, values from `~/work/Docker/.env`):
+  `CENTRIFUGO_WS_URL`, `CENTRIFUGO_TOKEN_SECRET`, `CENTRIFUGO_URL`,
+  `CENTRIFUGO_API_KEY`.
+- Async events are consumed by the shared `php-worker` service
+  (`canban-messenger-consumer`, `messenger:consume async`; config
+  `~/work/Docker/data/config/worker/messenger-worker.conf`). It recycles every 60 s
+  (`--time-limit`), so code changes are picked up within a minute. `MESSENGER_TRANSPORT_DSN`
+  in the untracked `.env` points at the base `rabbitmq` container.
 - Frontend package manager is Yarn 4 (corepack; `packageManager` pins 4.9.2,
   `node_modules` linker). `make fe-dev` — Vite on :5173, `/api` proxied to
   `https://canban.local`; `make fe-build` type-checks and builds into `public/build`,
@@ -120,9 +150,9 @@ Approved 2026-11-12. One step at a time; explicit approval after each step. Step
    for card events.
 8. `[x]` **Permissions hardening** — voters for every route, confirm the admin-override
    assumption, integration tests for the ACL matrix.
-9. `[ ]` **Realtime** — OPEN DECISION: Mercure (user distrusts it) vs Centrifugo vs
-   simple polling — discuss options before implementing. Notes and criteria:
-   `docs/plans/realtime.md`.
+9. `[x]` **Realtime** — Centrifugo (see Architecture note): `project:<projectId>`
+   channels, public token endpoint, domain-event forwarder, `useBoardRealtime`
+   composable with debounced board refetch. Notes: `docs/plans/realtime.md`.
 10. `[x]` **Polish & release** — theme foundation (light + dark), empty/error states,
     built frontend served directly by angie, Yarn 4 migration, security-interface
     cleanup (Domain `User` + `SecurityUser` adapter). Production deployment docs
@@ -136,6 +166,10 @@ Approved 2026-11-12. One step at a time; explicit approval after each step. Step
 13. `[x]` **Admin users list** — `GET /api/users` + confirm/promote/demote actions gated
     by `ProjectAccessVoter::GLOBAL_ADMIN`; promote/demote commands switched email →
     `userId` (CLI resolves email); `/admin/users` table in the frontend.
+14. `[x]` **Messenger outbox** — entity-recorded domain events + transactional outbox;
+    `CardActivityHandler` / `RealtimeEventForwarder` / `SendConfirmationEmailHandler`
+    moved to the event bus and the shared worker. Chosen: entity-recorded events + AMQP
+    (RabbitMQ), Doctrine only for the failed queue. Notes: `docs/plans/outbox.md`.
 
 After the baseline works: dedicated discussion of SaaS scenarios (multi-tenant flavor)
 before any of it is built.

@@ -46,6 +46,7 @@ final class CreateColumnCommandHandler
             $board->id(),
             $command->name,
             count($this->columnRepository->findByBoard($board->id())),
+            $actorId,
         );
         $this->columnRepository->save($column);
 

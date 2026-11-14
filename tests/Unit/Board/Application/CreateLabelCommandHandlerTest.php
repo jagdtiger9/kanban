@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Board\Application;
 use App\Board\Application\Message\Command\CreateLabelCommand;
 use App\Board\Application\MessageHandler\CreateLabelCommandHandler;
 use App\Board\Domain\Entity\Board;
+use App\Board\Domain\Event\LabelCreated;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -64,6 +65,12 @@ final class CreateLabelCommandHandlerTest extends TestCase
         $label = $this->handler($project, $board, $member)
             ->__invoke(new CreateLabelCommand((string) $project->id(), 'Bug', '#ff0000', (string) $actorId));
 
+        $events = $label->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(LabelCreated::class, $events[0]);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($label->id()->toString(), $events[0]->labelId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertTrue($label->boardId()->equals($board->id()));
         self::assertSame('Bug', $label->name());
         self::assertSame('#ff0000', $label->color());

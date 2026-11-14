@@ -14,7 +14,10 @@ final class CardMoveServiceTest extends TestCase
 {
     private function card(string $title, int $position = 0): Card
     {
-        return Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), $title, '', $position);
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), $title, '', $position);
+        $card->releaseEvents();
+
+        return $card;
     }
 
     /** @return array{0: Card, 1: Card, 2: Card} */
@@ -27,15 +30,26 @@ final class CardMoveServiceTest extends TestCase
         return [$a, $b, $c];
     }
 
+    private function releasedMove(Card $card): CardMoved
+    {
+        $events = array_values(array_filter(
+            $card->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardMoved,
+        ));
+        self::assertCount(1, $events);
+
+        return $events[0];
+    }
+
     public function testReorderWithinColumn(): void
     {
         [$a, $b, $c] = $this->column();
         $columnId = $a->columnId();
         $service = new CardMoveService();
 
-        $event = $service->move($a, $columnId, 2, [$a, $b, $c], []);
+        $service->move($a, $columnId, 2, [$a, $b, $c], []);
 
-        self::assertInstanceOf(CardMoved::class, $event);
+        $event = $this->releasedMove($a);
         self::assertSame(0, $event->oldPosition);
         self::assertSame(2, $event->newPosition);
         self::assertSame(0, $b->position());
@@ -43,14 +57,14 @@ final class CardMoveServiceTest extends TestCase
         self::assertSame(2, $a->position());
     }
 
-    public function testMoveToSameIndexReturnsNull(): void
+    public function testMoveToSameIndexRecordsNoEvent(): void
     {
         [$a, $b, $c] = $this->column();
         $service = new CardMoveService();
 
-        $event = $service->move($a, $a->columnId(), 0, [$a, $b, $c], []);
+        $service->move($a, $a->columnId(), 0, [$a, $b, $c], []);
 
-        self::assertNull($event);
+        self::assertSame([], $a->releaseEvents());
         self::assertSame([0, 1, 2], [$a->position(), $b->position(), $c->position()]);
     }
 
@@ -61,9 +75,9 @@ final class CardMoveServiceTest extends TestCase
         $newColumnId = $x->columnId();
         $service = new CardMoveService();
 
-        $event = $service->move($b, $newColumnId, 0, [$a, $b, $c], [$x]);
+        $service->move($b, $newColumnId, 0, [$a, $b, $c], [$x]);
 
-        self::assertInstanceOf(CardMoved::class, $event);
+        $event = $this->releasedMove($b);
         self::assertSame(1, $event->oldPosition);
         self::assertSame(0, $event->newPosition);
         // Old column compacted to [a, c].
@@ -80,9 +94,9 @@ final class CardMoveServiceTest extends TestCase
         [$a, $b, $c] = $this->column();
         $service = new CardMoveService();
 
-        $event = $service->move($a, $a->columnId(), 99, [$a, $b, $c], []);
+        $service->move($a, $a->columnId(), 99, [$a, $b, $c], []);
 
-        self::assertSame(2, $event->newPosition);
+        self::assertSame(2, $this->releasedMove($a)->newPosition);
         self::assertSame(2, $a->position());
         self::assertSame(0, $b->position());
         self::assertSame(1, $c->position());

@@ -9,6 +9,7 @@ use App\Board\Application\MessageHandler\RenameColumnCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Exception\ColumnNotFoundException;
+use App\Board\Domain\Event\ColumnRenamed;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -63,6 +64,15 @@ final class RenameColumnCommandHandlerTest extends TestCase
             ->__invoke(new RenameColumnCommand((string) $column->id(), 'Backlog', (string) $actorId));
 
         self::assertSame('Backlog', $result->name());
+
+        $events = array_values(array_filter(
+            $result->releaseEvents(),
+            static fn (object $event): bool => $event instanceof ColumnRenamed,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($column->id()->toString(), $events[0]->columnId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
     }
 
     public function testThrowsWhenColumnMissing(): void

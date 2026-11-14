@@ -191,6 +191,7 @@
 namespace Symfony\Component\Routing\Loader\Configurator;
 
 use App\Board\Infrastructure\Controller\BoardController;
+use App\Board\Infrastructure\Controller\RealtimeController;
 use App\Common\Infrastructure\Controller\PingController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
@@ -314,6 +315,11 @@ $config = Routes::config([
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',
         'controller' => [BoardController::class, 'get'],
+        'methods' => ['GET'],
+    ],
+    'api_realtime_token' => [
+        'path' => '/api/realtime/token',
+        'controller' => [RealtimeController::class, 'token'],
         'methods' => ['GET'],
     ],
     'api_column_create' => [

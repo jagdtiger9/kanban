@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Project\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\Project\Domain\Enum\MemberRole;
 use App\Project\Domain\Event\ProjectMemberRoleChanged;
 use Doctrine\DBAL\Types\Types;
@@ -13,8 +15,10 @@ use Ramsey\Uuid\UuidInterface;
 #[ORM\Entity]
 #[ORM\Table(name: 'project_members')]
 #[ORM\UniqueConstraint(name: 'uniq_project_member', columns: ['project_id', 'user_id'])]
-final class ProjectMember
+final class ProjectMember implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;
@@ -84,14 +88,13 @@ final class ProjectMember
         return $this->joinedAt;
     }
 
-    public function changeRole(MemberRole $role, UuidInterface $actorId): ?ProjectMemberRoleChanged
+    public function changeRole(MemberRole $role, UuidInterface $actorId): void
     {
         if ($role === $this->role) {
-            return null;
+            return;
         }
 
         $this->role = $role;
-
-        return new ProjectMemberRoleChanged($this->projectId, $this->userId, $role, $actorId);
+        $this->recordEvent(new ProjectMemberRoleChanged($this->projectId->toString(), $this->userId->toString(), $role, $actorId->toString()));
     }
 }

@@ -11,7 +11,6 @@ use App\Board\Domain\Exception\CommentNotFoundException;
 use App\Board\Domain\Repository\CommentRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class UpdateCommentCommandHandler
@@ -19,7 +18,6 @@ final class UpdateCommentCommandHandler
     public function __construct(
         private CardGuard $guard,
         private CommentRepository $commentRepository,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -33,11 +31,8 @@ final class UpdateCommentCommandHandler
         }
         $this->guard->requireCommentEditable($comment, $actorId);
 
-        $event = $comment->edit($command->body);
+        $comment->edit($command->body);
         $this->commentRepository->save($comment);
-        if ($event !== null) {
-            $this->eventDispatcher->dispatch($event);
-        }
 
         return $comment;
     }

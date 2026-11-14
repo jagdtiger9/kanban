@@ -18,8 +18,8 @@ permissions: ## Set filesystem ACLs for web-user on public/uploads/ and var/
 ##
 ## —— Packages 📦 ————————————————————————————————————————————————————————
 ## Useful for PROD to avoid composer.lock conflicts when using local filesystem packages
-packages: ## Update aljerom/simple-hydrator and aljerom/cqrs-events
-	composer update aljerom/simple-hydrator aljerom/cqrs-events
+packages: ## Update aljerom/simple-hydrator and symfony-boilerplate
+	composer update aljerom/simple-hydrator symfony-boilerplate
 
 ##
 ## —— Doctrine Migrations 🗄️ ————————————————————————————————————————————

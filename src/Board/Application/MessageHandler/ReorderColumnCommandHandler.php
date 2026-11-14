@@ -35,10 +35,11 @@ final class ReorderColumnCommandHandler
         if ($board === null) {
             throw new \LogicException('Board must exist for every column');
         }
-        $this->guard->requireMember($board->projectId(), Uuid::fromString($command->actorId));
+        $actorId = Uuid::fromString($command->actorId);
+        $this->guard->requireMember($board->projectId(), $actorId);
 
         $columns = $this->columnRepository->findByBoard($board->id());
-        $this->reorderService->reorder($column, $command->targetIndex, $columns);
+        $this->reorderService->reorder($column, $command->targetIndex, $columns, $actorId);
         foreach ($columns as $changed) {
             $this->columnRepository->save($changed);
         }

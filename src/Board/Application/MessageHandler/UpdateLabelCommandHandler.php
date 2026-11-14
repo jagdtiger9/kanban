@@ -35,10 +35,11 @@ final class UpdateLabelCommandHandler
         if ($board === null) {
             throw new \LogicException('Board must exist for every label');
         }
-        $this->guard->requireMember($board->projectId(), Uuid::fromString($command->actorId));
+        $actorId = Uuid::fromString($command->actorId);
+        $this->guard->requireMember($board->projectId(), $actorId);
 
-        $label->rename($command->name);
-        $label->changeColor($command->color);
+        $label->rename($command->name, $actorId);
+        $label->changeColor($command->color, $actorId);
         $this->labelRepository->save($label);
 
         return $label;

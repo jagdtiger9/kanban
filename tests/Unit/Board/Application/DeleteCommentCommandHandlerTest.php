@@ -13,6 +13,7 @@ use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Event\CommentDeleted;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -93,6 +94,15 @@ final class DeleteCommentCommandHandlerTest extends TestCase
 
         $this->handler($comment, $card, $column, $board, $member)
             ->__invoke(new DeleteCommentCommand((string) $comment->id(), (string) $authorId));
+
+        $events = array_values(array_filter(
+            $comment->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CommentDeleted,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($card->id()->toString(), $events[0]->cardId);
+        self::assertSame($comment->id()->toString(), $events[0]->commentId);
+        self::assertSame($authorId->toString(), $events[0]->actorId);
     }
 
     public function testThrowsWhenActorIsNotAuthor(): void

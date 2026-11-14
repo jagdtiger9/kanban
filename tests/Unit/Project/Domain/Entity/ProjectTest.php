@@ -31,30 +31,42 @@ final class ProjectTest extends TestCase
         $project = Project::create(Uuid::uuid4(), 'My Project');
         $actorId = Uuid::uuid4();
 
-        $event = $project->archive($actorId);
+        $project->archive($actorId);
 
-        self::assertInstanceOf(ProjectArchived::class, $event);
+        $events = $project->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ProjectArchived::class, $events[0]);
         self::assertTrue($project->isArchived());
-        self::assertTrue($event->projectId->equals($project->id()));
-        self::assertTrue($event->actorId->equals($actorId));
-        self::assertNull($project->archive($actorId));
+        self::assertSame($project->id()->toString(), $events[0]->projectId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+
+        $project->archive($actorId);
+        self::assertSame([], $project->releaseEvents());
     }
 
-    public function testRestoreReturnsNullWhenNotArchived(): void
+    public function testRestoreRecordsNoEventWhenNotArchived(): void
     {
         $project = Project::create(Uuid::uuid4(), 'My Project');
 
-        self::assertNull($project->restore(Uuid::uuid4()));
+        $project->restore(Uuid::uuid4());
+
+        self::assertSame([], $project->releaseEvents());
     }
 
     public function testRestoreAfterArchive(): void
     {
         $project = Project::create(Uuid::uuid4(), 'My Project');
-        $project->archive(Uuid::uuid4());
+        $actorId = Uuid::uuid4();
+        $project->archive($actorId);
+        $project->releaseEvents();
 
-        $event = $project->restore(Uuid::uuid4());
+        $project->restore($actorId);
 
-        self::assertInstanceOf(ProjectRestored::class, $event);
+        $events = $project->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ProjectRestored::class, $events[0]);
+        self::assertSame($project->id()->toString(), $events[0]->projectId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertFalse($project->isArchived());
     }
 }

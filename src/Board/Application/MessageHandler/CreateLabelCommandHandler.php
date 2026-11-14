@@ -41,7 +41,7 @@ final class CreateLabelCommandHandler
             throw new \LogicException('Board must exist for every project');
         }
 
-        $label = Label::create(Uuid::uuid4(), $board->id(), $command->name, $command->color);
+        $label = Label::create(Uuid::uuid4(), $board->id(), $command->name, $command->color, $actorId);
         $this->labelRepository->save($label);
 
         return $label;

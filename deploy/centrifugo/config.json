@@ -1,0 +1,13 @@
+{
+    "client": {
+        "allowed_origins": ["https://canban.local"]
+    },
+    "channel": {
+        "namespaces": [
+            {
+                "name": "project",
+                "allow_subscribe_for_client": false
+            }
+        ]
+    }
+}

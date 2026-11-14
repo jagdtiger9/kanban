@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Project\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
+use App\Project\Domain\Event\ProjectArchived;
+use App\Project\Domain\Event\ProjectRestored;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'projects')]
-final class Project
+final class Project implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;
@@ -82,25 +88,23 @@ final class Project
         $this->name = $name;
     }
 
-    public function archive(UuidInterface $actorId): ?\App\Project\Domain\Event\ProjectArchived
+    public function archive(UuidInterface $actorId): void
     {
         if ($this->archivedAt !== null) {
-            return null;
+            return;
         }
 
         $this->archivedAt = new \DateTimeImmutable();
-
-        return new \App\Project\Domain\Event\ProjectArchived($this->id, $actorId);
+        $this->recordEvent(new ProjectArchived($this->id->toString(), $actorId->toString()));
     }
 
-    public function restore(UuidInterface $actorId): ?\App\Project\Domain\Event\ProjectRestored
+    public function restore(UuidInterface $actorId): void
     {
         if ($this->archivedAt === null) {
-            return null;
+            return;
         }
 
         $this->archivedAt = null;
-
-        return new \App\Project\Domain\Event\ProjectRestored($this->id, $actorId);
+        $this->recordEvent(new ProjectRestored($this->id->toString(), $actorId->toString()));
     }
 }

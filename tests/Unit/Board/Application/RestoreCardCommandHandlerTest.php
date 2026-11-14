@@ -24,7 +24,6 @@ use App\User\Domain\Entity\User;
 use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class RestoreCardCommandHandlerTest extends TestCase
 {
@@ -33,7 +32,6 @@ final class RestoreCardCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -42,7 +40,6 @@ final class RestoreCardCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -65,7 +62,18 @@ final class RestoreCardCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new RestoreCardCommandHandler($guard, $this->cardRepository, $this->eventDispatcher);
+        return new RestoreCardCommandHandler($guard, $this->cardRepository);
+    }
+
+    private function releasedRestoreEvent(Card $card): CardRestored
+    {
+        $events = array_values(array_filter(
+            $card->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardRestored,
+        ));
+        self::assertCount(1, $events);
+
+        return $events[0];
     }
 
     public function testCreatorRestoresArchivedCard(): void
@@ -79,13 +87,12 @@ final class RestoreCardCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardRestored::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member)
             ->__invoke(new RestoreCardCommand((string) $card->id(), (string) $actorId));
 
         self::assertFalse($card->isArchived());
+        self::assertSame($actorId->toString(), $this->releasedRestoreEvent($card)->actorId);
     }
 
     public function testThrowsWhenActorIsNotCreator(): void
@@ -99,7 +106,6 @@ final class RestoreCardCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $otherId, MemberRole::Member);
 
         $this->cardRepository->expects($this->never())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(CardForbiddenException::class);
 
         $this->handler($card, $column, $board, $member)
@@ -117,13 +123,12 @@ final class RestoreCardCommandHandlerTest extends TestCase
         $admin = ProjectMember::create(Uuid::uuid4(), $project->id(), $adminId, MemberRole::Admin);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardRestored::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $admin)
             ->__invoke(new RestoreCardCommand((string) $card->id(), (string) $adminId));
 
         self::assertFalse($card->isArchived());
+        self::assertSame($adminId->toString(), $this->releasedRestoreEvent($card)->actorId);
     }
 
     public function testGlobalAdminCanRestoreCardWithoutMembership(): void
@@ -137,12 +142,11 @@ final class RestoreCardCommandHandlerTest extends TestCase
         $adminUser->promoteToGlobalAdmin();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardRestored::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, null, $adminUser)
             ->__invoke(new RestoreCardCommand((string) $card->id(), (string) $adminUser->id()));
 
         self::assertFalse($card->isArchived());
+        self::assertSame($adminUser->id()->toString(), $this->releasedRestoreEvent($card)->actorId);
     }
 }

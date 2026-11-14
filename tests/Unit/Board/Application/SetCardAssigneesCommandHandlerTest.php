@@ -26,7 +26,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class SetCardAssigneesCommandHandlerTest extends TestCase
 {
@@ -35,7 +34,6 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -44,7 +42,6 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -76,7 +73,6 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
             $this->memberRepository,
             $this->userRepository,
             $this->cardRepository,
-            $this->eventDispatcher,
         );
     }
 
@@ -96,26 +92,21 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
             ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member),
             ProjectMember::create(Uuid::uuid4(), $project->id(), $user2->id(), MemberRole::Member),
         ];
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $dispatched = [];
-        $this->eventDispatcher->expects($this->exactly(2))->method('dispatch')
-            ->willReturnCallback(static function (object $event) use (&$dispatched): object {
-                $dispatched[] = $event;
-
-                return $event;
-            });
 
         $this->handler($card, $column, $board, $member, $members, [(string) $user2->id() => $user2])
             ->__invoke(new SetCardAssigneesCommand((string) $card->id(), [(string) $user2->id()], (string) $actorId));
 
-        self::assertCount(2, $dispatched);
-        $unassigned = $dispatched[0];
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        $unassigned = $events[0];
         self::assertInstanceOf(CardUnassigned::class, $unassigned);
-        self::assertTrue($unassigned->userId->equals($user1->id()));
-        $assigned = $dispatched[1];
+        self::assertSame($user1->id()->toString(), $unassigned->userId);
+        $assigned = $events[1];
         self::assertInstanceOf(CardAssigned::class, $assigned);
-        self::assertTrue($assigned->userId->equals($user2->id()));
+        self::assertSame($user2->id()->toString(), $assigned->userId);
         self::assertFalse($card->assignees()->contains($user1));
         self::assertTrue($card->assignees()->contains($user2));
     }
@@ -134,14 +125,16 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
             ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member),
             ProjectMember::create(Uuid::uuid4(), $project->id(), $user->id(), MemberRole::Member),
         ];
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardAssigned::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member, $members, [(string) $user->id() => $user])
             ->__invoke(new SetCardAssigneesCommand((string) $card->id(), [(string) $user->id()], (string) $actorId));
 
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardAssigned::class, $events[0]);
         self::assertTrue($card->assignees()->contains($user));
     }
 
@@ -156,7 +149,6 @@ final class SetCardAssigneesCommandHandlerTest extends TestCase
         $outsider = Uuid::uuid4();
 
         $this->cardRepository->expects($this->never())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(ProjectMemberNotFoundException::class);
 
         $this->handler($card, $column, $board, $member, [$member], [])

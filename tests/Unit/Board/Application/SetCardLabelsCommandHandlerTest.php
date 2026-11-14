@@ -28,7 +28,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class SetCardLabelsCommandHandlerTest extends TestCase
 {
@@ -38,7 +37,6 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private LabelRepository $labelRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -48,7 +46,6 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->labelRepository = $this->createMock(LabelRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -73,7 +70,7 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new SetCardLabelsCommandHandler($guard, $this->labelRepository, $this->cardRepository, $this->eventDispatcher);
+        return new SetCardLabelsCommandHandler($guard, $this->labelRepository, $this->cardRepository);
     }
 
     public function testReplacesLabelSet(): void
@@ -88,24 +85,19 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
         $oldLabel = Label::create(Uuid::uuid4(), $board->id(), 'Old', '#ff0000');
         $newLabel = Label::create(Uuid::uuid4(), $board->id(), 'New', '#00ff00');
         $card->addLabel($oldLabel);
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $dispatched = [];
-        $this->eventDispatcher->expects($this->exactly(2))->method('dispatch')
-            ->willReturnCallback(static function (object $event) use (&$dispatched): object {
-                $dispatched[] = $event;
-
-                return $event;
-            });
 
         $this->handler($card, $column, $board, $member, [(string) $newLabel->id() => $newLabel])
             ->__invoke(new SetCardLabelsCommand((string) $card->id(), [(string) $newLabel->id()], (string) $actorId));
 
-        self::assertCount(2, $dispatched);
-        $removed = $dispatched[0];
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        $removed = $events[0];
         self::assertInstanceOf(CardLabelRemoved::class, $removed);
         self::assertSame('Old', $removed->labelName);
-        $added = $dispatched[1];
+        $added = $events[1];
         self::assertInstanceOf(CardLabelAdded::class, $added);
         self::assertSame('New', $added->labelName);
         self::assertFalse($card->labels()->contains($oldLabel));
@@ -123,13 +115,14 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
 
         $label = Label::create(Uuid::uuid4(), $board->id(), 'Keep', '#0000ff');
         $card->addLabel($label);
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
 
         $this->handler($card, $column, $board, $member, [(string) $label->id() => $label])
             ->__invoke(new SetCardLabelsCommand((string) $card->id(), [(string) $label->id()], (string) $actorId));
 
+        self::assertSame([], $card->releaseEvents());
         self::assertTrue($card->labels()->contains($label));
     }
 
@@ -143,14 +136,16 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
 
         $label = Label::create(Uuid::uuid4(), $board->id(), 'L', '#0000ff');
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardLabelAdded::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member, [(string) $label->id() => $label])
             ->__invoke(new SetCardLabelsCommand((string) $card->id(), [(string) $label->id()], (string) $actorId));
 
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardLabelAdded::class, $events[0]);
         self::assertTrue($card->labels()->contains($label));
     }
 
@@ -163,7 +158,6 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(LabelNotFoundException::class);
 
         $this->handler($card, $column, $board, $member, [])
@@ -182,7 +176,6 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
 
         $foreign = Label::create(Uuid::uuid4(), $otherBoard->id(), 'Foreign', '#0000ff');
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(LabelNotFoundException::class);
 
         $this->handler($card, $column, $board, $member, [(string) $foreign->id() => $foreign])
@@ -191,7 +184,6 @@ final class SetCardLabelsCommandHandlerTest extends TestCase
 
     public function testThrowsWhenCardMissing(): void
     {
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(CardNotFoundException::class);
 
         $this->handler(null, null, null, null, [])

@@ -23,24 +23,30 @@ final class ProjectMemberTest extends TestCase
         self::assertSame(MemberRole::Admin, $member->role());
     }
 
-    public function testChangeRoleEmitsEvent(): void
+    public function testChangeRoleRecordsEvent(): void
     {
         $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $member->releaseEvents();
         $actorId = Uuid::uuid4();
 
-        $event = $member->changeRole(MemberRole::Admin, $actorId);
+        $member->changeRole(MemberRole::Admin, $actorId);
 
-        self::assertInstanceOf(ProjectMemberRoleChanged::class, $event);
-        self::assertSame(MemberRole::Admin, $event->newRole);
-        self::assertTrue($event->actorId->equals($actorId));
+        $events = $member->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ProjectMemberRoleChanged::class, $events[0]);
+        self::assertSame(MemberRole::Admin, $events[0]->newRole);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame(MemberRole::Admin, $member->role());
     }
 
-    public function testChangeRoleToSameRoleReturnsNull(): void
+    public function testChangeRoleToSameRoleRecordsNoEvent(): void
     {
         $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $member->releaseEvents();
 
-        self::assertNull($member->changeRole(MemberRole::Member, Uuid::uuid4()));
+        $member->changeRole(MemberRole::Member, Uuid::uuid4());
+
+        self::assertSame([], $member->releaseEvents());
     }
 
     public function testIsAdmin(): void

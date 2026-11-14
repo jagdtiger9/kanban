@@ -22,7 +22,6 @@ use App\Project\Domain\Repository\ProjectMemberRepository;
 use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class SetCardDueDateCommandHandlerTest extends TestCase
 {
@@ -31,7 +30,6 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -40,7 +38,6 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(?Card $card, ?Column $column, ?Board $board, ?ProjectMember $actorMembership): SetCardDueDateCommandHandler
@@ -57,7 +54,18 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new SetCardDueDateCommandHandler($guard, $this->cardRepository, $this->eventDispatcher);
+        return new SetCardDueDateCommandHandler($guard, $this->cardRepository);
+    }
+
+    private function releasedFieldChange(Card $card): CardFieldChanged
+    {
+        $events = array_values(array_filter(
+            $card->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardFieldChanged,
+        ));
+        self::assertCount(1, $events);
+
+        return $events[0];
     }
 
     public function testSetsDueDate(): void
@@ -68,17 +76,17 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $actorId = Uuid::uuid4();
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static fn (CardFieldChanged $event): bool => $event->field === 'due_date'
-                && $event->oldValue === null
-                && $event->newValue === '2026-12-01',
-        ))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member)
             ->__invoke(new SetCardDueDateCommand((string) $card->id(), '2026-12-01', (string) $actorId));
 
+        $event = $this->releasedFieldChange($card);
+        self::assertSame('due_date', $event->field);
+        self::assertNull($event->oldValue);
+        self::assertSame('2026-12-01', $event->newValue);
         self::assertSame('2026-12-01', $card->dueDate()?->format('Y-m-d'));
     }
 
@@ -90,17 +98,17 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $actorId = Uuid::uuid4();
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0, new \DateTimeImmutable('2026-12-01'));
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static fn (CardFieldChanged $event): bool => $event->field === 'due_date'
-                && $event->oldValue === '2026-12-01'
-                && $event->newValue === null,
-        ))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member)
             ->__invoke(new SetCardDueDateCommand((string) $card->id(), null, (string) $actorId));
 
+        $event = $this->releasedFieldChange($card);
+        self::assertSame('due_date', $event->field);
+        self::assertSame('2026-12-01', $event->oldValue);
+        self::assertNull($event->newValue);
         self::assertNull($card->dueDate());
     }
 
@@ -112,14 +120,14 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $actorId = Uuid::uuid4();
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
+        $card->releaseEvents();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardFieldChanged::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member)
             ->__invoke(new SetCardDueDateCommand((string) $card->id(), '2026-12-01', (string) $actorId));
 
+        self::assertSame('due_date', $this->releasedFieldChange($card)->field);
         self::assertSame('2026-12-01', $card->dueDate()?->format('Y-m-d'));
     }
 }

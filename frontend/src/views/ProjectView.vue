@@ -13,6 +13,7 @@ import CardDialog from '../components/CardDialog.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
+import { useBoardRealtime } from '../composables/useBoardRealtime'
 
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
@@ -75,6 +76,16 @@ const deleting = ref(false)
 const activeCard = ref<CardPayload | null>(null)
 const showLabelsDialog = ref(false)
 
+const realtimeTick = ref(0)
+let dragging = false
+
+useBoardRealtime(projectId, refreshFromRealtime, () => !dragging)
+
+async function refreshFromRealtime(): Promise<void> {
+    realtimeTick.value++
+    await load()
+}
+
 async function load(): Promise<void> {
     error.value = null
     try {
@@ -102,24 +113,31 @@ function initSortable(): void {
         animation: 150,
         draggable: '.board-column',
         handle: '.column-drag-handle',
+        onStart: () => {
+            dragging = true
+        },
         onEnd: onDragEnd,
     })
 }
 
 async function onDragEnd(evt: Sortable.SortableEvent): Promise<void> {
-    const { oldIndex, newIndex } = evt
-    if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return
-
-    const moved = columns.value[oldIndex]
-    columns.value.splice(oldIndex, 1)
-    columns.value.splice(newIndex, 0, moved)
-    columns.value.forEach((c, i) => (c.position = i))
-
     try {
-        await boardApi.reorderColumn(moved.id, newIndex)
-    } catch (e) {
-        actionError.value = e instanceof ApiError ? e.message : 'Failed to reorder column'
-        await load()
+        const { oldIndex, newIndex } = evt
+        if (oldIndex === undefined || newIndex === undefined || oldIndex === newIndex) return
+
+        const moved = columns.value[oldIndex]
+        columns.value.splice(oldIndex, 1)
+        columns.value.splice(newIndex, 0, moved)
+        columns.value.forEach((c, i) => (c.position = i))
+
+        try {
+            await boardApi.reorderColumn(moved.id, newIndex)
+        } catch (e) {
+            actionError.value = e instanceof ApiError ? e.message : 'Failed to reorder column'
+            await load()
+        }
+    } finally {
+        dragging = false
     }
 }
 
@@ -134,6 +152,9 @@ function initCardSortables(): void {
                 animation: 150,
                 ghostClass: 'opacity-40',
                 draggable: '.board-card',
+                onStart: () => {
+                    dragging = true
+                },
                 onEnd: onCardDragEnd,
             }),
         )
@@ -141,42 +162,46 @@ function initCardSortables(): void {
 }
 
 async function onCardDragEnd(evt: Sortable.SortableEvent): Promise<void> {
-    const { oldIndex, newIndex } = evt
-    if (oldIndex === undefined || newIndex === undefined) return
-
-    const fromEl = evt.from as HTMLElement
-    const toEl = evt.to as HTMLElement
-    const cardId = evt.item.dataset.cardId
-    const sourceColumnId = fromEl.dataset.columnId
-    const targetColumnId = toEl.dataset.columnId
-    if (!cardId || !sourceColumnId || !targetColumnId) return
-    if (sourceColumnId === targetColumnId && oldIndex === newIndex) return
-
-    const card = cards.value.find((c) => c.id === cardId)
-    if (!card) return
-
-    // Sortable already moved the DOM node; mirror the move in state, then persist.
-    const sourceCards = columnCards(sourceColumnId)
-    const sourceIndex = sourceCards.findIndex((c) => c.id === cardId)
-    if (sourceIndex === -1) return
-    sourceCards.splice(sourceIndex, 1)
-    sourceCards.forEach((c, i) => (c.position = i))
-
-    if (sourceColumnId === targetColumnId) {
-        sourceCards.splice(Math.min(newIndex, sourceCards.length), 0, card)
-        sourceCards.forEach((c, i) => (c.position = i))
-    } else {
-        card.columnId = targetColumnId
-        const targetCards = columnCards(targetColumnId)
-        targetCards.splice(Math.min(newIndex, targetCards.length), 0, card)
-        targetCards.forEach((c, i) => (c.position = i))
-    }
-
     try {
-        await boardApi.moveCard(cardId, targetColumnId, newIndex)
-    } catch (e) {
-        actionError.value = e instanceof ApiError ? e.message : 'Failed to move card'
-        await load()
+        const { oldIndex, newIndex } = evt
+        if (oldIndex === undefined || newIndex === undefined) return
+
+        const fromEl = evt.from as HTMLElement
+        const toEl = evt.to as HTMLElement
+        const cardId = evt.item.dataset.cardId
+        const sourceColumnId = fromEl.dataset.columnId
+        const targetColumnId = toEl.dataset.columnId
+        if (!cardId || !sourceColumnId || !targetColumnId) return
+        if (sourceColumnId === targetColumnId && oldIndex === newIndex) return
+
+        const card = cards.value.find((c) => c.id === cardId)
+        if (!card) return
+
+        // Sortable already moved the DOM node; mirror the move in state, then persist.
+        const sourceCards = columnCards(sourceColumnId)
+        const sourceIndex = sourceCards.findIndex((c) => c.id === cardId)
+        if (sourceIndex === -1) return
+        sourceCards.splice(sourceIndex, 1)
+        sourceCards.forEach((c, i) => (c.position = i))
+
+        if (sourceColumnId === targetColumnId) {
+            sourceCards.splice(Math.min(newIndex, sourceCards.length), 0, card)
+            sourceCards.forEach((c, i) => (c.position = i))
+        } else {
+            card.columnId = targetColumnId
+            const targetCards = columnCards(targetColumnId)
+            targetCards.splice(Math.min(newIndex, targetCards.length), 0, card)
+            targetCards.forEach((c, i) => (c.position = i))
+        }
+
+        try {
+            await boardApi.moveCard(cardId, targetColumnId, newIndex)
+        } catch (e) {
+            actionError.value = e instanceof ApiError ? e.message : 'Failed to move card'
+            await load()
+        }
+    } finally {
+        dragging = false
     }
 }
 
@@ -528,6 +553,7 @@ watch(projectId, () => {
             :members="detail?.members ?? []"
             :columns="columns"
             :is-admin="isAdmin"
+            :realtime-tick="realtimeTick"
             @close="activeCard = null"
             @updated="onCardUpdated"
         />

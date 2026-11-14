@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\User\Domain\Event;
 
-final readonly class UserRegistered
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
+
+final class UserRegistered implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
+        public string $userId,
         public string $email,
         public string $displayName,
-        public string $confirmationToken,
     ) {
+        $this->initEvent($userId, $userId);
     }
 }

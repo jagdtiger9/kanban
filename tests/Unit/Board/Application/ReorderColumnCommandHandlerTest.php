@@ -9,6 +9,7 @@ use App\Board\Application\MessageHandler\ReorderColumnCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Exception\ColumnNotFoundException;
+use App\Board\Domain\Event\ColumnReordered;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Service\ColumnReorderService;
@@ -71,6 +72,15 @@ final class ReorderColumnCommandHandlerTest extends TestCase
         self::assertSame(0, $c->position());
         self::assertSame(1, $a->position());
         self::assertSame(2, $b->position());
+
+        $events = array_values(array_filter(
+            $c->releaseEvents(),
+            static fn (object $event): bool => $event instanceof ColumnReordered,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($c->id()->toString(), $events[0]->columnId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
     }
 
     public function testThrowsWhenActorIsNotMember(): void

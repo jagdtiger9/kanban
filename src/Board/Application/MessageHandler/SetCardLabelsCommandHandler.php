@@ -12,7 +12,6 @@ use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class SetCardLabelsCommandHandler
@@ -21,7 +20,6 @@ final class SetCardLabelsCommandHandler
         private CardGuard $guard,
         private LabelRepository $labelRepository,
         private CardRepository $cardRepository,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -41,25 +39,15 @@ final class SetCardLabelsCommandHandler
             $labels[] = $label;
         }
 
-        $events = [];
         foreach ($card->labels() as $existing) {
             if (!\in_array((string) $existing->id(), $command->labelIds, true)) {
-                $event = $card->removeLabel($existing, $actorId);
-                if ($event !== null) {
-                    $events[] = $event;
-                }
+                $card->removeLabel($existing, $actorId);
             }
         }
         foreach ($labels as $label) {
-            $event = $card->addLabel($label, $actorId);
-            if ($event !== null) {
-                $events[] = $event;
-            }
+            $card->addLabel($label, $actorId);
         }
 
         $this->cardRepository->save($card);
-        foreach ($events as $event) {
-            $this->eventDispatcher->dispatch($event);
-        }
     }
 }

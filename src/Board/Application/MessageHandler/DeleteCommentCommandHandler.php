@@ -30,6 +30,7 @@ final class DeleteCommentCommandHandler
         }
         $this->guard->requireCommentDeletable($comment, $actorId);
 
+        $comment->delete($actorId);
         $this->commentRepository->remove($comment);
     }
 }

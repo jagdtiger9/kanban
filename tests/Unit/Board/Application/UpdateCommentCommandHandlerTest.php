@@ -28,7 +28,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class UpdateCommentCommandHandlerTest extends TestCase
 {
@@ -38,7 +37,6 @@ final class UpdateCommentCommandHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private CommentRepository $commentRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -48,7 +46,6 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->commentRepository = $this->createMock(CommentRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -71,7 +68,7 @@ final class UpdateCommentCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new UpdateCommentCommandHandler($guard, $this->commentRepository, $this->eventDispatcher);
+        return new UpdateCommentCommandHandler($guard, $this->commentRepository);
     }
 
     private function context(UuidInterface $authorId): array
@@ -81,6 +78,7 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
         $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'Card', '', 0);
         $comment = Comment::create(Uuid::uuid4(), $card->id(), $authorId, 'Original');
+        $comment->releaseEvents();
 
         return [$comment, $card, $column, $board, $project];
     }
@@ -91,15 +89,15 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $authorId, MemberRole::Member);
 
         $this->commentRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static function (CommentEdited $event) use ($card, $comment): bool {
-                return $event->cardId->equals($card->id()) && $event->commentId->equals($comment->id());
-            },
-        ))->willReturnArgument(0);
 
         $result = $this->handler($comment, $card, $column, $board, $member)
             ->__invoke(new UpdateCommentCommand((string) $comment->id(), 'Edited', (string) $authorId));
 
+        $events = $result->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CommentEdited::class, $events[0]);
+        self::assertSame($card->id()->toString(), $events[0]->cardId);
+        self::assertSame($comment->id()->toString(), $events[0]->commentId);
         self::assertSame('Edited', $result->body());
     }
 
@@ -109,11 +107,11 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $authorId, MemberRole::Member);
 
         $this->commentRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
 
         $result = $this->handler($comment, $card, $column, $board, $member)
             ->__invoke(new UpdateCommentCommand((string) $comment->id(), 'Original', (string) $authorId));
 
+        self::assertSame([], $result->releaseEvents());
         self::assertSame('Original', $result->body());
     }
 

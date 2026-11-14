@@ -12,7 +12,6 @@ use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Service\CardMoveService;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class MoveCardCommandHandler
@@ -22,7 +21,6 @@ final class MoveCardCommandHandler
         private ColumnRepository $columnRepository,
         private CardRepository $cardRepository,
         private CardMoveService $moveService,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -42,7 +40,7 @@ final class MoveCardCommandHandler
         $oldColumnCards = $this->cardRepository->findByColumn($oldColumnId);
         $newColumnCards = $this->cardRepository->findByColumn($targetColumn->id());
 
-        $event = $this->moveService->move(
+        $this->moveService->move(
             $card,
             $targetColumn->id(),
             $command->targetIndex,
@@ -57,9 +55,6 @@ final class MoveCardCommandHandler
         }
         foreach ($touched as $touchedCard) {
             $this->cardRepository->save($touchedCard);
-        }
-        if ($event !== null) {
-            $this->eventDispatcher->dispatch($event);
         }
     }
 }

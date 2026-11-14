@@ -23,7 +23,6 @@ use App\Project\Domain\Repository\ProjectMemberRepository;
 use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class CreateCardCommandHandlerTest extends TestCase
 {
@@ -32,7 +31,6 @@ final class CreateCardCommandHandlerTest extends TestCase
     private CardRepository $cardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -41,7 +39,6 @@ final class CreateCardCommandHandlerTest extends TestCase
         $this->cardRepository = $this->createMock(CardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(?Column $column, ?Board $board, ?ProjectMember $actorMembership, array $existingCards): CreateCardCommandHandler
@@ -56,7 +53,6 @@ final class CreateCardCommandHandlerTest extends TestCase
             $this->boardRepository,
             $this->cardRepository,
             new MembershipGuard($this->memberRepository, $this->userRepository),
-            $this->eventDispatcher,
         );
     }
 
@@ -80,15 +76,14 @@ final class CreateCardCommandHandlerTest extends TestCase
                 return true;
             },
         ));
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static function (CardCreated $event) use ($actorId): bool {
-                return $event->actorId->equals($actorId);
-            },
-        ))->willReturnArgument(0);
-
         $result = $this->handler($column, $board, $member, $existing)
             ->__invoke(new CreateCardCommand((string) $column->id(), 'C', 'desc', (string) $actorId));
 
+        $events = $result->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardCreated::class, $events[0]);
+        self::assertSame($result->id()->toString(), $events[0]->aggregateRootId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame($captured, $result);
         self::assertSame('C', $result->title());
         self::assertSame('desc', $result->description());
@@ -106,13 +101,12 @@ final class CreateCardCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardCreated::class))->willReturnArgument(0);
 
         $result = $this->handler($column, $board, $member, [])
             ->__invoke(new CreateCardCommand((string) $column->id(), 'A', '', (string) $actorId));
 
         self::assertSame(0, $result->position());
+        self::assertInstanceOf(CardCreated::class, $result->releaseEvents()[0]);
     }
 
     public function testThrowsWhenColumnMissing(): void

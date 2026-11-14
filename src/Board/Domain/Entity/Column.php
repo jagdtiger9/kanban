@@ -4,14 +4,22 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
+use App\Board\Domain\Event\ColumnCreated;
+use App\Board\Domain\Event\ColumnDeleted;
+use App\Board\Domain\Event\ColumnRenamed;
+use App\Board\Domain\Event\ColumnReordered;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'columns')]
-final class Column
+final class Column implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;
@@ -42,8 +50,13 @@ final class Column
         $this->createdAt = $createdAt;
     }
 
-    public static function create(UuidInterface $id, UuidInterface $boardId, string $name, int $position): self
-    {
+    public static function create(
+        UuidInterface $id,
+        UuidInterface $boardId,
+        string $name,
+        int $position,
+        ?UuidInterface $actorId = null,
+    ): self {
         $name = trim($name);
         if ($name === '') {
             throw new \InvalidArgumentException('Column name must not be empty');
@@ -52,7 +65,10 @@ final class Column
             throw new \InvalidArgumentException('Column position must not be negative');
         }
 
-        return new self($id, $boardId, $name, $position, new \DateTimeImmutable());
+        $column = new self($id, $boardId, $name, $position, new \DateTimeImmutable());
+        $column->recordEvent(new ColumnCreated($boardId->toString(), $id->toString(), $actorId?->toString()));
+
+        return $column;
     }
 
     public function id(): UuidInterface
@@ -80,14 +96,18 @@ final class Column
         return $this->createdAt;
     }
 
-    public function rename(string $name): void
+    public function rename(string $name, ?UuidInterface $actorId = null): void
     {
         $name = trim($name);
         if ($name === '') {
             throw new \InvalidArgumentException('Column name must not be empty');
         }
+        if ($name === $this->name) {
+            return;
+        }
 
         $this->name = $name;
+        $this->recordEvent(new ColumnRenamed($this->boardId->toString(), $this->id->toString(), $actorId?->toString()));
     }
 
     public function changePosition(int $position): void
@@ -97,5 +117,15 @@ final class Column
         }
 
         $this->position = $position;
+    }
+
+    public function recordReordered(?UuidInterface $actorId = null): void
+    {
+        $this->recordEvent(new ColumnReordered($this->boardId->toString(), $this->id->toString(), $actorId?->toString()));
+    }
+
+    public function delete(?UuidInterface $actorId = null): void
+    {
+        $this->recordEvent(new ColumnDeleted($this->boardId->toString(), $this->id->toString(), $actorId?->toString()));
     }
 }

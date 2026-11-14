@@ -13,7 +13,6 @@ use App\Project\Domain\Repository\ProjectMemberRepository;
 use App\User\Domain\Repository\UserRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class SetCardAssigneesCommandHandler
@@ -23,7 +22,6 @@ final class SetCardAssigneesCommandHandler
         private ProjectMemberRepository $projectMemberRepository,
         private UserRepository $userRepository,
         private CardRepository $cardRepository,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -45,13 +43,9 @@ final class SetCardAssigneesCommandHandler
             }
         }
 
-        $events = [];
         foreach ($card->assignees() as $existing) {
             if (!\in_array((string) $existing->id(), $command->userIds, true)) {
-                $event = $card->unassign($existing, $actorId);
-                if ($event !== null) {
-                    $events[] = $event;
-                }
+                $card->unassign($existing, $actorId);
             }
         }
         foreach ($command->userIds as $userId) {
@@ -59,15 +53,9 @@ final class SetCardAssigneesCommandHandler
             if ($user === null) {
                 throw new \LogicException('User must exist for every membership');
             }
-            $event = $card->assign($user, $actorId);
-            if ($event !== null) {
-                $events[] = $event;
-            }
+            $card->assign($user, $actorId);
         }
 
         $this->cardRepository->save($card);
-        foreach ($events as $event) {
-            $this->eventDispatcher->dispatch($event);
-        }
     }
 }

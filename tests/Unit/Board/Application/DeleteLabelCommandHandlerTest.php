@@ -9,6 +9,7 @@ use App\Board\Application\MessageHandler\DeleteLabelCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Exception\LabelNotFoundException;
+use App\Board\Domain\Event\LabelDeleted;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -61,6 +62,15 @@ final class DeleteLabelCommandHandlerTest extends TestCase
 
         $this->handler($label, $board, $admin)
             ->__invoke(new DeleteLabelCommand((string) $label->id(), (string) $actorId));
+
+        $events = array_values(array_filter(
+            $label->releaseEvents(),
+            static fn (object $event): bool => $event instanceof LabelDeleted,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($label->id()->toString(), $events[0]->labelId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
     }
 
     public function testThrowsWhenActorIsNotAdmin(): void

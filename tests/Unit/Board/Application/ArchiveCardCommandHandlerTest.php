@@ -25,7 +25,6 @@ use App\User\Domain\Entity\User;
 use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class ArchiveCardCommandHandlerTest extends TestCase
 {
@@ -34,7 +33,6 @@ final class ArchiveCardCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -43,7 +41,6 @@ final class ArchiveCardCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -66,7 +63,18 @@ final class ArchiveCardCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new ArchiveCardCommandHandler($guard, $this->cardRepository, $this->eventDispatcher);
+        return new ArchiveCardCommandHandler($guard, $this->cardRepository);
+    }
+
+    private function releasedArchiveEvent(Card $card): CardArchived
+    {
+        $events = array_values(array_filter(
+            $card->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardArchived,
+        ));
+        self::assertCount(1, $events);
+
+        return $events[0];
     }
 
     public function testCreatorArchivesCard(): void
@@ -79,13 +87,12 @@ final class ArchiveCardCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardArchived::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $member)
             ->__invoke(new ArchiveCardCommand((string) $card->id(), (string) $actorId));
 
         self::assertTrue($card->isArchived());
+        self::assertSame($actorId->toString(), $this->releasedArchiveEvent($card)->actorId);
     }
 
     public function testThrowsWhenActorIsNotCreator(): void
@@ -122,13 +129,12 @@ final class ArchiveCardCommandHandlerTest extends TestCase
         $admin = ProjectMember::create(Uuid::uuid4(), $project->id(), $adminId, MemberRole::Admin);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardArchived::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, $admin)
             ->__invoke(new ArchiveCardCommand((string) $card->id(), (string) $adminId));
 
         self::assertTrue($card->isArchived());
+        self::assertSame($adminId->toString(), $this->releasedArchiveEvent($card)->actorId);
     }
 
     public function testGlobalAdminCanArchiveCardWithoutMembership(): void
@@ -141,12 +147,11 @@ final class ArchiveCardCommandHandlerTest extends TestCase
         $adminUser->promoteToGlobalAdmin();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardArchived::class))->willReturnArgument(0);
 
         $this->handler($card, $column, $board, null, $adminUser)
             ->__invoke(new ArchiveCardCommand((string) $card->id(), (string) $adminUser->id()));
 
         self::assertTrue($card->isArchived());
+        self::assertSame($adminUser->id()->toString(), $this->releasedArchiveEvent($card)->actorId);
     }
 }

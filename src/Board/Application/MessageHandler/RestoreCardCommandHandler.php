@@ -9,7 +9,6 @@ use App\Board\Application\Service\CardGuard;
 use App\Board\Domain\Repository\CardRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class RestoreCardCommandHandler
@@ -17,7 +16,6 @@ final class RestoreCardCommandHandler
     public function __construct(
         private CardGuard $guard,
         private CardRepository $cardRepository,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -27,10 +25,7 @@ final class RestoreCardCommandHandler
 
         $card = $this->guard->requireCardEditable(Uuid::fromString($command->cardId), $actorId);
 
-        $event = $card->restore($actorId);
+        $card->restore($actorId);
         $this->cardRepository->save($card);
-        if ($event !== null) {
-            $this->eventDispatcher->dispatch($event);
-        }
     }
 }

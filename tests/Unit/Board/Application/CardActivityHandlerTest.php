@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Board\Application;
 
-use App\Board\Application\EventListener\CardActivityListener;
+use App\Board\Application\MessageHandler\CardActivityHandler;
 use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
@@ -21,7 +21,7 @@ use App\Board\Domain\Repository\CardActivityRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 
-final class CardActivityListenerTest extends TestCase
+final class CardActivityHandlerTest extends TestCase
 {
     private CardActivityRepository $activityRepository;
 
@@ -37,9 +37,9 @@ final class CardActivityListenerTest extends TestCase
         });
     }
 
-    private function listener(): CardActivityListener
+    private function handler(): CardActivityHandler
     {
-        return new CardActivityListener($this->activityRepository);
+        return new CardActivityHandler($this->activityRepository);
     }
 
     private function last(): CardActivity
@@ -51,24 +51,24 @@ final class CardActivityListenerTest extends TestCase
 
     public function testCardCreated(): void
     {
-        $cardId = Uuid::uuid4();
-        $actorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardCreated(new CardCreated($cardId, $actorId));
+        $this->handler()->onCardCreated(new CardCreated($cardId, $actorId));
 
         $activity = $this->last();
         self::assertSame('card_created', $activity->type());
-        self::assertTrue($activity->cardId()->equals($cardId));
-        self::assertTrue($activity->actorId()?->equals($actorId));
+        self::assertSame($cardId, $activity->cardId()->toString());
+        self::assertSame($actorId, $activity->actorId()?->toString());
         self::assertSame([], $activity->payload());
     }
 
     public function testCardUpdated(): void
     {
-        $cardId = Uuid::uuid4();
-        $actorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardFieldChanged(new CardFieldChanged($cardId, 'title', 'Old', 'New', $actorId));
+        $this->handler()->onCardFieldChanged(new CardFieldChanged($cardId, 'title', 'Old', 'New', $actorId));
 
         $activity = $this->last();
         self::assertSame('card_updated', $activity->type());
@@ -77,18 +77,18 @@ final class CardActivityListenerTest extends TestCase
 
     public function testCardMoved(): void
     {
-        $cardId = Uuid::uuid4();
-        $from = Uuid::uuid4();
-        $to = Uuid::uuid4();
-        $actorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $from = Uuid::uuid4()->toString();
+        $to = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardMoved(new CardMoved($cardId, $from, $to, 0, 2, $actorId));
+        $this->handler()->onCardMoved(new CardMoved($cardId, $from, $to, 0, 2, $actorId));
 
         $activity = $this->last();
         self::assertSame('card_moved', $activity->type());
         self::assertSame([
-            'fromColumnId' => (string) $from,
-            'toColumnId' => (string) $to,
+            'fromColumnId' => $from,
+            'toColumnId' => $to,
             'oldPosition' => 0,
             'newPosition' => 2,
         ], $activity->payload());
@@ -96,9 +96,9 @@ final class CardActivityListenerTest extends TestCase
 
     public function testCardArchivedWithoutActor(): void
     {
-        $cardId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardArchived(new CardArchived($cardId, null));
+        $this->handler()->onCardArchived(new CardArchived($cardId, null));
 
         $activity = $this->last();
         self::assertSame('card_archived', $activity->type());
@@ -108,89 +108,89 @@ final class CardActivityListenerTest extends TestCase
 
     public function testCardRestored(): void
     {
-        $cardId = Uuid::uuid4();
-        $actorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardRestored(new CardRestored($cardId, $actorId));
+        $this->handler()->onCardRestored(new CardRestored($cardId, $actorId));
 
         $activity = $this->last();
         self::assertSame('card_restored', $activity->type());
-        self::assertTrue($activity->actorId()?->equals($actorId));
+        self::assertSame($actorId, $activity->actorId()?->toString());
     }
 
     public function testLabelAdded(): void
     {
-        $cardId = Uuid::uuid4();
-        $labelId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $labelId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardLabelAdded(new CardLabelAdded($cardId, $labelId, 'Bug', null));
+        $this->handler()->onCardLabelAdded(new CardLabelAdded($cardId, $labelId, 'Bug', null));
 
         $activity = $this->last();
         self::assertSame('label_added', $activity->type());
-        self::assertSame(['labelId' => (string) $labelId, 'labelName' => 'Bug'], $activity->payload());
+        self::assertSame(['labelId' => $labelId, 'labelName' => 'Bug'], $activity->payload());
     }
 
     public function testLabelRemoved(): void
     {
-        $cardId = Uuid::uuid4();
-        $labelId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $labelId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardLabelRemoved(new CardLabelRemoved($cardId, $labelId, 'Bug', null));
+        $this->handler()->onCardLabelRemoved(new CardLabelRemoved($cardId, $labelId, 'Bug', null));
 
         $activity = $this->last();
         self::assertSame('label_removed', $activity->type());
-        self::assertSame(['labelId' => (string) $labelId, 'labelName' => 'Bug'], $activity->payload());
+        self::assertSame(['labelId' => $labelId, 'labelName' => 'Bug'], $activity->payload());
     }
 
     public function testMemberAssigned(): void
     {
-        $cardId = Uuid::uuid4();
-        $userId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $userId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardAssigned(new CardAssigned($cardId, $userId, 'Alice', null));
+        $this->handler()->onCardAssigned(new CardAssigned($cardId, $userId, 'Alice', null));
 
         $activity = $this->last();
         self::assertSame('member_assigned', $activity->type());
-        self::assertSame(['userId' => (string) $userId, 'userName' => 'Alice'], $activity->payload());
+        self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
     }
 
     public function testMemberUnassigned(): void
     {
-        $cardId = Uuid::uuid4();
-        $userId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $userId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCardUnassigned(new CardUnassigned($cardId, $userId, 'Alice', null));
+        $this->handler()->onCardUnassigned(new CardUnassigned($cardId, $userId, 'Alice', null));
 
         $activity = $this->last();
         self::assertSame('member_unassigned', $activity->type());
-        self::assertSame(['userId' => (string) $userId, 'userName' => 'Alice'], $activity->payload());
+        self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
     }
 
     public function testCommentAdded(): void
     {
-        $cardId = Uuid::uuid4();
-        $commentId = Uuid::uuid4();
-        $authorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $commentId = Uuid::uuid4()->toString();
+        $authorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCommentCreated(new CommentCreated($cardId, $commentId, $authorId));
+        $this->handler()->onCommentCreated(new CommentCreated($cardId, $commentId, $authorId));
 
         $activity = $this->last();
         self::assertSame('comment_added', $activity->type());
-        self::assertTrue($activity->actorId()?->equals($authorId));
-        self::assertSame(['commentId' => (string) $commentId], $activity->payload());
+        self::assertSame($authorId, $activity->actorId()?->toString());
+        self::assertSame(['commentId' => $commentId], $activity->payload());
     }
 
     public function testCommentEdited(): void
     {
-        $cardId = Uuid::uuid4();
-        $commentId = Uuid::uuid4();
-        $authorId = Uuid::uuid4();
+        $cardId = Uuid::uuid4()->toString();
+        $commentId = Uuid::uuid4()->toString();
+        $authorId = Uuid::uuid4()->toString();
 
-        $this->listener()->onCommentEdited(new CommentEdited($cardId, $commentId, $authorId));
+        $this->handler()->onCommentEdited(new CommentEdited($cardId, $commentId, $authorId));
 
         $activity = $this->last();
         self::assertSame('comment_edited', $activity->type());
-        self::assertTrue($activity->actorId()?->equals($authorId));
-        self::assertSame(['commentId' => (string) $commentId], $activity->payload());
+        self::assertSame($authorId, $activity->actorId()?->toString());
+        self::assertSame(['commentId' => $commentId], $activity->payload());
     }
 }

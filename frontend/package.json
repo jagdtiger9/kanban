@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "centrifuge": "^5.8.0",
     "dompurify": "^3.4.17",
     "marked": "^18.2.0",
     "pinia": "^3.0.0",

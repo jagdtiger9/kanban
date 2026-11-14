@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Event;
 
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class CommentCreated
+final class CommentCreated implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $cardId,
-        public UuidInterface $commentId,
-        public UuidInterface $authorId,
+        public string $cardId,
+        public string $commentId,
+        public string $authorId,
     ) {
+        $this->initEvent($commentId, $authorId);
     }
 }

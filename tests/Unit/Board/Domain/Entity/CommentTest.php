@@ -13,7 +13,10 @@ final class CommentTest extends TestCase
 {
     private function createComment(string $body = 'Hello'): Comment
     {
-        return Comment::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), $body);
+        $comment = Comment::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), $body);
+        $comment->releaseEvents();
+
+        return $comment;
     }
 
     public function testCreateTrimsBody(): void
@@ -29,23 +32,27 @@ final class CommentTest extends TestCase
         $this->createComment('   ');
     }
 
-    public function testEditEmitsEventAndUpdatesTimestamp(): void
+    public function testEditRecordsEventAndUpdatesTimestamp(): void
     {
         $comment = $this->createComment();
 
-        $event = $comment->edit('Edited');
+        $comment->edit('Edited');
 
-        self::assertInstanceOf(CommentEdited::class, $event);
-        self::assertTrue($event->commentId->equals($comment->id()));
+        $events = $comment->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CommentEdited::class, $events[0]);
+        self::assertSame($comment->id()->toString(), $events[0]->commentId);
         self::assertSame('Edited', $comment->body());
         self::assertGreaterThanOrEqual($comment->createdAt(), $comment->updatedAt());
     }
 
-    public function testEditToSameBodyReturnsNull(): void
+    public function testEditToSameBodyRecordsNoEvent(): void
     {
         $comment = $this->createComment();
 
-        self::assertNull($comment->edit('Hello'));
+        $comment->edit('Hello');
+
+        self::assertSame([], $comment->releaseEvents());
     }
 
     public function testEditRejectsEmptyBody(): void

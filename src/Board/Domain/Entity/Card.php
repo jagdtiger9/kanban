@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -21,8 +24,10 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'cards')]
-final class Card
+final class Card implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;
@@ -109,7 +114,10 @@ final class Card
             throw new \InvalidArgumentException('Card position must not be negative');
         }
 
-        return new self($id, $columnId, $creatorId, $title, $description, $position, $dueDate, new \DateTimeImmutable());
+        $card = new self($id, $columnId, $creatorId, $title, $description, $position, $dueDate, new \DateTimeImmutable());
+        $card->recordEvent(new CardCreated($id->toString(), $creatorId->toString()));
+
+        return $card;
     }
 
     public function id(): UuidInterface
@@ -179,64 +187,66 @@ final class Card
         return $this->assignees;
     }
 
-    public function changeTitle(string $title, ?UuidInterface $actorId = null): ?CardFieldChanged
+    public function changeTitle(string $title, ?UuidInterface $actorId = null): void
     {
         $title = trim($title);
         if ($title === '') {
             throw new \InvalidArgumentException('Card title must not be empty');
         }
         if ($title === $this->title) {
-            return null;
+            return;
         }
 
         $old = $this->title;
         $this->title = $title;
         $this->touch();
-
-        return new CardFieldChanged($this->id, 'title', $old, $title, $actorId);
+        $this->recordEvent(new CardFieldChanged($this->id->toString(), 'title', $old, $title, $actorId?->toString()));
     }
 
-    public function changeDescription(string $description, ?UuidInterface $actorId = null): ?CardFieldChanged
+    public function changeDescription(string $description, ?UuidInterface $actorId = null): void
     {
         if ($description === $this->description) {
-            return null;
+            return;
         }
 
         $old = $this->description;
         $this->description = $description;
         $this->touch();
-
-        return new CardFieldChanged($this->id, 'description', $old, $description, $actorId);
+        $this->recordEvent(new CardFieldChanged($this->id->toString(), 'description', $old, $description, $actorId?->toString()));
     }
 
-    public function changeDueDate(?\DateTimeImmutable $dueDate, ?UuidInterface $actorId = null): ?CardFieldChanged
+    public function changeDueDate(?\DateTimeImmutable $dueDate, ?UuidInterface $actorId = null): void
     {
         $new = $dueDate?->format('Y-m-d');
         $old = $this->dueDate?->format('Y-m-d');
         if ($new === $old) {
-            return null;
+            return;
         }
 
         $this->dueDate = $dueDate;
         $this->touch();
-
-        return new CardFieldChanged($this->id, 'due_date', $old, $new, $actorId);
+        $this->recordEvent(new CardFieldChanged($this->id->toString(), 'due_date', $old, $new, $actorId?->toString()));
     }
 
-    public function moveTo(UuidInterface $newColumnId, int $newPosition, ?UuidInterface $actorId = null): ?CardMoved
+    public function moveTo(UuidInterface $newColumnId, int $newPosition, ?UuidInterface $actorId = null): void
     {
         if ($newPosition < 0) {
             throw new \InvalidArgumentException('Card position must not be negative');
         }
         if ($this->columnId->equals($newColumnId) && $this->position === $newPosition) {
-            return null;
+            return;
         }
 
-        $event = new CardMoved($this->id, $this->columnId, $newColumnId, $this->position, $newPosition, $actorId);
+        $this->recordEvent(new CardMoved(
+            $this->id->toString(),
+            $this->columnId->toString(),
+            $newColumnId->toString(),
+            $this->position,
+            $newPosition,
+            $actorId?->toString(),
+        ));
         $this->columnId = $newColumnId;
         $this->position = $newPosition;
-
-        return $event;
     }
 
     public function changePosition(int $position): void
@@ -248,70 +258,64 @@ final class Card
         $this->position = $position;
     }
 
-    public function archive(?UuidInterface $actorId = null): ?CardArchived
+    public function archive(?UuidInterface $actorId = null): void
     {
         if ($this->archivedAt !== null) {
-            return null;
+            return;
         }
 
         $this->archivedAt = new \DateTimeImmutable();
-
-        return new CardArchived($this->id, $actorId);
+        $this->recordEvent(new CardArchived($this->id->toString(), $actorId?->toString()));
     }
 
-    public function restore(?UuidInterface $actorId = null): ?CardRestored
+    public function restore(?UuidInterface $actorId = null): void
     {
         if ($this->archivedAt === null) {
-            return null;
+            return;
         }
 
         $this->archivedAt = null;
-
-        return new CardRestored($this->id, $actorId);
+        $this->recordEvent(new CardRestored($this->id->toString(), $actorId?->toString()));
     }
 
-    public function addLabel(Label $label, ?UuidInterface $actorId = null): ?CardLabelAdded
+    public function addLabel(Label $label, ?UuidInterface $actorId = null): void
     {
         if ($this->labels->contains($label)) {
-            return null;
+            return;
         }
 
         $this->labels->add($label);
-
-        return new CardLabelAdded($this->id, $label->id(), $label->name(), $actorId);
+        $this->recordEvent(new CardLabelAdded($this->id->toString(), $label->id()->toString(), $label->name(), $actorId?->toString()));
     }
 
-    public function removeLabel(Label $label, ?UuidInterface $actorId = null): ?CardLabelRemoved
+    public function removeLabel(Label $label, ?UuidInterface $actorId = null): void
     {
         if (!$this->labels->contains($label)) {
-            return null;
+            return;
         }
 
         $this->labels->removeElement($label);
-
-        return new CardLabelRemoved($this->id, $label->id(), $label->name(), $actorId);
+        $this->recordEvent(new CardLabelRemoved($this->id->toString(), $label->id()->toString(), $label->name(), $actorId?->toString()));
     }
 
-    public function assign(User $user, ?UuidInterface $actorId = null): ?CardAssigned
+    public function assign(User $user, ?UuidInterface $actorId = null): void
     {
         if ($this->assignees->contains($user)) {
-            return null;
+            return;
         }
 
         $this->assignees->add($user);
-
-        return new CardAssigned($this->id, $user->id(), $user->displayName(), $actorId);
+        $this->recordEvent(new CardAssigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
     }
 
-    public function unassign(User $user, ?UuidInterface $actorId = null): ?CardUnassigned
+    public function unassign(User $user, ?UuidInterface $actorId = null): void
     {
         if (!$this->assignees->contains($user)) {
-            return null;
+            return;
         }
 
         $this->assignees->removeElement($user);
-
-        return new CardUnassigned($this->id, $user->id(), $user->displayName(), $actorId);
+        $this->recordEvent(new CardUnassigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
     }
 
     private function touch(): void

@@ -27,7 +27,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class MoveCardCommandHandlerTest extends TestCase
 {
@@ -36,7 +35,6 @@ final class MoveCardCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -45,7 +43,6 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     /**
@@ -96,7 +93,7 @@ final class MoveCardCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new MoveCardCommandHandler($guard, $this->columnRepository, $this->cardRepository, new CardMoveService(), $this->eventDispatcher);
+        return new MoveCardCommandHandler($guard, $this->columnRepository, $this->cardRepository, new CardMoveService());
     }
 
     public function testMovesCardAcrossColumnsAndRenumbersBoth(): void
@@ -113,18 +110,18 @@ final class MoveCardCommandHandlerTest extends TestCase
         $c = Card::create(Uuid::uuid4(), $target->id(), $actorId, 'C', '', 0);
 
         $this->cardRepository->expects($this->exactly(3))->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static function (CardMoved $event) use ($actorId, $source, $target): bool {
-                return $event->actorId !== null
-                    && $event->actorId->equals($actorId)
-                    && $event->oldColumnId->equals($source->id())
-                    && $event->newColumnId->equals($target->id());
-            },
-        ))->willReturnArgument(0);
 
         $this->handler($moved, $source, $board, $member, $target, [$moved, $b], [$c])
             ->__invoke(new MoveCardCommand((string) $moved->id(), (string) $target->id(), 0, (string) $actorId));
 
+        $events = array_values(array_filter(
+            $moved->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardMoved,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+        self::assertSame($source->id()->toString(), $events[0]->oldColumnId);
+        self::assertSame($target->id()->toString(), $events[0]->newColumnId);
         self::assertTrue($moved->columnId()->equals($target->id()));
         self::assertSame(0, $moved->position());
         self::assertSame(1, $c->position());
@@ -144,12 +141,16 @@ final class MoveCardCommandHandlerTest extends TestCase
         $c = Card::create(Uuid::uuid4(), $source->id(), $actorId, 'C', '', 2);
 
         $this->cardRepository->expects($this->exactly(3))->method('save');
-        $this->eventDispatcher->expects($this->once())->method('dispatch')
-            ->with($this->isInstanceOf(CardMoved::class))->willReturnArgument(0);
 
         $this->handler($moved, $source, $board, $member, $source, [$moved, $b, $c], [$moved, $b, $c])
             ->__invoke(new MoveCardCommand((string) $moved->id(), (string) $source->id(), 1, (string) $actorId));
 
+        $events = array_values(array_filter(
+            $moved->releaseEvents(),
+            static fn (object $event): bool => $event instanceof CardMoved,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame(1, $events[0]->newPosition);
         self::assertSame(0, $b->position());
         self::assertSame(1, $moved->position());
         self::assertSame(2, $c->position());
@@ -164,7 +165,6 @@ final class MoveCardCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $card = Card::create(Uuid::uuid4(), $source->id(), $actorId, 'A', '', 0);
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(ColumnNotFoundException::class);
 
         $this->handler($card, $source, $board, $member, null, [$card], [])
@@ -183,7 +183,6 @@ final class MoveCardCommandHandlerTest extends TestCase
         $card = Card::create(Uuid::uuid4(), $source->id(), $actorId, 'A', '', 0);
 
         $this->cardRepository->expects($this->never())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(ColumnNotFoundException::class);
 
         $this->handler($card, $source, $board, $member, $foreign, [$card], [])
@@ -197,7 +196,6 @@ final class MoveCardCommandHandlerTest extends TestCase
         $source = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
         $card = Card::create(Uuid::uuid4(), $source->id(), Uuid::uuid4(), 'A', '', 0);
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($card, $source, $board, null, $source, [$card], [$card])
@@ -210,7 +208,6 @@ final class MoveCardCommandHandlerTest extends TestCase
         $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
         $source = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(CardNotFoundException::class);
 
         $this->handler(null, $source, $board, null, $source, [], [])

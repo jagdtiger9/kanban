@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Board\Domain\Service;
 
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Event\ColumnReordered;
 use App\Board\Domain\Service\ColumnReorderService;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
@@ -13,7 +14,10 @@ final class ColumnReorderServiceTest extends TestCase
 {
     private function column(string $name, int $position): Column
     {
-        return Column::create(Uuid::uuid4(), Uuid::uuid4(), $name, $position);
+        $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), $name, $position);
+        $column->releaseEvents();
+
+        return $column;
     }
 
     public function testReorderMovesColumnAndRenumbers(): void
@@ -21,13 +25,21 @@ final class ColumnReorderServiceTest extends TestCase
         $a = $this->column('A', 0);
         $b = $this->column('B', 1);
         $c = $this->column('C', 2);
+        $actorId = Uuid::uuid4();
         $service = new ColumnReorderService();
 
-        $service->reorder($a, 2, [$a, $b, $c]);
+        $service->reorder($a, 2, [$a, $b, $c], $actorId);
 
         self::assertSame(0, $b->position());
         self::assertSame(1, $c->position());
         self::assertSame(2, $a->position());
+
+        $events = $a->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ColumnReordered::class, $events[0]);
+        self::assertSame($a->boardId()->toString(), $events[0]->boardId);
+        self::assertSame($a->id()->toString(), $events[0]->columnId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
     }
 
     public function testTargetIndexClampedToEnd(): void

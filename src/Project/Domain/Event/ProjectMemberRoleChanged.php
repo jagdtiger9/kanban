@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Project\Domain\Event;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
 use App\Project\Domain\Enum\MemberRole;
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class ProjectMemberRoleChanged
+final class ProjectMemberRoleChanged implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $projectId,
-        public UuidInterface $userId,
+        public string $projectId,
+        public string $userId,
         public MemberRole $newRole,
-        public UuidInterface $actorId,
+        string $actorId,
     ) {
+        $this->initEvent($projectId, $actorId);
     }
 }

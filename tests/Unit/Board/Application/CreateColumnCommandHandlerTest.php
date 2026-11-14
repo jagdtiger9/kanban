@@ -8,6 +8,7 @@ use App\Board\Application\Message\Command\CreateColumnCommand;
 use App\Board\Application\MessageHandler\CreateColumnCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Event\ColumnCreated;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -77,6 +78,12 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $result = $this->handler($project, $board, $admin, $existing)
             ->__invoke(new CreateColumnCommand((string) $project->id(), 'Review', (string) $actorId));
 
+        $events = $result->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(ColumnCreated::class, $events[0]);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($result->id()->toString(), $events[0]->columnId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame($captured, $result);
         self::assertSame('Review', $result->name());
         self::assertSame(2, $result->position());

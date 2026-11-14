@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\User\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\User\Domain\Exception\ConfirmationTokenExpiredException;
 use App\User\Domain\Exception\ConfirmationTokenInvalidException;
 use App\User\Domain\Exception\UserAlreadyConfirmedException;
@@ -14,8 +16,10 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'users')]
-final class User
+final class User implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;

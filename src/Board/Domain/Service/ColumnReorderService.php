@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Board\Domain\Service;
 
 use App\Board\Domain\Entity\Column;
+use Ramsey\Uuid\UuidInterface;
 
 final class ColumnReorderService
 {
@@ -14,7 +15,7 @@ final class ColumnReorderService
      *
      * @param list<Column> $columns all columns of the board, ordered by position
      */
-    public function reorder(Column $column, int $targetIndex, array $columns): void
+    public function reorder(Column $column, int $targetIndex, array $columns, ?UuidInterface $actorId = null): void
     {
         if ($targetIndex < 0) {
             throw new \InvalidArgumentException('Target index must not be negative');
@@ -28,6 +29,7 @@ final class ColumnReorderService
         array_splice($rest, $index, 0, [$column]);
 
         $this->renumber($rest);
+        $column->recordReordered($actorId);
     }
 
     /**

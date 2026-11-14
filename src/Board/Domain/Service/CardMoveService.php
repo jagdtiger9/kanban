@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Board\Domain\Service;
 
 use App\Board\Domain\Entity\Card;
-use App\Board\Domain\Event\CardMoved;
 use Ramsey\Uuid\UuidInterface;
 
 final class CardMoveService
@@ -24,7 +23,7 @@ final class CardMoveService
         array $oldColumnCards,
         array $newColumnCards,
         ?UuidInterface $actorId = null,
-    ): ?CardMoved {
+    ): void {
         if ($targetIndex < 0) {
             throw new \InvalidArgumentException('Target index must not be negative');
         }
@@ -34,22 +33,20 @@ final class CardMoveService
         if ($oldColumnId->equals($newColumnId)) {
             $cards = $this->withoutCard($oldColumnCards, $card);
             $index = min($targetIndex, count($cards));
-            $event = $card->moveTo($newColumnId, $index, $actorId);
+            $card->moveTo($newColumnId, $index, $actorId);
             array_splice($cards, $index, 0, [$card]);
             $this->renumber($cards);
 
-            return $event;
+            return;
         }
 
         $remaining = $this->withoutCard($oldColumnCards, $card);
         $target = $newColumnCards;
         $index = min($targetIndex, count($target));
-        $event = $card->moveTo($newColumnId, $index, $actorId);
+        $card->moveTo($newColumnId, $index, $actorId);
         $this->renumber($remaining);
         array_splice($target, $index, 0, [$card]);
         $this->renumber($target);
-
-        return $event;
     }
 
     /**

@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Project\Domain\Event;
 
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class ProjectRestored
+final class ProjectRestored implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $projectId,
-        public UuidInterface $actorId,
+        public string $projectId,
+        string $actorId,
     ) {
+        $this->initEvent($projectId, $actorId);
     }
 }

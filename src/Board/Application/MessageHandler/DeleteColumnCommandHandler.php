@@ -40,13 +40,15 @@ final class DeleteColumnCommandHandler
         if ($board === null) {
             throw new \LogicException('Board must exist for every column');
         }
-        $this->guard->requireAdmin($board->projectId(), Uuid::fromString($command->actorId));
+        $actorId = Uuid::fromString($command->actorId);
+        $this->guard->requireAdmin($board->projectId(), $actorId);
 
         if ($this->cardRepository->countByColumn($columnId) > 0) {
             throw new ColumnNotEmptyException('Column must be empty to be deleted');
         }
 
         $columns = $this->columnRepository->findByBoard($board->id());
+        $column->delete($actorId);
         $this->columnRepository->remove($column);
 
         $remaining = array_values(array_filter(

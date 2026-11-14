@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
@@ -25,6 +25,7 @@ const props = defineProps<{
     members: MemberPayload[]
     columns: ColumnPayload[]
     isAdmin: boolean
+    realtimeTick?: number
 }>()
 
 const emit = defineEmits<{
@@ -153,6 +154,36 @@ async function loadDetail(): Promise<void> {
 }
 
 onMounted(loadDetail)
+
+watch(
+    () => props.realtimeTick,
+    () => {
+        refreshDetail().catch((e: unknown) => {
+            detailError.value = e instanceof ApiError ? e.message : 'Failed to refresh comments and activity'
+        })
+    },
+)
+
+watch(
+    () => props.card.labelIds,
+    (ids) => {
+        labelIds.value = [...ids]
+    },
+)
+
+watch(
+    () => props.card.assigneeIds,
+    (ids) => {
+        assigneeIds.value = [...ids]
+    },
+)
+
+watch(
+    () => props.card.dueDate,
+    (value) => {
+        dueDate.value = value
+    },
+)
 
 async function addComment(): Promise<void> {
     const body = newComment.value.trim()

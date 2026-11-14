@@ -27,7 +27,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class CreateCommentCommandHandlerTest extends TestCase
 {
@@ -37,7 +36,6 @@ final class CreateCommentCommandHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private CommentRepository $commentRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -47,7 +45,6 @@ final class CreateCommentCommandHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->commentRepository = $this->createMock(CommentRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(?Card $card, ?Column $column, ?Board $board, ?ProjectMember $actorMembership): CreateCommentCommandHandler
@@ -64,7 +61,7 @@ final class CreateCommentCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new CreateCommentCommandHandler($guard, $this->commentRepository, $this->eventDispatcher);
+        return new CreateCommentCommandHandler($guard, $this->commentRepository);
     }
 
     private function context(UuidInterface $actorId): array
@@ -89,15 +86,15 @@ final class CreateCommentCommandHandlerTest extends TestCase
                     && $comment->body() === 'Hello **world**';
             },
         ));
-        $this->eventDispatcher->expects($this->once())->method('dispatch')->with($this->callback(
-            static function (CommentCreated $event) use ($card, $actorId): bool {
-                return $event->cardId->equals($card->id()) && $event->authorId->equals($actorId);
-            },
-        ))->willReturnArgument(0);
-
         $result = $this->handler($card, $column, $board, $member)
             ->__invoke(new CreateCommentCommand((string) $card->id(), 'Hello **world**', (string) $actorId));
 
+        $events = $result->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CommentCreated::class, $events[0]);
+        self::assertSame($card->id()->toString(), $events[0]->cardId);
+        self::assertSame($result->id()->toString(), $events[0]->commentId);
+        self::assertSame($actorId->toString(), $events[0]->authorId);
         self::assertSame('Hello **world**', $result->body());
         self::assertTrue($result->authorId()->equals($actorId));
     }

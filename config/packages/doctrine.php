@@ -11,6 +11,9 @@ return App::config([
             'driver' => 'pdo_pgsql',
             'charset' => 'utf8',
             'profiling_collect_backtrace' => '%kernel.debug%',
+            // The Doctrine Messenger transport owns this table; keep it out of
+            // ORM schema diffs, which would otherwise try to drop it.
+            'schema_filter' => '~^(?!messenger_messages)~',
             // ramsey/uuid-doctrine ships only DBAL types (no Symfony bundle) —
             // the uuid type must be registered here manually.
             'types' => [
@@ -38,6 +41,12 @@ return App::config([
                     'type' => 'attribute',
                     'dir' => '%kernel.project_dir%/src/Board/Domain/Entity',
                     'prefix' => 'App\\Board\\Domain\\Entity',
+                    'is_bundle' => false,
+                ],
+                'App\\Shared' => [
+                    'type' => 'attribute',
+                    'dir' => '%kernel.project_dir%/src/Shared/Domain/Entity',
+                    'prefix' => 'App\\Shared\\Domain\\Entity',
                     'is_bundle' => false,
                 ],
             ],

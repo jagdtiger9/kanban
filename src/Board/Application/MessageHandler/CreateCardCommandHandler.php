@@ -6,7 +6,6 @@ namespace App\Board\Application\MessageHandler;
 
 use App\Board\Application\Message\Command\CreateCardCommand;
 use App\Board\Domain\Entity\Card;
-use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Exception\ColumnNotFoundException;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
@@ -14,7 +13,6 @@ use App\Board\Domain\Repository\ColumnRepository;
 use App\Project\Application\Service\MembershipGuard;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class CreateCardCommandHandler
@@ -24,7 +22,6 @@ final class CreateCardCommandHandler
         private BoardRepository $boardRepository,
         private CardRepository $cardRepository,
         private MembershipGuard $guard,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -52,7 +49,6 @@ final class CreateCardCommandHandler
             count($this->cardRepository->findByColumn($columnId)),
         );
         $this->cardRepository->save($card);
-        $this->eventDispatcher->dispatch(new CardCreated($card->id(), $actorId));
 
         return $card;
     }

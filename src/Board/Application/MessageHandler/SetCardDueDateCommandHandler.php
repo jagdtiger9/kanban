@@ -9,7 +9,6 @@ use App\Board\Application\Service\CardGuard;
 use App\Board\Domain\Repository\CardRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 #[AsMessageHandler]
 final class SetCardDueDateCommandHandler
@@ -17,7 +16,6 @@ final class SetCardDueDateCommandHandler
     public function __construct(
         private CardGuard $guard,
         private CardRepository $cardRepository,
-        private EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -28,10 +26,7 @@ final class SetCardDueDateCommandHandler
         $card = $this->guard->requireCard(Uuid::fromString($command->cardId), $actorId);
 
         $dueDate = $command->dueDate === null ? null : new \DateTimeImmutable($command->dueDate);
-        $event = $card->changeDueDate($dueDate, $actorId);
+        $card->changeDueDate($dueDate, $actorId);
         $this->cardRepository->save($card);
-        if ($event !== null) {
-            $this->eventDispatcher->dispatch($event);
-        }
     }
 }

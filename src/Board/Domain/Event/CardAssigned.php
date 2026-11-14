@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Event;
 
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class CardAssigned
+final class CardAssigned implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $cardId,
-        public UuidInterface $userId,
+        public string $cardId,
+        public string $userId,
         public string $userName,
-        public ?UuidInterface $actorId,
+        ?string $actorId,
     ) {
+        $this->initEvent($cardId, $actorId);
     }
 }

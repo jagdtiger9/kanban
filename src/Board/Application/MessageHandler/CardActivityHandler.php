@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Board\Application\EventListener;
+namespace App\Board\Application\MessageHandler;
 
 use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Event\CardArchived;
@@ -18,22 +18,21 @@ use App\Board\Domain\Event\CommentCreated;
 use App\Board\Domain\Event\CommentEdited;
 use App\Board\Domain\Repository\CardActivityRepository;
 use Ramsey\Uuid\Uuid;
-use Ramsey\Uuid\UuidInterface;
-use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
-final class CardActivityListener
+final class CardActivityHandler
 {
     public function __construct(private CardActivityRepository $activityRepository)
     {
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardCreated(CardCreated $event): void
     {
         $this->store($event->cardId, $event->actorId, 'card_created', []);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardFieldChanged(CardFieldChanged $event): void
     {
         $this->store($event->cardId, $event->actorId, 'card_updated', [
@@ -43,86 +42,92 @@ final class CardActivityListener
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardMoved(CardMoved $event): void
     {
         $this->store($event->cardId, $event->actorId, 'card_moved', [
-            'fromColumnId' => (string) $event->oldColumnId,
-            'toColumnId' => (string) $event->newColumnId,
+            'fromColumnId' => $event->oldColumnId,
+            'toColumnId' => $event->newColumnId,
             'oldPosition' => $event->oldPosition,
             'newPosition' => $event->newPosition,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardArchived(CardArchived $event): void
     {
         $this->store($event->cardId, $event->actorId, 'card_archived', []);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardRestored(CardRestored $event): void
     {
         $this->store($event->cardId, $event->actorId, 'card_restored', []);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardLabelAdded(CardLabelAdded $event): void
     {
         $this->store($event->cardId, $event->actorId, 'label_added', [
-            'labelId' => (string) $event->labelId,
+            'labelId' => $event->labelId,
             'labelName' => $event->labelName,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardLabelRemoved(CardLabelRemoved $event): void
     {
         $this->store($event->cardId, $event->actorId, 'label_removed', [
-            'labelId' => (string) $event->labelId,
+            'labelId' => $event->labelId,
             'labelName' => $event->labelName,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardAssigned(CardAssigned $event): void
     {
         $this->store($event->cardId, $event->actorId, 'member_assigned', [
-            'userId' => (string) $event->userId,
+            'userId' => $event->userId,
             'userName' => $event->userName,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCardUnassigned(CardUnassigned $event): void
     {
         $this->store($event->cardId, $event->actorId, 'member_unassigned', [
-            'userId' => (string) $event->userId,
+            'userId' => $event->userId,
             'userName' => $event->userName,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCommentCreated(CommentCreated $event): void
     {
         $this->store($event->cardId, $event->authorId, 'comment_added', [
-            'commentId' => (string) $event->commentId,
+            'commentId' => $event->commentId,
         ]);
     }
 
-    #[AsEventListener]
+    #[AsMessageHandler]
     public function onCommentEdited(CommentEdited $event): void
     {
         $this->store($event->cardId, $event->authorId, 'comment_edited', [
-            'commentId' => (string) $event->commentId,
+            'commentId' => $event->commentId,
         ]);
     }
 
     /**
      * @param array<string, mixed> $payload
      */
-    private function store(UuidInterface $cardId, ?UuidInterface $actorId, string $type, array $payload): void
+    private function store(string $cardId, ?string $actorId, string $type, array $payload): void
     {
-        $this->activityRepository->save(CardActivity::create(Uuid::uuid4(), $cardId, $actorId, $type, $payload));
+        $this->activityRepository->save(CardActivity::create(
+            Uuid::uuid4(),
+            Uuid::fromString($cardId),
+            $actorId === null ? null : Uuid::fromString($actorId),
+            $type,
+            $payload,
+        ));
     }
 }

@@ -10,6 +10,7 @@ use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Exception\ColumnNotEmptyException;
 use App\Board\Domain\Exception\ColumnNotFoundException;
+use App\Board\Domain\Event\ColumnDeleted;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -79,6 +80,14 @@ final class DeleteColumnCommandHandlerTest extends TestCase
         $this->handler($b, $board, $admin, 0, [$a, $b, $c])
             ->__invoke(new DeleteColumnCommand((string) $b->id(), (string) $actorId));
 
+        $events = array_values(array_filter(
+            $b->releaseEvents(),
+            static fn (object $event): bool => $event instanceof ColumnDeleted,
+        ));
+        self::assertCount(1, $events);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($b->id()->toString(), $events[0]->columnId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame(0, $a->position());
         self::assertSame(1, $c->position());
     }

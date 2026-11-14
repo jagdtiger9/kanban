@@ -34,8 +34,10 @@ final class DeleteLabelCommandHandler
         if ($board === null) {
             throw new \LogicException('Board must exist for every label');
         }
-        $this->guard->requireAdmin($board->projectId(), Uuid::fromString($command->actorId));
+        $actorId = Uuid::fromString($command->actorId);
+        $this->guard->requireAdmin($board->projectId(), $actorId);
 
+        $label->delete($actorId);
         $this->labelRepository->remove($label);
     }
 }

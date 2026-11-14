@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Event;
 
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class CardFieldChanged
+final class CardFieldChanged implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $cardId,
+        public string $cardId,
         public string $field,
         public ?string $oldValue,
         public ?string $newValue,
-        public ?UuidInterface $actorId,
+        ?string $actorId,
     ) {
+        $this->initEvent($cardId, $actorId);
     }
 }

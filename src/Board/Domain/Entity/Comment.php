@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Entity;
 
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
+use App\Board\Domain\Event\CommentCreated;
+use App\Board\Domain\Event\CommentDeleted;
 use App\Board\Domain\Event\CommentEdited;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -11,8 +15,10 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'comments')]
-final class Comment
+final class Comment implements DomainEventAwareInterface
 {
+    use EventStoreTrait;
+
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
     private UuidInterface $id;
@@ -54,7 +60,10 @@ final class Comment
             throw new \InvalidArgumentException('Comment body must not be empty');
         }
 
-        return new self($id, $cardId, $authorId, $body, new \DateTimeImmutable());
+        $comment = new self($id, $cardId, $authorId, $body, new \DateTimeImmutable());
+        $comment->recordEvent(new CommentCreated($cardId->toString(), $id->toString(), $authorId->toString()));
+
+        return $comment;
     }
 
     public function id(): UuidInterface
@@ -87,19 +96,23 @@ final class Comment
         return $this->updatedAt;
     }
 
-    public function edit(string $body): ?CommentEdited
+    public function edit(string $body): void
     {
         $body = trim($body);
         if ($body === '') {
             throw new \InvalidArgumentException('Comment body must not be empty');
         }
         if ($body === $this->body) {
-            return null;
+            return;
         }
 
         $this->body = $body;
         $this->updatedAt = new \DateTimeImmutable();
+        $this->recordEvent(new CommentEdited($this->cardId->toString(), $this->id->toString(), $this->authorId->toString()));
+    }
 
-        return new CommentEdited($this->cardId, $this->id, $this->authorId);
+    public function delete(?UuidInterface $actorId = null): void
+    {
+        $this->recordEvent(new CommentDeleted($this->cardId->toString(), $this->id->toString(), $actorId?->toString()));
     }
 }

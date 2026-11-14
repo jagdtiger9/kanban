@@ -27,7 +27,6 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class UpdateCardContentCommandHandlerTest extends TestCase
 {
@@ -36,7 +35,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
     private BoardRepository $boardRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
-    private EventDispatcherInterface $eventDispatcher;
 
     protected function setUp(): void
     {
@@ -45,7 +43,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $this->boardRepository = $this->createMock(BoardRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
-        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
     }
 
     private function handler(
@@ -68,7 +65,7 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new UpdateCardContentCommandHandler($guard, $this->cardRepository, $this->eventDispatcher);
+        return new UpdateCardContentCommandHandler($guard, $this->cardRepository);
     }
 
     private function cardAndContext(UuidInterface $creatorId): array
@@ -77,6 +74,7 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
         $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
         $card = Card::create(Uuid::uuid4(), $column->id(), $creatorId, 'Old', 'old desc', 0);
+        $card->releaseEvents();
 
         return [$card, $column, $board, $project];
     }
@@ -87,13 +85,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $dispatched = [];
-        $this->eventDispatcher->expects($this->exactly(2))->method('dispatch')
-            ->willReturnCallback(static function (object $event) use (&$dispatched): object {
-                $dispatched[] = $event;
-
-                return $event;
-            });
 
         $result = $this->handler($card, $column, $board, $member)
             ->__invoke(new UpdateCardContentCommand((string) $card->id(), 'New', 'new desc', (string) $actorId));
@@ -103,7 +94,7 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         self::assertSame('new desc', $result->description());
         self::assertSame(
             ['title', 'description'],
-            array_map(static fn (CardFieldChanged $event): string => $event->field, $dispatched),
+            array_map(static fn (CardFieldChanged $event): string => $event->field, $result->releaseEvents()),
         );
     }
 
@@ -114,7 +105,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $otherId, MemberRole::Member);
 
         $this->cardRepository->expects($this->never())->method('save');
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(CardForbiddenException::class);
 
         $this->handler($card, $column, $board, $member)
@@ -125,7 +115,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
     {
         [$card, $column, $board] = $this->cardAndContext($actorId = Uuid::uuid4());
 
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($card, $column, $board, null)
@@ -134,7 +123,6 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
 
     public function testThrowsWhenCardMissing(): void
     {
-        $this->eventDispatcher->expects($this->never())->method('dispatch');
         $this->expectException(CardNotFoundException::class);
 
         $this->handler(null, null, null, null)
@@ -148,11 +136,14 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $admin = ProjectMember::create(Uuid::uuid4(), $project->id(), $adminId, MemberRole::Admin);
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->exactly(2))->method('dispatch')->willReturnArgument(0);
 
         $result = $this->handler($card, $column, $board, $admin)
             ->__invoke(new UpdateCardContentCommand((string) $card->id(), 'New', 'new desc', (string) $adminId));
 
+        self::assertSame(
+            ['title', 'description'],
+            array_map(static fn (CardFieldChanged $event): string => $event->field, $result->releaseEvents()),
+        );
         self::assertSame('New', $result->title());
         self::assertSame('new desc', $result->description());
     }
@@ -164,11 +155,14 @@ final class UpdateCardContentCommandHandlerTest extends TestCase
         $adminUser->promoteToGlobalAdmin();
 
         $this->cardRepository->expects($this->once())->method('save');
-        $this->eventDispatcher->expects($this->exactly(2))->method('dispatch')->willReturnArgument(0);
 
         $result = $this->handler($card, $column, $board, null, $adminUser)
             ->__invoke(new UpdateCardContentCommand((string) $card->id(), 'New', 'new desc', (string) $adminUser->id()));
 
+        self::assertSame(
+            ['title', 'description'],
+            array_map(static fn (CardFieldChanged $event): string => $event->field, $result->releaseEvents()),
+        );
         self::assertSame('New', $result->title());
     }
 }

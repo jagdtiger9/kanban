@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Board\Domain\Event;
 
-use Ramsey\Uuid\UuidInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
+use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventTrait;
 
-final readonly class CardMoved
+final class CardMoved implements DomainEventInterface
 {
+    use DomainEventTrait;
+
     public function __construct(
-        public UuidInterface $cardId,
-        public UuidInterface $oldColumnId,
-        public UuidInterface $newColumnId,
+        public string $cardId,
+        public string $oldColumnId,
+        public string $newColumnId,
         public int $oldPosition,
         public int $newPosition,
-        public ?UuidInterface $actorId,
+        ?string $actorId,
     ) {
+        $this->initEvent($cardId, $actorId);
     }
 }

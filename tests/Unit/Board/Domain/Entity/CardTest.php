@@ -8,10 +8,13 @@ use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
+use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
 use App\Board\Domain\Event\CardRestored;
+use App\Board\Domain\Event\CardUnassigned;
 use App\User\Domain\Entity\User;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
@@ -20,17 +23,34 @@ final class CardTest extends TestCase
 {
     private function createCard(int $position = 0): Card
     {
-        return Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), '  Title  ', 'Description', $position);
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), '  Title  ', 'Description', $position);
+        $card->releaseEvents();
+
+        return $card;
     }
 
     public function testCreateTrimsTitleAndKeepsDescription(): void
     {
-        $card = $this->createCard();
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), '  Title  ', 'Description', 0);
 
         self::assertSame('Title', $card->title());
         self::assertSame('Description', $card->description());
         self::assertFalse($card->isArchived());
         self::assertNull($card->dueDate());
+    }
+
+    public function testCreateRecordsCardCreatedEvent(): void
+    {
+        $cardId = Uuid::uuid4();
+        $creatorId = Uuid::uuid4();
+
+        $card = Card::create($cardId, Uuid::uuid4(), $creatorId, 'Title', '', 0);
+
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardCreated::class, $events[0]);
+        self::assertSame($cardId->toString(), $events[0]->cardId);
+        self::assertSame($creatorId->toString(), $events[0]->actorId);
     }
 
     public function testCreateRejectsEmptyTitle(): void
@@ -45,37 +65,46 @@ final class CardTest extends TestCase
         Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), 'Title', '', -1);
     }
 
-    public function testChangeTitleEmitsEvent(): void
+    public function testChangeTitleRecordsEvent(): void
     {
         $card = $this->createCard();
         $actorId = Uuid::uuid4();
 
-        $event = $card->changeTitle('New Title', $actorId);
+        $card->changeTitle('New Title', $actorId);
 
-        self::assertInstanceOf(CardFieldChanged::class, $event);
-        self::assertSame('title', $event->field);
-        self::assertSame('Title', $event->oldValue);
-        self::assertSame('New Title', $event->newValue);
-        self::assertTrue($event->actorId->equals($actorId));
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardFieldChanged::class, $events[0]);
+        self::assertSame('title', $events[0]->field);
+        self::assertSame('Title', $events[0]->oldValue);
+        self::assertSame('New Title', $events[0]->newValue);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame('New Title', $card->title());
     }
 
-    public function testChangeTitleToSameReturnsNull(): void
+    public function testChangeTitleToSameRecordsNoEvent(): void
     {
         $card = $this->createCard();
 
-        self::assertNull($card->changeTitle('Title'));
+        $card->changeTitle('Title');
+
+        self::assertSame([], $card->releaseEvents());
     }
 
     public function testChangeDescriptionPreservesMarkdownTrailingSpaces(): void
     {
         $card = $this->createCard();
 
-        $event = $card->changeDescription("line  \nnext");
+        $card->changeDescription("line  \nnext");
 
-        self::assertInstanceOf(CardFieldChanged::class, $event);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardFieldChanged::class, $events[0]);
+        self::assertSame('description', $events[0]->field);
         self::assertSame("line  \nnext", $card->description());
-        self::assertNull($card->changeDescription("line  \nnext"));
+
+        $card->changeDescription("line  \nnext");
+        self::assertSame([], $card->releaseEvents());
     }
 
     public function testChangeDueDateSetClearAndNoop(): void
@@ -83,51 +112,68 @@ final class CardTest extends TestCase
         $card = $this->createCard();
         $due = new \DateTimeImmutable('2026-12-01');
 
-        $event = $card->changeDueDate($due);
-        self::assertInstanceOf(CardFieldChanged::class, $event);
-        self::assertSame('2026-12-01', $event->newValue);
+        $card->changeDueDate($due);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertSame('2026-12-01', $events[0]->newValue);
         self::assertSame('2026-12-01', $card->dueDate()->format('Y-m-d'));
 
-        self::assertNull($card->changeDueDate($due));
+        $card->changeDueDate($due);
+        self::assertSame([], $card->releaseEvents());
 
-        $clear = $card->changeDueDate(null);
-        self::assertInstanceOf(CardFieldChanged::class, $clear);
-        self::assertNull($clear->newValue);
+        $card->changeDueDate(null);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertNull($events[0]->newValue);
         self::assertNull($card->dueDate());
     }
 
-    public function testMoveToEmitsEventWithOldAndNewPositions(): void
+    public function testMoveToRecordsEventWithOldAndNewPositions(): void
     {
         $card = $this->createCard();
         $newColumnId = Uuid::uuid4();
 
-        $event = $card->moveTo($newColumnId, 2);
+        $card->moveTo($newColumnId, 2);
 
-        self::assertInstanceOf(CardMoved::class, $event);
-        self::assertSame(0, $event->oldPosition);
-        self::assertSame(2, $event->newPosition);
-        self::assertTrue($event->newColumnId->equals($newColumnId));
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardMoved::class, $events[0]);
+        self::assertSame(0, $events[0]->oldPosition);
+        self::assertSame(2, $events[0]->newPosition);
+        self::assertSame($newColumnId->toString(), $events[0]->newColumnId);
         self::assertSame(2, $card->position());
     }
 
-    public function testMoveToSameColumnAndPositionReturnsNull(): void
+    public function testMoveToSameColumnAndPositionRecordsNoEvent(): void
     {
         $card = $this->createCard();
 
-        self::assertNull($card->moveTo($card->columnId(), 0));
+        $card->moveTo($card->columnId(), 0);
+
+        self::assertSame([], $card->releaseEvents());
     }
 
     public function testArchiveAndRestoreAreIdempotent(): void
     {
         $card = $this->createCard();
 
-        self::assertInstanceOf(CardArchived::class, $card->archive());
+        $card->archive();
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardArchived::class, $events[0]);
         self::assertTrue($card->isArchived());
-        self::assertNull($card->archive());
 
-        self::assertInstanceOf(CardRestored::class, $card->restore());
+        $card->archive();
+        self::assertSame([], $card->releaseEvents());
+
+        $card->restore();
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardRestored::class, $events[0]);
         self::assertFalse($card->isArchived());
-        self::assertNull($card->restore());
+
+        $card->restore();
+        self::assertSame([], $card->releaseEvents());
     }
 
     public function testAddAndRemoveLabel(): void
@@ -135,16 +181,24 @@ final class CardTest extends TestCase
         $card = $this->createCard();
         $label = Label::create(Uuid::uuid4(), Uuid::uuid4(), 'Bug', '#ff0000');
 
-        $added = $card->addLabel($label);
-        self::assertInstanceOf(CardLabelAdded::class, $added);
-        self::assertSame('Bug', $added->labelName);
+        $card->addLabel($label);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardLabelAdded::class, $events[0]);
+        self::assertSame('Bug', $events[0]->labelName);
         self::assertCount(1, $card->labels());
-        self::assertNull($card->addLabel($label));
 
-        $removed = $card->removeLabel($label);
-        self::assertNotNull($removed);
+        $card->addLabel($label);
+        self::assertSame([], $card->releaseEvents());
+
+        $card->removeLabel($label);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardLabelRemoved::class, $events[0]);
         self::assertCount(0, $card->labels());
-        self::assertNull($card->removeLabel($label));
+
+        $card->removeLabel($label);
+        self::assertSame([], $card->releaseEvents());
     }
 
     public function testAssignAndUnassign(): void
@@ -152,14 +206,23 @@ final class CardTest extends TestCase
         $card = $this->createCard();
         $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
 
-        $assigned = $card->assign($user);
-        self::assertInstanceOf(CardAssigned::class, $assigned);
-        self::assertSame('Alice', $assigned->userName);
+        $card->assign($user);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardAssigned::class, $events[0]);
+        self::assertSame('Alice', $events[0]->userName);
         self::assertCount(1, $card->assignees());
-        self::assertNull($card->assign($user));
 
-        self::assertNotNull($card->unassign($user));
+        $card->assign($user);
+        self::assertSame([], $card->releaseEvents());
+
+        $card->unassign($user);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardUnassigned::class, $events[0]);
         self::assertCount(0, $card->assignees());
-        self::assertNull($card->unassign($user));
+
+        $card->unassign($user);
+        self::assertSame([], $card->releaseEvents());
     }
 }

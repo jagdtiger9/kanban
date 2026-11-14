@@ -9,6 +9,7 @@ use App\Board\Application\MessageHandler\UpdateLabelCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Exception\LabelNotFoundException;
+use App\Board\Domain\Event\LabelUpdated;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -54,6 +55,7 @@ final class UpdateLabelCommandHandlerTest extends TestCase
         $project = Project::create(Uuid::uuid4(), 'P');
         $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
         $label = Label::create(Uuid::uuid4(), $board->id(), 'Old', '#000000');
+        $label->releaseEvents();
         $actorId = Uuid::uuid4();
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
 
@@ -65,6 +67,13 @@ final class UpdateLabelCommandHandlerTest extends TestCase
         self::assertSame($label, $result);
         self::assertSame('New', $label->name());
         self::assertSame('#ffffff', $label->color());
+
+        $events = $result->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(LabelUpdated::class, $events[0]);
+        self::assertSame($board->id()->toString(), $events[0]->boardId);
+        self::assertSame($label->id()->toString(), $events[0]->labelId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
     }
 
     public function testThrowsWhenLabelMissing(): void
