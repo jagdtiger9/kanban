@@ -13,7 +13,7 @@ use Ramsey\Uuid\Uuid;
 final class CentrifugoTokenIssuerTest extends TestCase
 {
     private const SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-    private const URL = 'wss://canban.local/connection/websocket';
+    private const URL = 'wss://kanban.local/connection/websocket';
 
     public function testIssuesConnectionAndSubscriptionTokens(): void
     {

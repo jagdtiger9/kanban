@@ -118,7 +118,7 @@ async function runConfirm(): Promise<void> {
         <header class="flex h-14 items-center justify-between border-b border-line bg-panel/60 px-4">
             <div class="flex items-center gap-3">
                 <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">C</div>
-                <span class="font-semibold">Canban</span>
+                <span class="font-semibold">Kanban</span>
             </div>
             <div class="flex items-center gap-3">
         <span class="flex items-center gap-1.5 text-xs text-muted">

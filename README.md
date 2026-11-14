@@ -1,4 +1,4 @@
-# Canban
+# Kanban
 
 A small self-hosted Trello-style kanban service (Trello is blocked at our location).
 About ten users, one shared board per project.
@@ -20,13 +20,13 @@ path.
 Prerequisites:
 
 - the shared env is built and running (`see ../../Docker/README.md`)
-- `127.0.0.1 canban.local` is in `/etc/hosts`
-- `../../Docker/data/config/hosts/canban.local.conf` exists (vhost root
-  `/var/www/canban/public`, SPA served from `public/build`); reload after edits with
+- `127.0.0.1 kanban.local` is in `/etc/hosts`
+- `../../Docker/data/config/hosts/kanban.local.conf` exists (vhost root
+  `/var/www/kanban/public`, SPA served from `public/build`); reload after edits with
   `make -C ../../Docker nginx.reload`
 
-API: https://canban.local (caddy edge → angie → php-fpm). Database: the base env `pg`
-container, database/user `canban`.
+API: https://kanban.local (caddy edge → angie → php-fpm). Database: the base env `pg`
+container, database/user `kanban`.
 
 Email: the shared env runs Mailpit in its `main` profile. Confirmation emails are sent
 to `smtp://mailpit:1025` and captured there instead of being delivered — open
@@ -41,14 +41,14 @@ New accounts stay unconfirmed until the user opens the emailed link
 | Variable | Development value | Purpose |
 | --- | --- | --- |
 | `MAILER_DSN` | `smtp://mailpit:1025` | Mailer transport (`.env.test` overrides with `null://null`) |
-| `FRONTEND_URL` | `https://canban.local` | Base URL for links embedded in emails (confirmation link) |
+| `FRONTEND_URL` | `https://kanban.local` | Base URL for links embedded in emails (confirmation link) |
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `make fe-install` | Install frontend dependencies (Yarn 4, pinned by corepack) |
-| `make fe-dev` | Vite dev server on :5173, `/api` proxied to `https://canban.local` |
+| `make fe-dev` | Vite dev server on :5173, `/api` proxied to `https://kanban.local` |
 | `make fe-build` | Type-check and build the frontend into `public/build` (served by angie) |
 | `make test` | PHPUnit suite in the php-fpm container |
 | `make migrate` | Run pending Doctrine migrations |
@@ -57,7 +57,7 @@ New accounts stay unconfirmed until the user opens the emailed link
 | `make db-shell` | Open psql on the dev database |
 | `make ping` | Check the API health endpoint |
 
-Open http://localhost:5173 during development, or https://canban.local for the built app.
+Open http://localhost:5173 during development, or https://kanban.local for the built app.
 
 ## Tests
 

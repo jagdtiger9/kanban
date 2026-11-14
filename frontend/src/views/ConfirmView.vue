@@ -29,7 +29,7 @@ onMounted(async () => {
                 <div class="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand text-xl font-bold text-white">
                     C
                 </div>
-                <h1 class="text-2xl font-semibold">Canban</h1>
+                <h1 class="text-2xl font-semibold">Kanban</h1>
                 <p class="mt-1 text-sm text-muted">Email confirmation</p>
             </div>
 

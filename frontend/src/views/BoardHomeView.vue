@@ -23,7 +23,7 @@ const hasProjects = computed(() => projects.activeProjects.length > 0)
                 <p class="mt-1 text-sm text-faint">Choose one from the sidebar to open its board.</p>
             </template>
             <template v-else>
-                <p class="text-lg text-body">Welcome to Canban</p>
+                <p class="text-lg text-body">Welcome to Kanban</p>
                 <p class="mt-1 text-sm text-faint">
                     You're not on any project yet. Create one from the sidebar — it comes with To Do,
                     In Progress and Done columns.

@@ -13,7 +13,7 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://canban.local',
+        target: 'https://kanban.local',
         changeOrigin: true,
         secure: false,
       },

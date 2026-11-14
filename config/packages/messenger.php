@@ -43,14 +43,14 @@ return App::config([
                     'options' => [
                         'auto_setup' => true,
                         'queues' => [
-                            'canban_default' => [
-                                'binding_keys' => ['canban_default'],
+                            'kanban_default' => [
+                                'binding_keys' => ['kanban_default'],
                             ],
                         ],
                         'exchange' => [
-                            'name' => 'canban',
+                            'name' => 'kanban',
                             'type' => 'direct',
-                            'default_publish_routing_key' => 'canban_default',
+                            'default_publish_routing_key' => 'kanban_default',
                         ],
                     ],
                     'retry_strategy' => [

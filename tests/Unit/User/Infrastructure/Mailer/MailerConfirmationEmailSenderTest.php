@@ -22,14 +22,14 @@ final class MailerConfirmationEmailSenderTest extends TestCase
                 $captured = $message;
             });
 
-        $sender = new MailerConfirmationEmailSender($mailer, 'https://canban.local');
+        $sender = new MailerConfirmationEmailSender($mailer, 'https://kanban.local');
         $sender->send('alice@example.com', 'Alice', 'deadbeef');
 
         self::assertInstanceOf(Email::class, $captured);
         self::assertSame('alice@example.com', $captured->getTo()[0]->getAddress());
-        self::assertSame('Confirm your Canban account', $captured->getSubject());
+        self::assertSame('Confirm your Kanban account', $captured->getSubject());
         self::assertStringContainsString('Hello Alice', $captured->getTextBody());
-        self::assertStringContainsString('https://canban.local/confirm/deadbeef', $captured->getTextBody());
+        self::assertStringContainsString('https://kanban.local/confirm/deadbeef', $captured->getTextBody());
     }
 
     public function testStripsTrailingSlashFromFrontendUrl(): void
@@ -42,11 +42,11 @@ final class MailerConfirmationEmailSenderTest extends TestCase
                 $captured = $message;
             });
 
-        $sender = new MailerConfirmationEmailSender($mailer, 'https://canban.local/');
+        $sender = new MailerConfirmationEmailSender($mailer, 'https://kanban.local/');
         $sender->send('alice@example.com', 'Alice', 'deadbeef');
 
         self::assertInstanceOf(Email::class, $captured);
-        self::assertStringContainsString('https://canban.local/confirm/deadbeef', $captured->getTextBody());
+        self::assertStringContainsString('https://kanban.local/confirm/deadbeef', $captured->getTextBody());
         self::assertStringNotContainsString('//confirm', $captured->getTextBody());
     }
 }

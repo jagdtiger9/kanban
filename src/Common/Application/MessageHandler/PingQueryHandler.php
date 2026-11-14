@@ -12,7 +12,7 @@ final class PingQueryHandler
     {
         return [
             'status' => 'ok',
-            'service' => 'canban-api',
+            'service' => 'kanban-api',
             'time' => (new \DateTimeImmutable())->format(DATE_ATOM),
         ];
     }

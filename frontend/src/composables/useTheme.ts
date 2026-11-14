@@ -2,7 +2,7 @@ import { computed, readonly, ref } from 'vue'
 
 export type Theme = 'dark' | 'light'
 
-const STORAGE_KEY = 'canban-theme'
+const STORAGE_KEY = 'kanban-theme'
 
 const theme = ref<Theme>(
     document.documentElement.classList.contains('light') ? 'light' : 'dark',

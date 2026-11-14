@@ -26,10 +26,10 @@ final class MailerConfirmationEmailSender implements ConfirmationEmailSender
 
         $message = (new Email())
             ->to($email)
-            ->subject('Confirm your Canban account')
+            ->subject('Confirm your Kanban account')
             ->text(sprintf(
                 "Hello %s,\n\n"
-                . "Thanks for registering at Canban. Please confirm your email address by opening the link below:\n\n"
+                . "Thanks for registering at Kanban. Please confirm your email address by opening the link below:\n\n"
                 . "%s\n\n"
                 . "The link is valid for 24 hours.\n\n"
                 . "If you didn't create this account, you can ignore this email.\n",

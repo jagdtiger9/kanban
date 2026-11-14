@@ -1056,28 +1056,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"canban-frontend@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "canban-frontend@workspace:."
-  dependencies:
-    "@tailwindcss/vite": "npm:^4.1.0"
-    "@types/sortablejs": "npm:^1.15.9"
-    "@vitejs/plugin-vue": "npm:^6.0.0"
-    centrifuge: "npm:^5.8.0"
-    dompurify: "npm:^3.4.17"
-    marked: "npm:^18.2.0"
-    pinia: "npm:^3.0.0"
-    primevue: "npm:^4.5.5"
-    sortablejs: "npm:^1.15.7"
-    tailwindcss: "npm:^4.1.0"
-    typescript: "npm:~5.8.0"
-    vite: "npm:^7.0.0"
-    vue: "npm:^3.5.0"
-    vue-router: "npm:^4.5.0"
-    vue-tsc: "npm:^3.0.0"
-  languageName: unknown
-  linkType: soft
-
 "centrifuge@npm:^5.8.0":
   version: 5.8.0
   resolution: "centrifuge@npm:5.8.0"
@@ -1322,6 +1300,28 @@ __metadata:
   checksum: 10c0/1b1e2310a490dce1aeea3da5f5dfe18273516c20ce48be2e98eb8ea452d5f3dcc8fd0cfd6d28b4052a24c5dbab6e3089b2d7e79f0bce7915b10d750929563c42
   languageName: node
   linkType: hard
+
+"kanban-frontend@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "kanban-frontend@workspace:."
+  dependencies:
+    "@tailwindcss/vite": "npm:^4.1.0"
+    "@types/sortablejs": "npm:^1.15.9"
+    "@vitejs/plugin-vue": "npm:^6.0.0"
+    centrifuge: "npm:^5.8.0"
+    dompurify: "npm:^3.4.17"
+    marked: "npm:^18.2.0"
+    pinia: "npm:^3.0.0"
+    primevue: "npm:^4.5.5"
+    sortablejs: "npm:^1.15.7"
+    tailwindcss: "npm:^4.1.0"
+    typescript: "npm:~5.8.0"
+    vite: "npm:^7.0.0"
+    vue: "npm:^3.5.0"
+    vue-router: "npm:^4.5.0"
+    vue-tsc: "npm:^3.0.0"
+  languageName: unknown
+  linkType: soft
 
 "lightningcss-android-arm64@npm:1.33.0":
   version: 1.33.0

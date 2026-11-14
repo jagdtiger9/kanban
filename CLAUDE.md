@@ -1,4 +1,4 @@
-# Canban
+# Kanban
 
 Self-hosted Trello-style kanban (Trello is blocked at our location). ~10 users, Docker
 deploy. Stack: Symfony 8.1 / PHP 8.4 / Doctrine ORM + PostgreSQL 17 / Messenger CQRS
@@ -49,8 +49,8 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   hash, then sends via `ConfirmationEmailSender` — so the token never enters the outbox
   or RabbitMQ. Mailer config lives under `framework.mailer` in
   `config/packages/mailer.php` (with `message_bus: false`).
-- Realtime: Centrifugo v6 (`canban-centrifugo` in `~/work/Docker/custom.yaml`) serves
-  `wss://canban.local/connection/websocket`; channels are `project:<projectId>`, and
+- Realtime: Centrifugo v6 (`kanban-centrifugo` in `~/work/Docker/custom.yaml`) serves
+  `wss://kanban.local/connection/websocket`; channels are `project:<projectId>`, and
   the `project` namespace requires subscription tokens (HS256,
   `CENTRIFUGO_TOKEN_SECRET`, 600 s TTL). `GET /api/realtime/token` verifies membership
   and returns connection + subscription tokens. Domain events are forwarded by
@@ -66,7 +66,7 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   classes (and `DomainEventTrait`) come from `aljerom/symfony-boilerplate`; the app only
   supplies the `DomainEvent` entity and a two-method `DoctrineEventRepository`. Routing
   sends `App\{Board,Project,User}\Domain\Event\*` to the `async` transport (AMQP
-  exchange `canban`, queue `canban_default`); the shared `php-worker` consumes it, and
+  exchange `kanban`, queue `kanban_default`); the shared `php-worker` consumes it, and
   exhausted messages go to the Doctrine `failed` transport. Tests use `sync://`, so
   events run in-process. Details: `docs/plans/outbox.md`.
 - TDD: every Domain and Application class gets unit tests; repositories get integration
@@ -74,22 +74,22 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
 
 ## Running
 
-- App runs in the shared base Docker env (`~/work/Docker`): API at `https://canban.local`
+- App runs in the shared base Docker env (`~/work/Docker`): API at `https://kanban.local`
   (caddy edge → proxy → angie vhost → fpm; DB = base env `pg` container). No project
-  compose stack. `127.0.0.1 canban.local` must be in `/etc/hosts`.
+  compose stack. `127.0.0.1 kanban.local` must be in `/etc/hosts`.
 - `make console ARGS="..."`, `make cc`, `make migrate`, `make db-shell` (opens psql in
   the base `pg` container), `make ping`, `make test` (PHPUnit in the fpm container)
 - Realtime env (untracked `.env`, values from `~/work/Docker/.env`):
   `CENTRIFUGO_WS_URL`, `CENTRIFUGO_TOKEN_SECRET`, `CENTRIFUGO_URL`,
   `CENTRIFUGO_API_KEY`.
 - Async events are consumed by the shared `php-worker` service
-  (`canban-messenger-consumer`, `messenger:consume async`; config
+  (`kanban-messenger-consumer`, `messenger:consume async`; config
   `~/work/Docker/data/config/worker/messenger-worker.conf`). It recycles every 60 s
   (`--time-limit`), so code changes are picked up within a minute. `MESSENGER_TRANSPORT_DSN`
   in the untracked `.env` points at the base `rabbitmq` container.
 - Frontend package manager is Yarn 4 (corepack; `packageManager` pins 4.9.2,
   `node_modules` linker). `make fe-dev` — Vite on :5173, `/api` proxied to
-  `https://canban.local`; `make fe-build` type-checks and builds into `public/build`,
+  `https://kanban.local`; `make fe-build` type-checks and builds into `public/build`,
   which angie serves directly.
 
 ## Plan

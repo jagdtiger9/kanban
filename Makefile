@@ -38,22 +38,22 @@ migrations.migrate.tenants: ## Run tenant migrations on all tenant schemas (shop
 	php bin/console app:tenant:migrate --all
 
 console: ## Run a Symfony console command, e.g. make console ARGS="debug:router"
-	make -C ../../Docker run PROJECT=canban CMD="bin/console $(ARGS)"
+	make -C ../../Docker run PROJECT=kanban CMD="bin/console $(ARGS)"
 
 cc: ## Clear the Symfony cache
-	make -C ../../Docker run PROJECT=canban CMD="bin/console cache:clear"
+	make -C ../../Docker run PROJECT=kanban CMD="bin/console cache:clear"
 
 migrate: ## Run pending Doctrine migrations
-	make -C ../../Docker run PROJECT=canban CMD="bin/console doctrine:migrations:migrate --no-interaction"
+	make -C ../../Docker run PROJECT=kanban CMD="bin/console doctrine:migrations:migrate --no-interaction"
 
 db-shell: ## Open a psql shell on the dev database (base env pg)
-	docker exec -it pg psql -U canban canban
+	docker exec -it pg psql -U kanban kanban
 
-ping: ## Check the API ping endpoint (needs canban.local in /etc/hosts)
-	curl -s https://canban.local/api/ping
+ping: ## Check the API ping endpoint (needs kanban.local in /etc/hosts)
+	curl -s https://kanban.local/api/ping
 
 test: ## Run the PHPUnit suite in the fpm container
-	make -C ../../Docker run PROJECT=canban CMD="bin/phpunit"
+	make -C ../../Docker run PROJECT=kanban CMD="bin/phpunit"
 
 fe-install: ## Install frontend dependencies
 	cd frontend && yarn install

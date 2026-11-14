@@ -16,7 +16,7 @@ return App::config([
             'dsn' => env('MAILER_DSN'),
             'message_bus' => false,
             'envelope' => [
-                'sender' => 'noreply@canban.local',
+                'sender' => 'noreply@kanban.local',
             ],
         ],
     ],
