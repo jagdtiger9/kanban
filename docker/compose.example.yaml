@@ -1,0 +1,20 @@
+services:
+    kanban-centrifugo:
+        image: centrifugo/centrifugo:v6
+        container_name: kanban-centrifugo
+        profiles: [ main ]
+        environment:
+            - CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=${CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY}
+            - CENTRIFUGO_HTTP_API_KEY=${CENTRIFUGO_HTTP_API_KEY}
+        volumes:
+            - ${HOSTS_DATA}/kanban/docker/centrifugo/config.json:/centrifugo/config.json:ro
+        command: [ 'centrifugo', '-c', '/centrifugo/config.json' ]
+        networks:
+            - net
+        restart: unless-stopped
+        logging:
+            driver: "syslog"
+            options:
+                syslog-address: "udp://127.0.0.1:514"
+                syslog-facility: "daemon"
+                tag: "kanban-centrifugo"

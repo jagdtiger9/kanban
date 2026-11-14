@@ -1,6 +1,6 @@
 # Kanban
 
-A small self-hosted Trello-style kanban service (Trello is blocked at our location).
+A small self-hosted Trello-style kanban service (sine Trello is out of the game).
 About ten users, one shared board per project.
 
 ## Stack
@@ -15,7 +15,9 @@ About ten users, one shared board per project.
 The app runs inside the shared Docker env at `../../Docker` (`~/work/Docker`) — there is
 no project compose stack. The env provides the caddy edge, angie proxy, php-fpm, and the
 `pg` container; each project gets a vhost config and a directory under the hosts data
-path.
+path. The project's own additions (Centrifugo service, vhost, worker program, secrets)
+are reference copies in `docker/` — see [docker/README.md](docker/README.md) for where
+each block goes.
 
 Prerequisites:
 

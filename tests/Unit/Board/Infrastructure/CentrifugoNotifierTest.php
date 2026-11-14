@@ -41,13 +41,13 @@ final class CentrifugoNotifierTest extends TestCase
 
                     return $options['headers']['X-API-Key'] === 'api-key'
                         && $options['timeout'] === 1
-                        && $options['json']['channel'] === 'project:abc';
+                        && $options['json']['channel'] === 'kanban:abc';
                 }),
             )
             ->willReturn($this->response(200));
         $this->logger->expects($this->never())->method('warning');
 
-        $this->notifier()->notify('project:abc', 'card.created', $actorId);
+        $this->notifier()->notify('kanban:abc', 'card.created', $actorId);
 
         self::assertSame([
             'type' => 'board.changed',
@@ -70,7 +70,7 @@ final class CentrifugoNotifierTest extends TestCase
             ))
             ->willReturn($this->response(200));
 
-        $this->notifier()->notify('project:abc', 'card.updated');
+        $this->notifier()->notify('kanban:abc', 'card.updated');
 
         self::assertNull($body['data']['actorId']);
     }
@@ -80,11 +80,11 @@ final class CentrifugoNotifierTest extends TestCase
         $this->httpClient->method('request')->willThrowException(new \RuntimeException('connection refused'));
         $this->logger->expects($this->once())->method('warning')->with(
             'Centrifugo publish failed',
-            $this->callback(static fn (array $context): bool => $context['channel'] === 'project:abc'
+            $this->callback(static fn (array $context): bool => $context['channel'] === 'kanban:abc'
                 && $context['event'] === 'card.created'),
         );
 
-        $this->notifier()->notify('project:abc', 'card.created', Uuid::uuid4()->toString());
+        $this->notifier()->notify('kanban:abc', 'card.created', Uuid::uuid4()->toString());
     }
 
     public function testLogsWhenCentrifugoRejectsThePublish(): void
@@ -95,7 +95,7 @@ final class CentrifugoNotifierTest extends TestCase
             $this->callback(static fn (array $context): bool => $context['status'] === 500),
         );
 
-        $this->notifier()->notify('project:abc', 'card.created', Uuid::uuid4()->toString());
+        $this->notifier()->notify('kanban:abc', 'card.created', Uuid::uuid4()->toString());
     }
 
     private function response(int $status): ResponseInterface

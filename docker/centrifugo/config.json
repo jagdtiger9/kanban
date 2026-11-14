@@ -1,11 +1,11 @@
 {
     "client": {
-        "allowed_origins": ["https://kanban.local"]
+        "allowed_origins": ["https://kanban.local", "https://kanban.domain"]
     },
     "channel": {
         "namespaces": [
             {
-                "name": "project",
+                "name": "kanban",
                 "allow_subscribe_for_client": false
             }
         ]

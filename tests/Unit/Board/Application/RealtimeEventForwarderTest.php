@@ -71,7 +71,7 @@ final class RealtimeEventForwarderTest extends TestCase
         $actorId = $event->authorId ?? $event->actorId;
 
         $this->notifier->expects($this->once())->method('notify')
-            ->with('project:' . $projectId, $eventName, $actorId);
+            ->with('kanban:' . $projectId, $eventName, $actorId);
 
         $this->forwarder()->{$method}($event);
     }
@@ -82,7 +82,7 @@ final class RealtimeEventForwarderTest extends TestCase
         $projectId = $this->mapBoardToProject($event->boardId);
 
         $this->notifier->expects($this->once())->method('notify')
-            ->with('project:' . $projectId, $eventName, $event->actorId);
+            ->with('kanban:' . $projectId, $eventName, $event->actorId);
 
         $this->forwarder()->{$method}($event);
     }
@@ -91,7 +91,7 @@ final class RealtimeEventForwarderTest extends TestCase
     public function testForwardsProjectEvents(object $event, string $method, string $eventName): void
     {
         $this->notifier->expects($this->once())->method('notify')
-            ->with('project:' . $event->projectId, $eventName, $event->actorId);
+            ->with('kanban:' . $event->projectId, $eventName, $event->actorId);
 
         $this->forwarder()->{$method}($event);
     }

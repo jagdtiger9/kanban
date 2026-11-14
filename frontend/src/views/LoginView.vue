@@ -38,7 +38,7 @@ async function submit(): Promise<void> {
                     C
                 </div>
                 <h1 class="text-2xl font-semibold">Kanban</h1>
-                <p class="mt-1 text-sm text-muted">A small Trello-style board for your projects</p>
+                <p class="mt-1 text-sm text-muted">A small Kanban board for your projects</p>
             </div>
 
             <form class="space-y-4" @submit.prevent="submit">

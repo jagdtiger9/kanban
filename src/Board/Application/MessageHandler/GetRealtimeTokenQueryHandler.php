@@ -33,6 +33,6 @@ final class GetRealtimeTokenQueryHandler
         }
         $this->guard->requireMember($projectId, $actorId);
 
-        return $this->issuer->issue($actorId, 'project:' . $projectId);
+        return $this->issuer->issue($actorId, 'kanban:' . $projectId);
     }
 }

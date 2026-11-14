@@ -40,21 +40,21 @@ final class BoardChannelResolverTest extends TestCase
     {
         $projectId = Uuid::uuid4()->toString();
 
-        self::assertSame('project:' . $projectId, $this->resolver()->forProject($projectId));
+        self::assertSame('kanban:' . $projectId, $this->resolver()->forProject($projectId));
     }
 
     public function testResolvesCardChannelThroughColumnAndBoard(): void
     {
         [$projectId, , , $card] = $this->context();
 
-        self::assertSame('project:' . $projectId, $this->resolver()->forCard($card->id()->toString()));
+        self::assertSame('kanban:' . $projectId, $this->resolver()->forCard($card->id()->toString()));
     }
 
     public function testResolvesBoardChannelDirectly(): void
     {
         [$projectId, $board] = $this->context();
 
-        self::assertSame('project:' . $projectId, $this->resolver()->forBoard($board->id()->toString()));
+        self::assertSame('kanban:' . $projectId, $this->resolver()->forBoard($board->id()->toString()));
     }
 
     public function testReturnsNullWhenCardMissing(): void

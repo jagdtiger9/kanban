@@ -20,7 +20,7 @@ final class BoardChannelResolver
 
     public function forProject(string $projectId): string
     {
-        return 'project:' . $projectId;
+        return 'kanban:' . $projectId;
     }
 
     public function forBoard(string $boardId): ?string

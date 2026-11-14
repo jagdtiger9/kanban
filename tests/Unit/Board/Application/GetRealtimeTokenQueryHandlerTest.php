@@ -54,7 +54,7 @@ final class GetRealtimeTokenQueryHandlerTest extends TestCase
 
     private function token(): RealtimeToken
     {
-        return new RealtimeToken('wss://example.test/connection/websocket', 'project:x', 't', 'st', 123);
+        return new RealtimeToken('wss://example.test/_ws_connection/websocket', 'kanban:x', 't', 'st', 123);
     }
 
     public function testMemberReceivesTokenForProjectChannel(): void
@@ -69,7 +69,7 @@ final class GetRealtimeTokenQueryHandlerTest extends TestCase
             ->method('issue')
             ->with(
                 $this->callback(static fn (UuidInterface $id): bool => $id->equals($actorId)),
-                'project:' . $project->id(),
+                'kanban:' . $project->id(),
             )
             ->willReturn($expected);
 

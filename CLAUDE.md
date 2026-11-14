@@ -1,6 +1,6 @@
 # Kanban
 
-Self-hosted Trello-style kanban (Trello is blocked at our location). ~10 users, Docker
+Self-hosted Trello-style kanban. ~10 users, Docker
 deploy. Stack: Symfony 8.1 / PHP 8.4 / Doctrine ORM + PostgreSQL 17 / Messenger CQRS
 (`aljerom/symfony-boilerplate` buses + `MessageValueResolver`) on the backend; Vue 3 +
 TypeScript + Vite + Tailwind CSS 4 + PrimeVue 4 (unstyled, Tailwind passthrough) in
@@ -50,8 +50,9 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   or RabbitMQ. Mailer config lives under `framework.mailer` in
   `config/packages/mailer.php` (with `message_bus: false`).
 - Realtime: Centrifugo v6 (`kanban-centrifugo` in `~/work/Docker/custom.yaml`) serves
-  `wss://kanban.local/connection/websocket`; channels are `project:<projectId>`, and
-  the `project` namespace requires subscription tokens (HS256,
+  `wss://kanban.local/_ws_connection/websocket` (angie rewrites `/_ws_connection/` to
+  Centrifugo's `/connection/`); channels are `kanban:<projectId>`, and
+  the `kanban` namespace requires subscription tokens (HS256,
   `CENTRIFUGO_TOKEN_SECRET`, 600 s TTL). `GET /api/realtime/token` verifies membership
   and returns connection + subscription tokens. Domain events are forwarded by
   `RealtimeEventForwarder` → `CentrifugoNotifier` (`POST /api/publish`, using
