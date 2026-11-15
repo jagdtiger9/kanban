@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -80,15 +81,14 @@ async function submit(): Promise<void> {
                 </div>
                 <div>
                     <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
-                    <InputText id="password" v-model="password" type="password" autocomplete="new-password" placeholder="At least 8 characters"/>
+                    <PasswordInput id="password" v-model="password" autocomplete="new-password" placeholder="At least 8 characters"/>
                     <p v-if="fieldErrors.password" class="mt-1 text-xs text-danger-text">{{ fieldErrors.password }}</p>
                 </div>
                 <div>
                     <label for="password-confirmation" class="mb-1 block text-sm font-medium text-body">Confirm password</label>
-                    <InputText
+                    <PasswordInput
                         id="password-confirmation"
                         v-model="passwordConfirmation"
-                        type="password"
                         autocomplete="new-password"
                         placeholder="Repeat the password"
                     />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
+import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -67,10 +67,9 @@ async function submit(): Promise<void> {
                 </p>
                 <div>
                     <label for="current-password" class="mb-1 block text-sm font-medium text-body">Current password</label>
-                    <InputText
+                    <PasswordInput
                         id="current-password"
                         v-model="currentPassword"
-                        type="password"
                         autocomplete="current-password"
                     />
                     <p v-if="fieldErrors.currentPassword" class="mt-1 text-xs text-danger-text">
@@ -79,10 +78,9 @@ async function submit(): Promise<void> {
                 </div>
                 <div>
                     <label for="new-password" class="mb-1 block text-sm font-medium text-body">New password</label>
-                    <InputText
+                    <PasswordInput
                         id="new-password"
                         v-model="newPassword"
-                        type="password"
                         autocomplete="new-password"
                         placeholder="At least 8 characters"
                     />
@@ -94,10 +92,9 @@ async function submit(): Promise<void> {
                     <label for="new-password-confirmation" class="mb-1 block text-sm font-medium text-body">
                         Confirm new password
                     </label>
-                    <InputText
+                    <PasswordInput
                         id="new-password-confirmation"
                         v-model="newPasswordConfirmation"
-                        type="password"
                         autocomplete="new-password"
                         placeholder="Repeat the new password"
                     />
