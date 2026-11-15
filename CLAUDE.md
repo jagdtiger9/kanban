@@ -70,6 +70,14 @@ Global DDD rules apply (see `~/.claude/CLAUDE.md`): Domain → Application → I
   exchange `kanban`, queue `kanban_default`); the shared `php-worker` consumes it, and
   exhausted messages go to the Doctrine `failed` transport. Tests use `sync://`, so
   events run in-process. Details: `docs/plans/outbox.md`.
+- Notifications: domain port `App\Notification\Domain\NotifierInterface` + `Notification`
+  VO, implemented by `Notification/Infrastructure/Telegram/TelegramNotifier` (Symfony
+  Notifier `Chatter`, `->transport('telegram')`). `framework.notifier.message_bus` is the
+  string `messenger.default_bus` — FrameworkBundle compiles `true` into a reference to a
+  service named `1`. `ChatMessage` is routed to `async`, so a failed Telegram call is
+  retried on its own and never replays the source domain event. `TELEGRAM_DSN` defaults
+  to `null://null`; the real `telegram://<BOT_TOKEN>@default?channel=<CHAT_ID>` belongs
+  in untracked `.env.local`.
 - TDD: every Domain and Application class gets unit tests; repositories get integration
   tests against the real Postgres in the Docker stack.
 
@@ -171,6 +179,11 @@ Approved 2026-11-12. One step at a time; explicit approval after each step. Step
     `CardActivityHandler` / `RealtimeEventForwarder` / `SendConfirmationEmailHandler`
     moved to the event bus and the shared worker. Chosen: entity-recorded events + AMQP
     (RabbitMQ), Doctrine only for the failed queue. Notes: `docs/plans/outbox.md`.
+15. `[x]` **Telegram notifications** — Symfony Notifier + Telegram bridge; domain port
+    `NotifierInterface` (`Notification` VO) with a Telegram adapter;
+    `SendUserRegisteredNotificationHandler` reacts to `UserRegistered`; `ChatMessage`
+    routed to `async` so a failed delivery retries independently of the source event;
+    DSN via `TELEGRAM_DSN` (real value in untracked `.env.local`).
 
 After the baseline works: dedicated discussion of SaaS scenarios (multi-tenant flavor)
 before any of it is built.

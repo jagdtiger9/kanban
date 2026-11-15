@@ -65,6 +65,8 @@ return App::config([
                 'App\Board\Domain\Event\*' => ['async'],
                 'App\Project\Domain\Event\*' => ['async'],
                 'App\User\Domain\Event\*' => ['async'],
+                // Deferred by Symfony Notifier's chatter; retried on its own.
+                'Symfony\Component\Notifier\Message\ChatMessage' => ['async'],
             ],
         ],
     ],
