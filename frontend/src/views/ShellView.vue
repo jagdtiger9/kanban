@@ -117,8 +117,12 @@ async function runConfirm(): Promise<void> {
     <div class="flex h-screen flex-col">
         <header class="flex h-14 items-center justify-between border-b border-line bg-panel/60 px-4">
             <div class="flex items-center gap-3">
-                <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">C</div>
-                <span class="font-semibold">Kanban</span>
+                <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
+                    <RouterLink to="/" class="cursor-pointer">C</RouterLink>
+                </div>
+                <RouterLink to="/" class="cursor-pointer font-semibold">
+                    Kanban
+                </RouterLink>
             </div>
             <div class="flex items-center gap-3">
         <span class="flex items-center gap-1.5 text-xs text-muted">
