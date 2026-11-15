@@ -13,7 +13,7 @@ final class ChangePasswordCommand implements Command
         #[Assert\NotBlank]
         public string $currentPassword,
         #[Assert\NotBlank]
-        #[Assert\Length(min: 8, max: 100)]
+        #[Assert\Length(min: 6, max: 100)]
         public string $newPassword,
         #[Assert\NotBlank]
         public string $newPasswordConfirmation,

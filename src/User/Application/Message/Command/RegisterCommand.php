@@ -14,7 +14,7 @@ final class RegisterCommand implements Command
         #[Assert\Email]
         public string $email,
         #[Assert\NotBlank]
-        #[Assert\Length(min: 8, max: 100)]
+        #[Assert\Length(min: 6, max: 100)]
         public string $password,
         #[Assert\NotBlank]
         public string $passwordConfirmation,
