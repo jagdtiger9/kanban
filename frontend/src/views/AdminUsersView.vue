@@ -63,24 +63,24 @@ onMounted(load)
             </p>
 
             <p v-if="loading" class="text-sm text-faint">Loading…</p>
-            <div v-else class="overflow-hidden rounded-xl border border-line">
-                <table class="w-full text-left text-sm">
+            <div v-else class="overflow-x-auto rounded-xl border border-line">
+                <table class="w-full min-w-[36rem] text-left text-sm">
                     <thead class="border-b border-line bg-panel/60 text-xs uppercase tracking-wider text-faint">
                         <tr>
-                            <th class="px-4 py-2 font-medium">Display name</th>
-                            <th class="px-4 py-2 font-medium">Email</th>
-                            <th class="px-4 py-2 font-medium">Status</th>
-                            <th class="px-4 py-2 text-right font-medium">Actions</th>
+                            <th class="px-3 py-2 font-medium sm:px-4">Display name</th>
+                            <th class="px-3 py-2 font-medium sm:px-4">Email</th>
+                            <th class="px-3 py-2 font-medium sm:px-4">Status</th>
+                            <th class="px-3 py-2 text-right font-medium sm:px-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-line">
                         <tr v-for="user in users" :key="user.id" class="transition-colors hover:bg-raised/50">
-                            <td class="px-4 py-2.5 text-strong">
+                            <td class="px-3 py-2.5 text-strong sm:px-4">
                                 {{ user.displayName }}
                                 <span v-if="user.id === auth.user?.id" class="text-xs text-faint">(you)</span>
                             </td>
-                            <td class="px-4 py-2.5 text-muted">{{ user.email }}</td>
-                            <td class="px-4 py-2.5">
+                            <td class="px-3 py-2.5 text-muted sm:px-4">{{ user.email }}</td>
+                            <td class="px-3 py-2.5 sm:px-4">
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     <span
                                         v-if="user.isGlobalAdmin"
@@ -102,7 +102,7 @@ onMounted(load)
                                     </span>
                                 </div>
                             </td>
-                            <td class="px-4 py-2.5">
+                            <td class="px-3 py-2.5 sm:px-4">
                                 <div v-if="user.id !== auth.user?.id" class="flex justify-end gap-2">
                                     <button
                                         v-if="!user.confirmed"

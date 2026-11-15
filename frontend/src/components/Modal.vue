@@ -17,11 +17,11 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 <template>
     <Teleport to="body">
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
             <div class="absolute inset-0 bg-black/60" @click="emit('close')"/>
             <div
-                class="relative max-h-[85vh] w-full overflow-y-auto rounded-2xl border border-line-strong bg-panel p-6 shadow-2xl"
-                :class="props.size === 'lg' ? 'max-w-lg' : 'max-w-md'"
+                class="relative max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-b-0 border-line-strong bg-panel p-4 shadow-2xl sm:max-h-[85vh] sm:rounded-2xl sm:border-b sm:p-6"
+                :class="props.size === 'lg' ? 'sm:max-w-lg' : 'sm:max-w-md'"
             >
                 <div v-if="$slots.title" class="mb-4 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-strong">

@@ -20,12 +20,12 @@ const hasProjects = computed(() => projects.activeProjects.length > 0)
             </template>
             <template v-else-if="hasProjects">
                 <p class="text-lg text-body">Pick a project</p>
-                <p class="mt-1 text-sm text-faint">Choose one from the sidebar to open its board.</p>
+                <p class="mt-1 text-sm text-faint">Choose one from the project list to open its board.</p>
             </template>
             <template v-else>
                 <p class="text-lg text-body">Welcome to Kanban</p>
                 <p class="mt-1 text-sm text-faint">
-                    You're not on any project yet. Create one from the sidebar — it comes with To Do,
+                    You're not on any project yet. Create one from the project list — it comes with To Do,
                     In Progress and Done columns.
                 </p>
             </template>

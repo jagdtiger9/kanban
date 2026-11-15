@@ -113,6 +113,8 @@ function initSortable(): void {
         animation: 150,
         draggable: '.board-column',
         handle: '.column-drag-handle',
+        delay: 250,
+        delayOnTouchOnly: true,
         onStart: () => {
             dragging = true
         },
@@ -152,6 +154,8 @@ function initCardSortables(): void {
                 animation: 150,
                 ghostClass: 'opacity-40',
                 draggable: '.board-card',
+                delay: 250,
+                delayOnTouchOnly: true,
                 onStart: () => {
                     dragging = true
                 },
@@ -322,7 +326,7 @@ watch(projectId, () => {
 
 <template>
     <main class="flex min-w-0 flex-1 flex-col">
-        <div class="border-b border-line px-6 py-4">
+        <div class="border-b border-line px-4 py-3 sm:px-6 sm:py-4">
             <div
                 v-if="error"
                 class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger-text"
@@ -331,7 +335,7 @@ watch(projectId, () => {
             </div>
             <template v-else-if="detail">
                 <div class="mb-2 flex items-center gap-3">
-                    <h1 class="text-2xl font-semibold text-strong">{{ detail.project.name }}</h1>
+                    <h1 class="text-xl font-semibold text-strong sm:text-2xl">{{ detail.project.name }}</h1>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text"
@@ -353,7 +357,7 @@ watch(projectId, () => {
             <p v-else class="text-sm text-faint">Loading…</p>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-auto p-6">
+        <div class="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
             <p
                 v-if="actionError"
                 class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
@@ -385,7 +389,7 @@ watch(projectId, () => {
                 <div
                     v-for="column in columns"
                     :key="column.id"
-                    class="board-column relative w-72 shrink-0 rounded-xl border border-line bg-panel/60"
+                    class="board-column relative w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line bg-panel/60 sm:w-72"
                 >
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle min-w-0 flex-1 cursor-grab px-3 py-2 active:cursor-grabbing">
@@ -500,7 +504,7 @@ watch(projectId, () => {
                     </div>
                 </div>
 
-                <div v-if="addingColumn" class="w-72 shrink-0 rounded-xl border border-line-strong bg-panel p-2">
+                <div v-if="addingColumn" class="w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line-strong bg-panel p-2 sm:w-72">
                     <InputText
                         v-model="newColumnName"
                         autofocus
@@ -522,7 +526,7 @@ watch(projectId, () => {
                 <button
                     v-else
                     type="button"
-                    class="w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-sm text-faint transition-colors hover:border-line-emphasis hover:text-body"
+                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-sm text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
                     @click="addingColumn = true"
                 >
                     + Add column

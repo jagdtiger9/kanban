@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
@@ -38,13 +38,26 @@ const membersTarget = ref<ProjectPayload | null>(null)
 const confirmState = ref<ConfirmState | null>(null)
 const actionError = ref<string | null>(null)
 const openMenuId = ref<string | null>(null)
+const drawerOpen = ref(false)
 
 function onDocumentClick(): void {
     openMenuId.value = null
 }
 
+function onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') drawerOpen.value = false
+}
+
+watch(
+    () => route.fullPath,
+    () => {
+        drawerOpen.value = false
+    },
+)
+
 onMounted(async () => {
     document.addEventListener('click', onDocumentClick)
+    document.addEventListener('keydown', onKeydown)
     projects.fetchProjects()
     try {
         await ping()
@@ -54,7 +67,10 @@ onMounted(async () => {
     }
 })
 
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+onBeforeUnmount(() => {
+    document.removeEventListener('click', onDocumentClick)
+    document.removeEventListener('keydown', onKeydown)
+})
 
 async function logout(): Promise<void> {
     await auth.logout()
@@ -117,6 +133,16 @@ async function runConfirm(): Promise<void> {
     <div class="flex h-screen flex-col">
         <header class="flex h-14 items-center justify-between border-b border-line bg-panel/60 px-4">
             <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    aria-label="Open menu"
+                    aria-controls="app-drawer"
+                    :aria-expanded="drawerOpen"
+                    class="cursor-pointer rounded-lg border border-line-strong px-2.5 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong lg:hidden"
+                    @click="drawerOpen = !drawerOpen"
+                >
+                    ☰
+                </button>
                 <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
                     <RouterLink to="/" class="cursor-pointer">C</RouterLink>
                 </div>
@@ -124,7 +150,7 @@ async function runConfirm(): Promise<void> {
                     Kanban
                 </RouterLink>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="hidden items-center gap-3 lg:flex">
         <span class="flex items-center gap-1.5 text-xs text-muted">
           <span
               class="size-2 rounded-full"
@@ -132,7 +158,7 @@ async function runConfirm(): Promise<void> {
           />
           {{ apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…' }}
         </span>
-                <span class="hidden text-sm text-body sm:inline">{{ auth.user?.displayName }}</span>
+                <span class="text-sm text-body">{{ auth.user?.displayName }}</span>
                 <div class="flex size-8 items-center justify-center rounded-full bg-active text-xs font-semibold text-strong">
                     {{ userInitial }}
                 </div>
@@ -169,7 +195,44 @@ async function runConfirm(): Promise<void> {
         </header>
 
         <div class="flex flex-1 overflow-hidden">
-            <aside class="flex w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-panel/40 p-4">
+            <div
+                v-if="drawerOpen"
+                class="fixed inset-0 z-30 bg-black/60 lg:hidden"
+                @click="drawerOpen = false"
+            />
+            <aside
+                id="app-drawer"
+                class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-[calc(100vw-3rem)] shrink-0 flex-col overflow-y-auto border-r border-line bg-panel p-4 transition-transform duration-200 lg:static lg:z-auto lg:w-60 lg:max-w-none lg:translate-x-0 lg:bg-panel/40"
+                :class="drawerOpen ? 'translate-x-0' : '-translate-x-full'"
+            >
+                <div class="mb-4 flex items-center justify-between lg:hidden">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Menu</h2>
+                    <button
+                        type="button"
+                        aria-label="Close menu"
+                        class="cursor-pointer rounded-lg p-1 text-muted transition-colors hover:bg-raised hover:text-strong"
+                        @click="drawerOpen = false"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <div class="mb-4 flex items-center gap-2 border-b border-line pb-3 lg:hidden">
+                    <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-active text-xs font-semibold text-strong">
+                        {{ userInitial }}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="truncate text-sm font-medium text-strong">{{ auth.user?.displayName }}</p>
+                        <span class="flex items-center gap-1.5 text-xs text-muted">
+                            <span
+                                class="size-2 rounded-full"
+                                :class="apiState === 'ok' ? 'bg-emerald-500' : apiState === 'down' ? 'bg-danger' : 'bg-warn'"
+                            />
+                            {{ apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…' }}
+                        </span>
+                    </div>
+                </div>
+
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Projects</h2>
                     <button
@@ -223,7 +286,7 @@ async function runConfirm(): Promise<void> {
                             <button
                                 type="button"
                                 aria-label="Project actions"
-                                class="cursor-pointer rounded-lg px-1.5 py-1 text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-strong"
+                                class="cursor-pointer rounded-lg px-1.5 py-1 text-faint opacity-100 transition-opacity hover:text-strong focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                 @click.stop="openMenuId = openMenuId === project.id ? null : project.id"
                             >
                                 ⋯
@@ -295,6 +358,36 @@ async function runConfirm(): Promise<void> {
                         </li>
                     </ul>
                 </template>
+
+                <div class="mt-auto space-y-1 border-t border-line pt-4 lg:hidden">
+                    <RouterLink
+                        to="/settings"
+                        class="block cursor-pointer rounded-lg px-2 py-2 text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                    >
+                        Settings
+                    </RouterLink>
+                    <RouterLink
+                        v-if="isAdmin"
+                        to="/admin/users"
+                        class="block cursor-pointer rounded-lg px-2 py-2 text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                    >
+                        Users
+                    </RouterLink>
+                    <button
+                        type="button"
+                        class="block w-full cursor-pointer rounded-lg px-2 py-2 text-left text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                        @click="toggleTheme"
+                    >
+                        {{ isDark ? '☀ Light theme' : '☾ Dark theme' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="block w-full cursor-pointer rounded-lg px-2 py-2 text-left text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                        @click="logout"
+                    >
+                        Log out
+                    </button>
+                </div>
             </aside>
 
             <RouterView/>
