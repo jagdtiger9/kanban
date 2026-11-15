@@ -70,8 +70,8 @@ final class ResetPasswordCommand extends Command
         $question->setValidator(static function (mixed $value): string {
             $password = (string) $value;
             $length = mb_strlen($password);
-            if ($length < 8 || $length > 100) {
-                throw new \InvalidArgumentException('The password must be between 8 and 100 characters.');
+            if ($length < 6 || $length > 100) {
+                throw new \InvalidArgumentException('The password must be between 6 and 100 characters.');
             }
 
             return $password;
