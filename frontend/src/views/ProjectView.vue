@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import Sortable from 'sortablejs'
 import Button from 'primevue/button'
+import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import * as boardApi from '../api/board'
 import type { CardPayload, ColumnPayload, LabelPayload } from '../api/board'
@@ -10,6 +11,7 @@ import * as projectsApi from '../api/projects'
 import type { ProjectDetail } from '../api/projects'
 import { ApiError } from '../api/client'
 import CardDialog from '../components/CardDialog.vue'
+import CardPeople from '../components/CardPeople.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
@@ -46,10 +48,6 @@ const labelColors = computed(() => {
 
 function labelColor(labelId: string): string | undefined {
     return labelColors.value.get(labelId)
-}
-
-function initials(name: string | undefined): string {
-    return name ? name.slice(0, 1).toUpperCase() : '?'
 }
 
 function columnCards(columnId: string): CardPayload[] {
@@ -154,6 +152,8 @@ function initCardSortables(): void {
                 animation: 150,
                 ghostClass: 'opacity-40',
                 draggable: '.board-card',
+                filter: '.people-badge',
+                preventOnFilter: false,
                 delay: 250,
                 delayOnTouchOnly: true,
                 onStart: () => {
@@ -426,45 +426,46 @@ watch(projectId, () => {
                     </div>
                     <div class="flex flex-col gap-1 p-2">
                         <div :data-column-id="column.id" class="card-list flex min-h-10 flex-col gap-1.5">
-                            <button
+                            <Card
                                 v-for="card in columnCards(column.id)"
                                 :key="card.id"
-                                type="button"
-                                class="board-card block w-full cursor-pointer rounded-lg border border-line bg-raised/70 p-2 text-left transition-colors hover:border-line-emphasis"
+                                class="board-card block w-full cursor-pointer rounded-lg border border-line bg-raised/70 transition-colors hover:border-line-emphasis"
                                 :class="{ 'opacity-50': card.archived }"
                                 :data-card-id="card.id"
                                 @click="activeCard = card"
                             >
-                                <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
-                  <span
-                      v-for="labelId in card.labelIds"
-                      :key="labelId"
-                      class="h-2 w-6 rounded-sm"
-                      :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"
-                  />
-                                </div>
-                                <span class="block break-words text-sm text-strong">{{ card.title }}</span>
-                                <div
-                                    v-if="card.dueDate || card.archived || card.assigneeIds.length > 0"
-                                    class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted"
-                                >
-                                    <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
-                                    <span
-                                        v-if="card.archived"
-                                        class="rounded bg-active px-1.5 py-0.5 text-body"
+                                <template #content>
+                                    <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
+                                        <span
+                                            v-for="labelId in card.labelIds"
+                                            :key="labelId"
+                                            class="h-2 w-6 rounded-sm"
+                                            :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="block w-full cursor-pointer rounded-sm text-left text-sm break-words text-strong focus-visible:outline-2 focus-visible:outline-brand"
                                     >
-                    Archived
-                  </span>
-                                    <span
-                                        v-for="userId in card.assigneeIds"
-                                        :key="userId"
-                                        class="flex h-5 w-5 items-center justify-center rounded-full bg-active text-[10px] text-strong"
-                                        :title="memberNames.get(userId) ?? 'Unknown member'"
-                                    >
-                    {{ initials(memberNames.get(userId)) }}
-                  </span>
-                                </div>
-                            </button>
+                                        {{ card.title }}
+                                    </button>
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                                        <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
+                                        <span
+                                            v-if="card.archived"
+                                            class="rounded bg-active px-1.5 py-0.5 text-body"
+                                        >
+                                            Archived
+                                        </span>
+                                        <CardPeople
+                                            :card-title="card.title"
+                                            :creator-id="card.creatorId"
+                                            :assignee-ids="card.assigneeIds"
+                                            :member-names="memberNames"
+                                        />
+                                    </div>
+                                </template>
+                            </Card>
                             <p
                                 v-if="columnCards(column.id).length === 0"
                                 class="px-2 py-1 text-xs text-faint"

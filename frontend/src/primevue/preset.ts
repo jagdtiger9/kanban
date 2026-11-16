@@ -7,6 +7,9 @@ export const preset = {
     inputtext: {
         root: 'w-full rounded-lg border border-line-strong bg-panel px-3 py-2 text-sm text-strong placeholder-faint outline-none focus:border-brand focus:ring-2 focus:ring-brand/30',
     },
+    card: {
+        body: 'relative p-2',
+    },
     checkbox: {
         root: 'inline-flex',
         input:
