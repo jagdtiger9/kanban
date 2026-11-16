@@ -33,6 +33,7 @@ use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Entity\Label;
 use App\Shared\Infrastructure\Security\ProjectAccessVoter;
 use App\Shared\Infrastructure\Security\SecurityUser;
+use App\User\Domain\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;

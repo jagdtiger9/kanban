@@ -24,39 +24,7 @@ packages: ## Update the local path packages (aljerom/simple-hydrator, aljerom/sy
 ##
 ## —— Doctrine Migrations 🗄️ ————————————————————————————————————————————
 migrations.diff: ## Generate main DB migration diff
-	php bin/console doctrine:migrations:diff --configuration=config/migrations/main.php
-migrations.diff.tenant: ## Generate tenant DB migration diff
-	php bin/console doctrine:migrations:diff --configuration=config/migrations/tenant.php
+	php bin/console doctrine:migrations:diff
 
 migrations.migrate: ## Run main DB migrations
-	php bin/console doctrine:migrations:migrate --configuration=config/migrations/main.php --no-interaction --allow-no-migration
-migrations.migrate.tenant: ## Run tenant migrations on the base copies of tenant tables
-	php bin/console doctrine:migrations:migrate --configuration=config/migrations/tenant.php --no-interaction --allow-no-migration
-migrations.migrate.schema: ## Run tenant migrations on a specific tenant schema, e.g. make migrations.migrate.schema SCHEMA=shop__aljerom
-	php bin/console app:tenant:migrate $(SCHEMA)
-migrations.migrate.tenants: ## Run tenant migrations on all tenant schemas (shop__*)
-	php bin/console app:tenant:migrate --all
-
-console: ## Run a Symfony console command, e.g. make console ARGS="debug:router"
-	make -C ../../Docker run PROJECT=kanban CMD="bin/console $(ARGS)"
-
-cc: ## Clear the Symfony cache
-	make -C ../../Docker run PROJECT=kanban CMD="bin/console cache:clear"
-
-migrate: ## Run pending Doctrine migrations
-	make -C ../../Docker run PROJECT=kanban CMD="bin/console doctrine:migrations:migrate --no-interaction"
-
-db-shell: ## Open a psql shell on the dev database (base env pg)
-	docker exec -it pg psql -U kanban kanban
-
-ping: ## Check the API ping endpoint (needs kanban.local in /etc/hosts)
-	curl -s https://kanban.local/api/ping
-
-test: ## Run the PHPUnit suite in the fpm container
-	make -C ../../Docker run PROJECT=kanban CMD="bin/phpunit"
-
-fe-install: ## Install frontend dependencies
-	cd frontend && yarn install
-
-fe-build: ## Type-check and build the frontend into public/build (served by angie)
-	cd frontend && yarn build
+	php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
