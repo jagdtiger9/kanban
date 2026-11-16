@@ -141,19 +141,25 @@ final class MoveCardCommandHandler
 ### Controllers
 
 Controllers extend `AbstractController`, stay thin, and take typed message parameters.
-They check access at the HTTP edge, assign `actorId`, dispatch, and return a response. No
-`Request`, no `json_decode`, no manual DTO construction, no domain object construction.
+They assign `actorId` from the authenticated user, dispatch, and return a response. They
+perform no access checks — authorization belongs to the handlers (see
+[Guards and authorization](#guards-and-authorization)). No `Request`, no `json_decode`,
+no manual DTO construction, no domain object construction.
 
 ```php
 public function moveCard(MoveCardCommand $command, Security $security): Response
 {
-    $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_MEMBER, $command->cardId);
     $command->actorId = $this->actorId($security);
     $this->commandBus->dispatch($command);
 
     return new Response(status: Response::HTTP_NO_CONTENT);
 }
 ```
+
+Authentication is enforced by the firewall and `access_control` in
+`config/packages/security.php`: every `/api/*` route requires `ROLE_USER` unless it is
+listed as `PUBLIC_ACCESS`. Do not add `#[IsGranted]` or `denyAccessUnlessGranted` calls to
+controllers.
 
 Routes live in `config/routes.php` as named arrays. Do not put `#[Route]` on base
 controllers; the routing config is the single place to see the API surface.
@@ -190,12 +196,34 @@ methods. That is why JSON updates use PUT, never PATCH.
 - If a side effect must be atomic with the state change, it belongs in the command
   handler. Anything else belongs in an event handler.
 
-### Domain services and guards
+### Guards and authorization
 
+Symfony handles authentication only: the firewall and `access_control` decide who may
+call the API at all. Authorization is enforced in the Application layer, so the same rule
+applies regardless of which interface (HTTP, CLI, Messenger) dispatches the message.
+
+- Guards live in `<Module>/Application/Service/`: `MembershipGuard` (project member or
+  admin; a global admin counts as a project admin everywhere), `CardGuard` (card
+  membership, card editor, comment editor/manager) and `GlobalAdminGuard`. Guards read the
+  live user, never the roles frozen in the token.
+- The handler calls the guard before changing anything, using the unvalidated `actorId`
+  from the message. Guard violations throw domain exceptions
+  (`ProjectForbiddenException`, `CardForbiddenException`, `CommentForbiddenException`,
+  `AccessForbiddenException`); `ApiExceptionResponseSubscriber` maps them to 403. Missing
+  aggregates throw `*NotFoundException` and map to 404.
+- Controllers perform no access checks and there are no Symfony voters: a voter duplicates
+  the guard rules at the HTTP edge and cannot protect CLI or Messenger callers.
+- Exceptions to handler authorization:
+  - public endpoints — ping, register, login and email confirmation by token (listed in
+    `access_control`);
+  - actor-scoped queries — `ListProjectsQuery` filters by `actorId`;
+  - CLI-only commands (`app:user:promote-admin`, `app:user:demote-admin`,
+    `app:user:reset-pass`) — shell access is the trust boundary, so those messages carry no
+    `actorId`.
 - Cross-entity rules go in `Domain/Service/` (`CardMoveService`, `ColumnReorderService`).
-- Permission predicates go in `Application/Service/` guards (`MembershipGuard`,
-  `CardGuard`). The voter mirrors them at the HTTP edge but is not the source of truth.
-- Guards throw domain exceptions; handlers and controllers do not re-implement the rules.
+- `tests/Integration/Security/AclMatrixTest` is the executable policy: one expectation per
+  route × actor, plus a coverage test that fails when an `api_*` route is missing from the
+  matrix.
 
 ### External systems
 
@@ -278,10 +306,13 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 - **Unit** (`tests/Unit`) — Domain and Application classes in isolation. No database, no
   HTTP, no framework bootstrap. Handlers use repository doubles.
 - **Integration** (`tests/Integration`) — repositories against the real PostgreSQL, plus
-  the route × actor ACL matrix. Tests use `WebTestCase` where HTTP behavior matters.
+  the route × actor ACL matrix. Tests use `WebTestCase` where HTTP behavior matters. The
+  matrix must cover every `api_*` route; `testEveryApiRouteIsCovered` enforces it.
 - Tests route domain events through `sync://`, so no worker is involved.
 - Run the full suite with the project's test command. For a focused run, use
   `bin/phpunit --filter MoveCard` in the project environment.
+- The GrumPHP pre-commit hook runs the `unit` testsuite only (`bin/phpunit --testsuite
+  unit`); integration tests stay in the full suite.
 - Definition of done: unit tests for new Domain/Application behavior, integration coverage
   for new repository behavior or access rules, and the full suite green.
 
@@ -292,11 +323,12 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 1. Add a message under `Application/Message/Command` or `Query`, with constraints on
    request-supplied fields and an unvalidated `actorId`.
 2. Add an `#[AsMessageHandler]` handler with `__invoke`; keep it thin and one-use-case.
-3. Add a controller action with the typed message parameter, the access check, the
-   `actorId` assignment, and `dispatch`.
+   Call the appropriate guard with `actorId` before changing state.
+3. Add a controller action with the typed message parameter, the `actorId` assignment and
+   `dispatch`. No access check in the controller.
 4. Register the route in `config/routes.php`.
-5. Add a unit test for the handler; extend the ACL matrix integration test if access
-   changes.
+5. Add a unit test for the handler, including the forbidden case, and add the route's
+   expectations to the ACL matrix (the coverage test fails for a missing route).
 
 ### Add an entity field
 
@@ -323,7 +355,9 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 ## Do not
 
 - Inject `EntityManager` or `QueryBuilder` into a handler; call `flush()` there.
-- Put business rules in repositories, gateways, controllers, or voters.
+- Put business rules or access checks in repositories, gateways, or controllers; enforce
+  access in Application guards.
+- Add Symfony voters, `#[IsGranted]`, or `denyAccessUnlessGranted` checks to controllers.
 - Use `Request`, `json_decode`, or `#[MapRequestPayload]` in controllers.
 - Add `#[Route]` attributes to controllers or move routing out of `config/routes.php`.
 - Use PATCH for JSON updates.

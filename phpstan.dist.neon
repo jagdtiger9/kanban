@@ -1,0 +1,16 @@
+parameters:
+    level: 3
+    paths:
+        - bin/
+        - config/
+        - public/
+        - src/
+        - tests/
+    excludePaths:
+        - scripts/*
+        - config/reference.php
+        - tests/*
+    fileExtensions:
+        - php
+    scanFiles:
+        - vendor/symfony/dependency-injection/Loader/Configurator/ContainerConfigurator.php

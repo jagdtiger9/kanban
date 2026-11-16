@@ -7,9 +7,10 @@ namespace App\Tests\Unit\Project\Application;
 use App\Project\Application\Message\Command\HardDeleteProjectCommand;
 use App\Project\Application\MessageHandler\HardDeleteProjectCommandHandler;
 use App\Project\Domain\Entity\Project;
-use App\Project\Domain\Exception\ProjectForbiddenException;
 use App\Project\Domain\Exception\ProjectNotFoundException;
 use App\Project\Domain\Repository\ProjectRepository;
+use App\Shared\Domain\Exception\AccessForbiddenException;
+use App\User\Application\Service\GlobalAdminGuard;
 use App\User\Domain\Entity\User;
 use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\TestCase;
@@ -31,7 +32,7 @@ final class HardDeleteProjectCommandHandlerTest extends TestCase
         $this->projectRepository->method('findById')->willReturn($project);
         $this->userRepository->method('findById')->willReturn($actor);
 
-        return new HardDeleteProjectCommandHandler($this->projectRepository, $this->userRepository);
+        return new HardDeleteProjectCommandHandler($this->projectRepository, new GlobalAdminGuard($this->userRepository));
     }
 
     public function testRemovesWhenActorIsGlobalAdmin(): void
@@ -51,7 +52,7 @@ final class HardDeleteProjectCommandHandlerTest extends TestCase
         $actor = User::create(Uuid::uuid4(), 'user@example.com', 'hash', 'User');
         $this->projectRepository->expects($this->never())->method('remove');
 
-        $this->expectException(ProjectForbiddenException::class);
+        $this->expectException(AccessForbiddenException::class);
 
         $this->handler($project, $actor)
             ->__invoke(new HardDeleteProjectCommand((string) $project->id(), (string) $actor->id()));

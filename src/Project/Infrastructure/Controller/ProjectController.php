@@ -19,13 +19,11 @@ use App\Project\Application\Message\Query\ListProjectsQuery;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Entity\ProjectMember;
 use App\Project\Domain\Enum\MemberRole;
-use App\Shared\Infrastructure\Security\ProjectAccessVoter;
 use App\Shared\Infrastructure\Security\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class ProjectController extends AbstractController
 {
@@ -35,18 +33,18 @@ final class ProjectController extends AbstractController
     ) {
     }
 
-    #[IsGranted('ROLE_USER')]
     public function listProjects(ListProjectsQuery $query, Security $security): JsonResponse
     {
         $query->actorId = $this->actorId($security);
 
-        return $this->json(array_map(
-            fn (array $item): array => $this->projectPayload($item['project'], $item['role']),
-            $this->queryBus->query($query),
-        ));
+        return $this->json(
+            array_map(
+                fn(array $item): array => $this->projectPayload($item['project'], $item['role']),
+                $this->queryBus->query($query),
+            )
+        );
     }
 
-    #[IsGranted('ROLE_USER')]
     public function create(CreateProjectCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);
@@ -59,17 +57,16 @@ final class ProjectController extends AbstractController
 
     public function get(GetProjectQuery $query, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_MEMBER, $query->projectId);
         $query->actorId = $this->actorId($security);
 
         $result = $this->queryBus->query($query);
 
         return $this->json([
             'project' => $this->projectPayload($result['project'], $result['role']),
-            'boardId' => (string) $result['boardId'],
+            'boardId' => (string)$result['boardId'],
             'members' => array_map(
-                fn (array $member): array => [
-                    'userId' => (string) $member['userId'],
+                fn(array $member): array => [
+                    'userId' => (string)$member['userId'],
                     'role' => $member['role']->value,
                     'email' => $member['email'],
                     'displayName' => $member['displayName'],
@@ -82,7 +79,6 @@ final class ProjectController extends AbstractController
 
     public function rename(RenameProjectCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
 
         return $this->json($this->projectPayload($this->commandBus->dispatch($command)));
@@ -90,7 +86,6 @@ final class ProjectController extends AbstractController
 
     public function archive(ArchiveProjectCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
 
         return $this->json($this->projectPayload($this->commandBus->dispatch($command)));
@@ -98,7 +93,6 @@ final class ProjectController extends AbstractController
 
     public function restore(RestoreProjectCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
 
         return $this->json($this->projectPayload($this->commandBus->dispatch($command)));
@@ -106,7 +100,6 @@ final class ProjectController extends AbstractController
 
     public function delete(HardDeleteProjectCommand $command, Security $security): Response
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
         $command->actorId = $this->actorId($security);
         $this->commandBus->dispatch($command);
 
@@ -115,7 +108,6 @@ final class ProjectController extends AbstractController
 
     public function addMember(AddProjectMemberCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
 
         return $this->json(
@@ -126,7 +118,6 @@ final class ProjectController extends AbstractController
 
     public function changeMemberRole(ChangeProjectMemberRoleCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
 
         return $this->json($this->memberPayload($this->commandBus->dispatch($command)));
@@ -134,7 +125,6 @@ final class ProjectController extends AbstractController
 
     public function removeMember(RemoveProjectMemberCommand $command, Security $security): Response
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_ADMIN, $command->projectId);
         $command->actorId = $this->actorId($security);
         $this->commandBus->dispatch($command);
 
@@ -148,7 +138,7 @@ final class ProjectController extends AbstractController
             throw new \LogicException('Unexpected user type');
         }
 
-        return (string) $user->getId();
+        return (string)$user->getId();
     }
 
     /**
@@ -157,7 +147,7 @@ final class ProjectController extends AbstractController
     private function projectPayload(Project $project, ?MemberRole $role = null): array
     {
         $payload = [
-            'id' => (string) $project->id(),
+            'id' => (string)$project->id(),
             'name' => $project->name(),
             'archived' => $project->isArchived(),
             'createdAt' => $project->createdAt()->format(\DateTimeInterface::ATOM),
@@ -175,7 +165,7 @@ final class ProjectController extends AbstractController
     private function memberPayload(ProjectMember $member): array
     {
         return [
-            'userId' => (string) $member->userId(),
+            'userId' => (string)$member->userId(),
             'role' => $member->role()->value,
             'joinedAt' => $member->joinedAt()->format(\DateTimeInterface::ATOM),
         ];

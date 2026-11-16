@@ -17,6 +17,7 @@ use App\Project\Domain\Exception\ProjectForbiddenException;
 use App\Project\Domain\Exception\ProjectMemberAlreadyExistsException;
 use App\Project\Domain\Exception\ProjectMemberNotFoundException;
 use App\Project\Domain\Exception\ProjectNotFoundException;
+use App\Shared\Domain\Exception\AccessForbiddenException;
 use App\User\Domain\Exception\ConfirmationTokenExpiredException;
 use App\User\Domain\Exception\ConfirmationTokenInvalidException;
 use App\User\Domain\Exception\CurrentPasswordInvalidException;
@@ -113,7 +114,8 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
         ) {
             return [Response::HTTP_NOT_FOUND, $throwable->getMessage()];
         }
-        if ($throwable instanceof ProjectForbiddenException
+        if ($throwable instanceof AccessForbiddenException
+            || $throwable instanceof ProjectForbiddenException
             || $throwable instanceof CardForbiddenException
             || $throwable instanceof CommentForbiddenException
         ) {

@@ -31,7 +31,7 @@ final class RenameColumnCommandHandler
             throw new \LogicException('Board must exist for every column');
         }
         $actorId = Uuid::fromString($command->actorId);
-        $this->guard->requireMember($board->projectId(), $actorId);
+        $this->guard->requireAdmin($board->projectId(), $actorId);
 
         $column->rename($command->name, $actorId);
         $this->columnRepository->save($column);

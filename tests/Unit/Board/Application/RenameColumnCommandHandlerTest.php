@@ -56,7 +56,7 @@ final class RenameColumnCommandHandlerTest extends TestCase
         $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
         $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
         $actorId = Uuid::uuid4();
-        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Admin);
 
         $this->columnRepository->expects($this->once())->method('save')->with($column);
 
@@ -67,7 +67,7 @@ final class RenameColumnCommandHandlerTest extends TestCase
 
         $events = array_values(array_filter(
             $result->releaseEvents(),
-            static fn (object $event): bool => $event instanceof ColumnRenamed,
+            static fn(object $event): bool => $event instanceof ColumnRenamed,
         ));
         self::assertCount(1, $events);
         self::assertSame($board->id()->toString(), $events[0]->boardId);
@@ -93,5 +93,21 @@ final class RenameColumnCommandHandlerTest extends TestCase
 
         $this->handler($column, $board, null)
             ->__invoke(new RenameColumnCommand((string) $column->id(), 'X', (string) Uuid::uuid4()));
+    }
+
+    public function testThrowsWhenActorIsPlainMember(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+
+        $this->columnRepository->expects($this->never())->method('save');
+
+        $this->expectException(ProjectForbiddenException::class);
+
+        $this->handler($column, $board, $member)
+            ->__invoke(new RenameColumnCommand((string) $column->id(), 'X', (string) $actorId));
     }
 }

@@ -36,7 +36,7 @@ final class ReorderColumnCommandHandler
             throw new \LogicException('Board must exist for every column');
         }
         $actorId = Uuid::fromString($command->actorId);
-        $this->guard->requireMember($board->projectId(), $actorId);
+        $this->guard->requireAdmin($board->projectId(), $actorId);
 
         $columns = $this->columnRepository->findByBoard($board->id());
         $this->reorderService->reorder($column, $command->targetIndex, $columns, $actorId);

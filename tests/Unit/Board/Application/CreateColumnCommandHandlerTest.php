@@ -123,4 +123,19 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $this->handler($project, $board, null, [])
             ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', (string) Uuid::uuid4()));
     }
+
+    public function testThrowsWhenActorIsPlainMember(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+
+        $this->columnRepository->expects($this->never())->method('save');
+
+        $this->expectException(ProjectForbiddenException::class);
+
+        $this->handler($project, $board, $member, [])
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', (string) $actorId));
+    }
 }

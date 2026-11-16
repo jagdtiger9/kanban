@@ -13,6 +13,7 @@ final class ConfirmUserAccountCommand implements Command
         #[Assert\NotBlank]
         #[Assert\Uuid]
         public string $userId,
+        public string $actorId,
     ) {
     }
 }

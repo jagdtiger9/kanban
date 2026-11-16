@@ -27,6 +27,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Route × actor matrix over the HTTP edge: every route must answer the agreed
@@ -75,67 +76,99 @@ final class AclMatrixTest extends DatabaseTestCase
      */
     public static function aclMatrix(): iterable
     {
-        $matrix = [
-            // Authenticated users only
-            'projects.list' => self::userRoute(200),
-            'project.create' => self::userRoute(201),
-            'users.search' => self::userRoute(200),
-            'auth.me' => self::userRoute(200),
-            'auth.password' => self::userRoute(200),
-
-            // Public
-            'auth.register' => ['anon' => 201],
-            'auth.confirm' => ['anon' => 200],
-            'auth.login' => ['anon' => 200],
-
-            // Project members
-            'project.get' => self::memberRoute(200),
-            'board.get' => self::memberRoute(200),
-            'column.create' => self::memberRoute(201),
-            'column.rename' => self::memberRoute(200),
-            'column.reorder' => self::memberRoute(204),
-            'card.create' => self::memberRoute(201),
-            'card.get' => self::memberRoute(200),
-            'card.move' => self::memberRoute(204),
-            'card.labels' => self::memberRoute(204),
-            'card.assignees' => self::memberRoute(204),
-            'card.dueDate' => self::memberRoute(204),
-            'comment.create' => self::memberRoute(201),
-            'label.create' => self::memberRoute(201),
-            'label.update' => self::memberRoute(200),
-
-            // Project admins
-            'project.rename' => self::adminRoute(200),
-            'project.archive' => self::adminRoute(200),
-            'project.restore' => self::adminRoute(200),
-            'project.memberAdd' => self::adminRoute(201),
-            'project.memberRole' => self::adminRoute(200),
-            'project.memberRemove' => self::adminRoute(204),
-            'column.delete' => self::adminRoute(204),
-            'label.delete' => self::adminRoute(204),
-
-            // Card editor: creator, project admin, global admin
-            'card.update' => ['anon' => 401, 'outsider' => 403, 'member' => 200, 'other' => 403, 'admin' => 200, 'global' => 200],
-            'card.archive' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
-            'card.restore' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
-
-            // Comment editor: author only, admins do not override
-            'comment.update' => ['anon' => 401, 'outsider' => 403, 'member' => 200, 'other' => 403, 'admin' => 403, 'global' => 403],
-
-            // Comment manager: author or project/global admin
-            'comment.delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
-
-            // Global admins only
-            'project.delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
-            'users.list' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
-            'user.confirm' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
-        ];
-
-        foreach ($matrix as $route => $byActor) {
+        foreach (self::matrix() as $route => $byActor) {
             foreach ($byActor as $actor => $expectedStatus) {
                 yield sprintf('%s as %s', $route, $actor) => [$route, $actor, $expectedStatus];
             }
         }
+    }
+
+    public function testEveryApiRouteIsCovered(): void
+    {
+        /** @var RouterInterface $router */
+        $router = self::getContainer()->get('router');
+        $apiRoutes = array_values(array_filter(
+            array_keys($router->getRouteCollection()->all()),
+            static fn(string $name): bool => str_starts_with($name, 'api_'),
+        ));
+        $covered = array_keys(self::matrix());
+
+        sort($apiRoutes);
+        sort($covered);
+
+        self::assertSame($apiRoutes, $covered);
+    }
+
+    /**
+     * @return array<string, array<string, int>>
+     */
+    private static function matrix(): array
+    {
+        return [
+            // Authenticated users only
+            'api_projects_list' => self::userRoute(200),
+            'api_project_create' => self::userRoute(201),
+            'api_user_search' => self::userRoute(200),
+            'api_auth_me' => self::userRoute(200),
+            'api_auth_password' => self::userRoute(200),
+
+            // Public
+            'api_ping' => self::publicRoute(200),
+            'api_auth_register' => ['anon' => 201],
+            'api_auth_confirm' => ['anon' => 200],
+            'api_auth_login' => ['anon' => 200],
+
+            // Project members
+            'api_project_get' => self::memberRoute(200),
+            'api_board_get' => self::memberRoute(200),
+            'api_realtime_token' => self::memberRoute(200),
+            'api_card_create' => self::memberRoute(201),
+            'api_card_get' => self::memberRoute(200),
+            'api_card_move' => self::memberRoute(204),
+            'api_card_labels' => self::memberRoute(204),
+            'api_card_assignees' => self::memberRoute(204),
+            'api_card_due_date' => self::memberRoute(204),
+            'api_card_comment_create' => self::memberRoute(201),
+            'api_label_create' => self::memberRoute(201),
+            'api_label_update' => self::memberRoute(200),
+
+            // Project admins
+            'api_project_rename' => self::adminRoute(200),
+            'api_project_archive' => self::adminRoute(200),
+            'api_project_restore' => self::adminRoute(200),
+            'api_project_member_add' => self::adminRoute(201),
+            'api_project_member_change_role' => self::adminRoute(200),
+            'api_project_member_remove' => self::adminRoute(204),
+            'api_column_create' => self::adminRoute(201),
+            'api_column_rename' => self::adminRoute(200),
+            'api_column_reorder' => self::adminRoute(204),
+            'api_column_delete' => self::adminRoute(204),
+            'api_label_delete' => self::adminRoute(204),
+
+            // Card editor: creator, project admin, global admin
+            'api_card_update' => ['anon' => 401, 'outsider' => 403, 'member' => 200, 'other' => 403, 'admin' => 200, 'global' => 200],
+            'api_card_archive' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
+            'api_card_restore' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
+
+            // Comment editor: author only, admins do not override
+            'api_card_comment_update' => ['anon' => 401, 'outsider' => 403, 'member' => 200, 'other' => 403, 'admin' => 403, 'global' => 403],
+
+            // Comment manager: author or project/global admin
+            'api_card_comment_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
+
+            // Global admins only
+            'api_project_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
+            'api_users_list' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+            'api_user_confirm' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function publicRoute(int $success): array
+    {
+        return ['anon' => $success, 'outsider' => $success, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success];
     }
 
     /**
@@ -249,50 +282,52 @@ final class AclMatrixTest extends DatabaseTestCase
         $candidateId = (string) $fx['users']['candidate']->id();
 
         return [
-            'projects.list' => ['GET', '/api/projects', null],
-            'project.create' => ['POST', '/api/projects', ['name' => 'Created project']],
-            'users.search' => ['GET', '/api/users/search?term=acl', null],
-            'auth.me' => ['GET', '/api/auth/me', null],
-            'auth.password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
-            'auth.register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
-            'auth.confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],
-            'auth.login' => ['POST', '/api/auth/login', ['email' => 'member@acl.test', 'password' => 'secret123']],
+            'api_projects_list' => ['GET', '/api/projects', null],
+            'api_project_create' => ['POST', '/api/projects', ['name' => 'Created project']],
+            'api_user_search' => ['GET', '/api/users/search?term=acl', null],
+            'api_auth_me' => ['GET', '/api/auth/me', null],
+            'api_auth_password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
+            'api_auth_register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
+            'api_auth_confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],
+            'api_auth_login' => ['POST', '/api/auth/login', ['email' => 'member@acl.test', 'password' => 'secret123']],
+            'api_ping' => ['GET', '/api/ping', null],
 
-            'project.get' => ['GET', "/api/projects/$project", null],
-            'board.get' => ['GET', "/api/projects/$project/board", null],
-            'column.create' => ['POST', "/api/projects/$project/columns", ['name' => 'New column']],
-            'column.rename' => ['PUT', "/api/columns/$column", ['name' => 'Renamed column']],
-            'column.reorder' => ['PUT', "/api/columns/$column/reorder", ['targetIndex' => 1]],
-            'card.create' => ['POST', "/api/columns/$column/cards", ['title' => 'Created card']],
-            'card.get' => ['GET', "/api/cards/$card", null],
-            'card.move' => ['PUT', "/api/cards/$card/move", ['targetColumnId' => $otherColumn, 'targetIndex' => 0]],
-            'card.labels' => ['PUT', "/api/cards/$card/labels", ['labelIds' => [$label]]],
-            'card.assignees' => ['PUT', "/api/cards/$card/assignees", ['userIds' => [$memberId]]],
-            'card.dueDate' => ['PUT', "/api/cards/$card/due-date", ['dueDate' => '2026-12-01']],
-            'comment.create' => ['POST', "/api/cards/$card/comments", ['body' => 'Created comment']],
-            'label.create' => ['POST', "/api/projects/$project/labels", ['name' => 'New label', 'color' => '#00ff00']],
-            'label.update' => ['PUT', "/api/labels/$label", ['name' => 'Renamed label', 'color' => '#0000ff']],
+            'api_project_get' => ['GET', "/api/projects/$project", null],
+            'api_board_get' => ['GET', "/api/projects/$project/board", null],
+            'api_realtime_token' => ['GET', "/api/realtime/token?projectId=$project", null],
+            'api_column_create' => ['POST', "/api/projects/$project/columns", ['name' => 'New column']],
+            'api_column_rename' => ['PUT', "/api/columns/$column", ['name' => 'Renamed column']],
+            'api_column_reorder' => ['PUT', "/api/columns/$column/reorder", ['targetIndex' => 1]],
+            'api_card_create' => ['POST', "/api/columns/$column/cards", ['title' => 'Created card']],
+            'api_card_get' => ['GET', "/api/cards/$card", null],
+            'api_card_move' => ['PUT', "/api/cards/$card/move", ['targetColumnId' => $otherColumn, 'targetIndex' => 0]],
+            'api_card_labels' => ['PUT', "/api/cards/$card/labels", ['labelIds' => [$label]]],
+            'api_card_assignees' => ['PUT', "/api/cards/$card/assignees", ['userIds' => [$memberId]]],
+            'api_card_due_date' => ['PUT', "/api/cards/$card/due-date", ['dueDate' => '2026-12-01']],
+            'api_card_comment_create' => ['POST', "/api/cards/$card/comments", ['body' => 'Created comment']],
+            'api_label_create' => ['POST', "/api/projects/$project/labels", ['name' => 'New label', 'color' => '#00ff00']],
+            'api_label_update' => ['PUT', "/api/labels/$label", ['name' => 'Renamed label', 'color' => '#0000ff']],
 
-            'project.rename' => ['PUT', "/api/projects/$project", ['name' => 'Renamed project']],
-            'project.archive' => ['POST', "/api/projects/$project/archive", null],
-            'project.restore' => ['POST', "/api/projects/$project/restore", null],
-            'project.memberAdd' => ['POST', "/api/projects/$project/members", ['userId' => $candidateId, 'role' => 'member']],
-            'project.memberRole' => ['PUT', "/api/projects/$project/members/$otherId", ['role' => 'admin']],
-            'project.memberRemove' => ['DELETE', "/api/projects/$project/members/$otherId", null],
-            'column.delete' => ['DELETE', "/api/columns/$otherColumn", null],
-            'label.delete' => ['DELETE', "/api/labels/$label", null],
+            'api_project_rename' => ['PUT', "/api/projects/$project", ['name' => 'Renamed project']],
+            'api_project_archive' => ['POST', "/api/projects/$project/archive", null],
+            'api_project_restore' => ['POST', "/api/projects/$project/restore", null],
+            'api_project_member_add' => ['POST', "/api/projects/$project/members", ['userId' => $candidateId, 'role' => 'member']],
+            'api_project_member_change_role' => ['PUT', "/api/projects/$project/members/$otherId", ['role' => 'admin']],
+            'api_project_member_remove' => ['DELETE', "/api/projects/$project/members/$otherId", null],
+            'api_column_delete' => ['DELETE', "/api/columns/$otherColumn", null],
+            'api_label_delete' => ['DELETE', "/api/labels/$label", null],
 
-            'card.update' => ['PUT', "/api/cards/$card", ['title' => 'Edited card', 'description' => '']],
-            'card.archive' => ['DELETE', "/api/cards/$card", null],
-            'card.restore' => ['POST', "/api/cards/$card/restore", null],
+            'api_card_update' => ['PUT', "/api/cards/$card", ['title' => 'Edited card', 'description' => '']],
+            'api_card_archive' => ['DELETE', "/api/cards/$card", null],
+            'api_card_restore' => ['POST', "/api/cards/$card/restore", null],
 
-            'comment.update' => ['PUT', "/api/comments/$comment", ['body' => 'Edited comment']],
-            'comment.delete' => ['DELETE', "/api/comments/$comment", null],
+            'api_card_comment_update' => ['PUT', "/api/comments/$comment", ['body' => 'Edited comment']],
+            'api_card_comment_delete' => ['DELETE', "/api/comments/$comment", null],
 
-            'project.delete' => ['DELETE', "/api/projects/$project", null],
+            'api_project_delete' => ['DELETE', "/api/projects/$project", null],
 
-            'users.list' => ['GET', '/api/users', null],
-            'user.confirm' => ['POST', "/api/users/$candidateId/confirm", null],
+            'api_users_list' => ['GET', '/api/users', null],
+            'api_user_confirm' => ['POST', "/api/users/$candidateId/confirm", null],
         ];
     }
 }

@@ -8,4 +8,8 @@ use Aljerom\SymfonyBoilerplate\CQRS\Query;
 
 final class ListUsersQuery implements Query
 {
+    public function __construct(
+        public string $actorId,
+    ) {
+    }
 }

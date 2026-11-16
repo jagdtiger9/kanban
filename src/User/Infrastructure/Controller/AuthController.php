@@ -15,7 +15,6 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class AuthController extends AbstractController
 {
@@ -29,7 +28,6 @@ final class AuthController extends AbstractController
         return $this->json($this->userPayload($this->domainUser($user)));
     }
 
-    #[IsGranted('ROLE_USER')]
     public function me(Security $security): JsonResponse
     {
         return $this->json($this->userPayload($this->domainUser($security->getUser())));
@@ -52,7 +50,6 @@ final class AuthController extends AbstractController
         return $this->json(['message' => 'Your email address has been confirmed. You can now sign in.']);
     }
 
-    #[IsGranted('ROLE_USER')]
     public function changePassword(ChangePasswordCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);

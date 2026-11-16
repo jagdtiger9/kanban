@@ -34,7 +34,7 @@ final class CreateColumnCommandHandler
         if ($project === null) {
             throw new ProjectNotFoundException('Project not found');
         }
-        $this->guard->requireMember($projectId, $actorId);
+        $this->guard->requireAdmin($projectId, $actorId);
 
         $board = $this->boardRepository->findByProject($projectId);
         if ($board === null) {

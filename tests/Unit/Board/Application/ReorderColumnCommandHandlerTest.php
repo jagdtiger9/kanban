@@ -61,7 +61,7 @@ final class ReorderColumnCommandHandlerTest extends TestCase
         $b = Column::create(Uuid::uuid4(), $board->id(), 'In Progress', 1);
         $c = Column::create(Uuid::uuid4(), $board->id(), 'Done', 2);
         $actorId = Uuid::uuid4();
-        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Admin);
 
         $this->columnRepository->expects($this->exactly(3))->method('save');
 
@@ -75,7 +75,7 @@ final class ReorderColumnCommandHandlerTest extends TestCase
 
         $events = array_values(array_filter(
             $c->releaseEvents(),
-            static fn (object $event): bool => $event instanceof ColumnReordered,
+            static fn(object $event): bool => $event instanceof ColumnReordered,
         ));
         self::assertCount(1, $events);
         self::assertSame($board->id()->toString(), $events[0]->boardId);
@@ -101,5 +101,21 @@ final class ReorderColumnCommandHandlerTest extends TestCase
 
         $this->handler(null, null, null, [])
             ->__invoke(new ReorderColumnCommand((string) Uuid::uuid4(), 0, (string) Uuid::uuid4()));
+    }
+
+    public function testThrowsWhenActorIsPlainMember(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+
+        $this->columnRepository->expects($this->never())->method('save');
+
+        $this->expectException(ProjectForbiddenException::class);
+
+        $this->handler($column, $board, $member, [$column])
+            ->__invoke(new ReorderColumnCommand((string) $column->id(), 0, (string) $actorId));
     }
 }

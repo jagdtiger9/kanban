@@ -25,7 +25,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPasspor
  */
 final class PasswordAuthenticator extends AbstractAuthenticator implements InteractiveAuthenticatorInterface
 {
-    private const LOGIN_PATH = '/api/auth/login';
+    private const string LOGIN_PATH = '/api/auth/login';
 
     public function __construct(
         private SecurityUserProvider $userProvider,
@@ -66,7 +66,7 @@ final class PasswordAuthenticator extends AbstractAuthenticator implements Inter
         }
 
         $passport = new SelfValidatingPassport(
-            new UserBadge($user->getUserIdentifier(), fn () => $user),
+            new UserBadge($user->getUserIdentifier(), fn() => $user),
         );
         if ($payload->getBoolean('remember_me')) {
             $passport->addBadge(new RememberMeBadge());

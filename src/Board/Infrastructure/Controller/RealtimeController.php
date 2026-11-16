@@ -6,7 +6,6 @@ namespace App\Board\Infrastructure\Controller;
 
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
 use App\Board\Application\Message\Query\GetRealtimeTokenQuery;
-use App\Shared\Infrastructure\Security\ProjectAccessVoter;
 use App\Shared\Infrastructure\Security\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -21,7 +20,6 @@ final class RealtimeController extends AbstractController
 
     public function token(GetRealtimeTokenQuery $query, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::PROJECT_MEMBER, $query->projectId);
         $query->actorId = $this->actorId($security);
 
         $token = $this->queryBus->query($query);

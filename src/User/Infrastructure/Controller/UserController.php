@@ -6,14 +6,14 @@ namespace App\User\Infrastructure\Controller;
 
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
-use App\Shared\Infrastructure\Security\ProjectAccessVoter;
+use App\Shared\Infrastructure\Security\SecurityUser;
 use App\User\Application\Message\Command\ConfirmUserAccountCommand;
 use App\User\Application\Message\Query\ListUsersQuery;
 use App\User\Application\Message\Query\SearchUsersQuery;
 use App\User\Domain\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class UserController extends AbstractController
 {
@@ -23,34 +23,47 @@ final class UserController extends AbstractController
     ) {
     }
 
-    #[IsGranted('ROLE_USER')]
     public function search(SearchUsersQuery $query): JsonResponse
     {
-        return $this->json(array_map(
-            fn (User $user): array => [
-                'id' => (string) $user->id(),
-                'email' => $user->email(),
-                'displayName' => $user->displayName(),
-            ],
-            $this->queryBus->query($query),
-        ));
+        return $this->json(
+            array_map(
+                fn(User $user): array => [
+                    'id' => (string)$user->id(),
+                    'email' => $user->email(),
+                    'displayName' => $user->displayName(),
+                ],
+                $this->queryBus->query($query),
+            )
+        );
     }
 
-    public function list(ListUsersQuery $query): JsonResponse
+    public function list(ListUsersQuery $query, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
+        $query->actorId = $this->actorId($security);
 
-        return $this->json(array_map(
-            fn (User $user): array => $this->adminUserPayload($user),
-            $this->queryBus->query($query),
-        ));
+        return $this->json(
+            array_map(
+                fn(User $user): array => $this->adminUserPayload($user),
+                $this->queryBus->query($query),
+            )
+        );
     }
 
-    public function confirmUser(ConfirmUserAccountCommand $command): JsonResponse
+    public function confirmUser(ConfirmUserAccountCommand $command, Security $security): JsonResponse
     {
-        $this->denyAccessUnlessGranted(ProjectAccessVoter::GLOBAL_ADMIN);
+        $command->actorId = $this->actorId($security);
 
         return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
+    }
+
+    private function actorId(Security $security): string
+    {
+        $user = $security->getUser();
+        if (!$user instanceof SecurityUser) {
+            throw new \LogicException('Unexpected user type');
+        }
+
+        return (string)$user->getId();
     }
 
     /**
@@ -59,7 +72,7 @@ final class UserController extends AbstractController
     private function adminUserPayload(User $user): array
     {
         return [
-            'id' => (string) $user->id(),
+            'id' => (string)$user->id(),
             'email' => $user->email(),
             'displayName' => $user->displayName(),
             'isGlobalAdmin' => $user->isGlobalAdmin(),
