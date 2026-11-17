@@ -1,0 +1,5 @@
+# Codex CLI: append to ~/.codex/config.toml, then export the token:
+#   export KANBAN_MCP_TOKEN='<TOKEN>'
+[mcp_servers.kanban]
+url = "<URL>"
+bearer_token_env_var = "KANBAN_MCP_TOKEN"

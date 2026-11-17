@@ -2,6 +2,7 @@
 
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
+use App\Mcp\Infrastructure\Security\McpTokenAuthenticator;
 use App\Shared\Infrastructure\Security\AccessDeniedHandler;
 use App\Shared\Infrastructure\Security\AuthenticationEntryPoint;
 use App\Shared\Infrastructure\Security\PasswordAuthenticator;
@@ -32,6 +33,16 @@ return App::config([
             'dev' => [
                 'pattern' => '^/(_(profiler|wdt)|css|images|js)/',
                 'security' => false,
+            ],
+            // MCP server: stateless Bearer-token auth + rate limits (src/Mcp)
+            'mcp' => [
+                'pattern' => '^/mcp',
+                'stateless' => true,
+                'provider' => 'app_user_provider',
+                'entry_point' => McpTokenAuthenticator::class,
+                'custom_authenticators' => [
+                    McpTokenAuthenticator::class,
+                ],
             ],
             // a firewall with no pattern matches all requests; it must come last
             'main' => [
@@ -67,6 +78,7 @@ return App::config([
             ['path' => '^/api/auth/login', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/login_check', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/api/.+$', 'roles' => [UserRole::ROLE_USER->name]],
+            ['path' => '^/mcp', 'roles' => [UserRole::ROLE_USER->name]],
         ],
     ],
     // By default, password hashers are resource intensive and take time. This is

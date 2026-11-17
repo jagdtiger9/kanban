@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kanban": {
+      "httpUrl": "<URL>",
+      "headers": {
+        "Authorization": "Bearer <TOKEN>"
+      }
+    }
+  }
+}

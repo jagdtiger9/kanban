@@ -111,6 +111,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_user_search' => self::userRoute(200),
             'api_auth_me' => self::userRoute(200),
             'api_auth_password' => self::userRoute(200),
+            'api_mcp_token' => self::userRoute(201),
 
             // Public
             'api_ping' => self::publicRoute(200),
@@ -286,6 +287,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_project_create' => ['POST', '/api/projects', ['name' => 'Created project']],
             'api_user_search' => ['GET', '/api/users/search?term=acl', null],
             'api_auth_me' => ['GET', '/api/auth/me', null],
+            'api_mcp_token' => ['POST', '/api/mcp/token', []],
             'api_auth_password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
             'api_auth_register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
             'api_auth_confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],

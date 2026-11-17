@@ -15,6 +15,10 @@ contract for coding agents. Humans start at [README.md](README.md).
 The docs are the source of truth. If code and docs disagree, stop and report the
 discrepancy before proceeding; update the docs together with the code change.
 
+Read @AGENTS.local.md for local development (для локального разработчика). The file is
+git-ignored and may be absent. When present, it takes priority over this file wherever
+they conflict.
+
 Cross-project stack patterns live in the `symfony-stack-conventions` skill — load it
 before backend or frontend changes. If the skill is unavailable, `docs/conventions.md`
 is the self-contained local copy. Environment commands live in the `shared-docker-env`

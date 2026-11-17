@@ -193,6 +193,7 @@ namespace Symfony\Component\Routing\Loader\Configurator;
 use App\Board\Infrastructure\Controller\BoardController;
 use App\Board\Infrastructure\Controller\RealtimeController;
 use App\Common\Infrastructure\Controller\PingController;
+use App\Mcp\Infrastructure\Controller\McpTokenController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
 use App\User\Infrastructure\Controller\UserController;
@@ -236,6 +237,11 @@ $config = Routes::config([
         'path' => '/api/auth/me',
         'controller' => [AuthController::class, 'me'],
         'methods' => ['GET'],
+    ],
+    'api_mcp_token' => [
+        'path' => '/api/mcp/token',
+        'controller' => [McpTokenController::class, 'issue'],
+        'methods' => ['POST'],
     ],
     'api_projects_list' => [
         'path' => '/api/projects',

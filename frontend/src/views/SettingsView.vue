@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import Password from 'primevue/password'
+import McpSettings from '../components/McpSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -48,7 +49,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-    <main class="flex flex-1 items-center justify-center overflow-y-auto p-6">
+    <main class="flex flex-1 flex-col items-center gap-6 overflow-y-auto p-6">
         <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-semibold">Settings</h1>
@@ -114,5 +115,7 @@ async function submit(): Promise<void> {
                 <Button type="submit" label="Change password" class="w-full" :disabled="submitting"/>
             </form>
         </div>
+
+        <McpSettings/>
     </main>
 </template>
