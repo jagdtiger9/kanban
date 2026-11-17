@@ -1,3 +1,4 @@
+import { useLoader } from '../composables/useLoader'
 import { api } from './client'
 
 export interface UserPayload {
@@ -59,10 +60,16 @@ export function me(): Promise<AuthResponse> {
 
 // The backend answers logout with a 302 to the site root; don't let fetch follow
 // it (cross-origin in dev) — the session cookie is cleared server-side either way.
-export function logout(): Promise<void> {
-    return fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'same-origin',
-        redirect: 'manual',
-    }).then(() => undefined)
+export async function logout(): Promise<void> {
+    const { fetchStart, fetchStop } = useLoader()
+    fetchStart()
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            redirect: 'manual',
+        })
+    } finally {
+        fetchStop()
+    }
 }

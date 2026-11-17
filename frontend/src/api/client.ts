@@ -1,3 +1,5 @@
+import { useLoader } from '../composables/useLoader'
+
 export interface ApiFieldError {
     property: string
     value: unknown
@@ -15,6 +17,16 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+    const { fetchStart, fetchStop } = useLoader()
+    fetchStart()
+    try {
+        return await send<T>(path, init)
+    } finally {
+        fetchStop()
+    }
+}
+
+async function send<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`/api${path}`, {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
