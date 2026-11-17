@@ -267,8 +267,8 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
   switch databases.
 - Centrifugo is the only realtime transport: no Mercure, Pusher, or polling, and
   publications carry invalidations, not state.
-- PrimeVue unstyled plus Tailwind is the styling contract; do not add a styled UI kit or a
-  second component library.
+- PrimeVue 4 in styled mode with the project theme plus Tailwind is the styling
+  contract; do not add another UI kit or component library.
 - Pinia only (no Vuex), PHPUnit only (no Pest), and one HTTP client (`api/client.ts`).
 - Do not serve the app from the host.
 
@@ -290,8 +290,12 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 
 ### Styling
 
-- PrimeVue is unstyled. Component styles live in `frontend/src/primevue/preset.ts` as
-  Tailwind classes.
+- PrimeVue 4 runs in styled mode. The theme is `frontend/src/primevue/primeTheme.ts`
+  (`definePreset(Nora, …)`: sky primary, zinc surfaces, `.dark` class selector, and a
+  `cssLayer` that keeps themed CSS below Tailwind utilities). New UI uses themed
+  PrimeVue components. `frontend/src/primevue/preset.ts` keeps only small global
+  pass-through tweaks; do not add per-component PT styling for components the theme
+  covers.
 - Use semantic theme tokens (`bg-page`, `bg-panel`, `text-strong`, `text-muted`,
   `border-line`, `brand`, `danger`, `warn`) rather than raw palette colors. The dark and
   light themes share the same class set; dark is the default.

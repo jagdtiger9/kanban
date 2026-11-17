@@ -38,16 +38,10 @@ async function submit(): Promise<void> {
             </p>
             <div>
                 <label for="project-name" class="mb-1 block text-sm font-medium text-body">Name</label>
-                <InputText id="project-name" v-model="name" autofocus placeholder="e.g. Website redesign"/>
+                <InputText id="project-name" v-model="name" autofocus placeholder="e.g. Website redesign" class="w-full"/>
             </div>
             <div class="flex justify-end gap-2">
-                <button
-                    type="button"
-                    class="cursor-pointer rounded-lg border border-line-strong px-4 py-2 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                    @click="emit('close')"
-                >
-                    Cancel
-                </button>
+                <Button severity="secondary" label="Cancel" @click="emit('close')"/>
                 <Button type="submit" label="Create" :disabled="submitting"/>
             </div>
         </form>

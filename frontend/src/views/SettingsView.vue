@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Button from 'primevue/button'
-import PasswordInput from '../components/PasswordInput.vue'
+import Password from 'primevue/password'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -67,10 +67,13 @@ async function submit(): Promise<void> {
                 </p>
                 <div>
                     <label for="current-password" class="mb-1 block text-sm font-medium text-body">Current password</label>
-                    <PasswordInput
-                        id="current-password"
+                    <Password
                         v-model="currentPassword"
-                        autocomplete="current-password"
+                        input-id="current-password"
+                        :input-props="{ autocomplete: 'current-password' }"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
                     />
                     <p v-if="fieldErrors.currentPassword" class="mt-1 text-xs text-danger-text">
                         {{ fieldErrors.currentPassword }}
@@ -78,11 +81,14 @@ async function submit(): Promise<void> {
                 </div>
                 <div>
                     <label for="new-password" class="mb-1 block text-sm font-medium text-body">New password</label>
-                    <PasswordInput
-                        id="new-password"
+                    <Password
                         v-model="newPassword"
-                        autocomplete="new-password"
+                        input-id="new-password"
+                        :input-props="{ autocomplete: 'new-password' }"
                         placeholder="At least 8 characters"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
                     />
                     <p v-if="fieldErrors.newPassword" class="mt-1 text-xs text-danger-text">
                         {{ fieldErrors.newPassword }}
@@ -92,11 +98,14 @@ async function submit(): Promise<void> {
                     <label for="new-password-confirmation" class="mb-1 block text-sm font-medium text-body">
                         Confirm new password
                     </label>
-                    <PasswordInput
-                        id="new-password-confirmation"
+                    <Password
                         v-model="newPasswordConfirmation"
-                        autocomplete="new-password"
+                        input-id="new-password-confirmation"
+                        :input-props="{ autocomplete: 'new-password' }"
                         placeholder="Repeat the new password"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
                     />
                     <p v-if="fieldErrors.newPasswordConfirmation" class="mt-1 text-xs text-danger-text">
                         {{ fieldErrors.newPasswordConfirmation }}

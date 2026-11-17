@@ -4,7 +4,9 @@ import { useRoute } from 'vue-router'
 import Sortable from 'sortablejs'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
+import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
+import { useConfirm } from 'primevue/useconfirm'
 import * as boardApi from '../api/board'
 import type { CardPayload, ColumnPayload, LabelPayload } from '../api/board'
 import * as projectsApi from '../api/projects'
@@ -12,12 +14,12 @@ import type { ProjectDetail } from '../api/projects'
 import { ApiError } from '../api/client'
 import CardDialog from '../components/CardDialog.vue'
 import CardPeople from '../components/CardPeople.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
 import { useBoardRealtime } from '../composables/useBoardRealtime'
 
 const route = useRoute()
+const confirm = useConfirm()
 const projectId = computed(() => route.params.id as string)
 
 const detail = ref<ProjectDetail | null>(null)
@@ -68,7 +70,6 @@ const newCardTitle = ref('')
 
 const openMenuId = ref<string | null>(null)
 const renameTarget = ref<ColumnPayload | null>(null)
-const deleteTarget = ref<ColumnPayload | null>(null)
 const deleting = ref(false)
 
 const activeCard = ref<CardPayload | null>(null)
@@ -234,9 +235,18 @@ function onRenamed(name: string): void {
     if (renameTarget.value) renameTarget.value.name = name
 }
 
-async function confirmDelete(): Promise<void> {
-    const target = deleteTarget.value
-    if (!target || deleting.value) return
+function askDelete(column: ColumnPayload): void {
+    confirm.require({
+        header: 'Delete column',
+        message: `Delete column “${column.name}”? Columns that contain cards cannot be deleted.`,
+        acceptProps: { label: 'Delete', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: () => confirmDelete(column),
+    })
+}
+
+async function confirmDelete(target: ColumnPayload): Promise<void> {
+    if (deleting.value) return
     deleting.value = true
     actionError.value = null
     try {
@@ -249,7 +259,6 @@ async function confirmDelete(): Promise<void> {
         actionError.value = e instanceof ApiError ? e.message : 'Failed to delete column'
     } finally {
         deleting.value = false
-        deleteTarget.value = null
     }
 }
 
@@ -366,21 +375,10 @@ watch(projectId, () => {
             </p>
             <div class="mb-3 flex items-center justify-between gap-3">
                 <label class="flex cursor-pointer select-none items-center gap-2 text-sm text-muted">
-                    <input
-                        v-model="showArchived"
-                        type="checkbox"
-                        class="h-4 w-4 cursor-pointer accent-brand"
-                        @change="toggleArchived"
-                    />
+                    <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived" />
                     Show archived cards
                 </label>
-                <button
-                    type="button"
-                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                    @click="showLabelsDialog = true"
-                >
-                    Labels
-                </button>
+                <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
             </div>
             <div ref="boardEl" class="flex items-start gap-3">
                 <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-sm text-faint">
@@ -395,33 +393,35 @@ watch(projectId, () => {
                         <div class="column-drag-handle min-w-0 flex-1 cursor-grab px-3 py-2 active:cursor-grabbing">
                             <span class="block truncate text-sm font-semibold text-strong">{{ column.name }}</span>
                         </div>
-                        <button
-                            type="button"
+                        <Button
                             aria-label="Column actions"
-                            class="cursor-pointer px-2 py-2 text-faint transition-colors hover:text-strong"
+                            severity="secondary"
+                            text
+                            size="small"
+                            label="⋯"
                             @click.stop="openMenuId = openMenuId === column.id ? null : column.id"
-                        >
-                            ⋯
-                        </button>
+                        />
                         <div
                             v-if="openMenuId === column.id"
                             class="absolute right-2 top-10 z-10 w-32 rounded-lg border border-line-strong bg-raised py-1 shadow-xl"
                         >
-                            <button
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-body transition-colors hover:bg-active hover:text-strong"
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Rename"
                                 @click="renameTarget = column"
-                            >
-                                Rename
-                            </button>
-                            <button
+                            />
+                            <Button
                                 v-if="isAdmin"
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover"
-                                @click="deleteTarget = column"
-                            >
-                                Delete
-                            </button>
+                                severity="danger"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Delete"
+                                @click="askDelete(column)"
+                            />
                         </div>
                     </div>
                     <div class="flex flex-col gap-1 p-2">
@@ -485,23 +485,18 @@ watch(projectId, () => {
                             />
                             <div class="mt-1.5 flex gap-2">
                                 <Button label="Add" :disabled="newCardTitle.trim() === ''" @click="addCard(column.id)"/>
-                                <button
-                                    type="button"
-                                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                                    @click="cancelAddCard"
-                                >
-                                    Cancel
-                                </button>
+                                <Button severity="secondary" size="small" label="Cancel" @click="cancelAddCard"/>
                             </div>
                         </div>
-                        <button
+                        <Button
                             v-else
-                            type="button"
-                            class="mt-1 cursor-pointer rounded-lg px-2 py-1.5 text-left text-sm text-faint transition-colors hover:bg-raised hover:text-body"
+                            severity="secondary"
+                            text
+                            size="small"
+                            class="mt-1 w-full justify-start"
+                            label="+ Add card"
                             @click="startAddCard(column.id)"
-                        >
-                            + Add card
-                        </button>
+                        />
                     </div>
                 </div>
 
@@ -510,18 +505,13 @@ watch(projectId, () => {
                         v-model="newColumnName"
                         autofocus
                         placeholder="Column name"
+                        class="w-full"
                         @keydown.enter="addColumn"
                         @keydown.esc="cancelAdd"
                     />
                     <div class="mt-2 flex gap-2">
                         <Button label="Add" :disabled="newColumnName.trim() === ''" @click="addColumn"/>
-                        <button
-                            type="button"
-                            class="cursor-pointer rounded-lg border border-line-strong px-4 py-2 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                            @click="cancelAdd"
-                        >
-                            Cancel
-                        </button>
+                        <Button severity="secondary" label="Cancel" @click="cancelAdd"/>
                     </div>
                 </div>
                 <button
@@ -541,15 +531,6 @@ watch(projectId, () => {
             :initial-name="renameTarget.name"
             @close="renameTarget = null"
             @renamed="onRenamed"
-        />
-        <ConfirmDialog
-            v-if="deleteTarget"
-            title="Delete column"
-            :message="`Delete column “${deleteTarget.name}”? Columns that contain cards cannot be deleted.`"
-            confirm-label="Delete"
-            danger
-            @confirm="confirmDelete"
-            @cancel="deleteTarget = null"
         />
         <CardDialog
             v-if="activeCard"

@@ -16,8 +16,8 @@ the status — a card moves between columns and carries no separate status field
 
 Symfony 8.1 API on PHP 8.4 with PostgreSQL 17 and Messenger CQRS
 (`aljerom/symfony-boilerplate` + `aljerom/simple-hydrator`); Vue 3 SPA with TypeScript,
-Vite, Tailwind CSS 4, and PrimeVue 4; Centrifugo for realtime; RabbitMQ worker for async
-side effects.
+Vite, Tailwind CSS 4, and PrimeVue 4 with a Nora-based styled theme; Centrifugo for
+realtime; RabbitMQ worker for async side effects.
 
 ## Documentation
 

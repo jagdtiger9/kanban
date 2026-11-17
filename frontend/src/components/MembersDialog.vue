@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import * as projectsApi from '../api/projects'
 import type { MemberPayload, MemberRole } from '../api/projects'
 import { searchUsers } from '../api/users'
@@ -27,6 +30,11 @@ let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
 const isAdmin = computed(() => myRole.value === 'admin')
 const selfId = computed(() => auth.user?.id ?? '')
+
+const roleOptions: { label: string; value: MemberRole }[] = [
+    { label: 'Member', value: 'member' },
+    { label: 'Admin', value: 'admin' },
+]
 
 async function loadMembers(): Promise<void> {
     loading.value = true
@@ -121,26 +129,27 @@ onUnmounted(() => clearTimeout(debounceTimer))
 
             <div v-if="isAdmin">
                 <label for="member-search" class="mb-1 block text-sm font-medium text-body">Add member</label>
-                <input
+                <InputText
                     id="member-search"
                     v-model="searchTerm"
-                    type="text"
                     placeholder="Search by email or name…"
                     autocomplete="off"
-                    class="w-full rounded-lg border border-line-strong bg-raised px-3 py-2 text-sm text-strong placeholder-faint outline-none transition-colors focus:border-brand"
+                    class="w-full"
                     @input="onSearchInput"
                 />
                 <ul v-if="suggestions.length > 0" class="mt-1 overflow-hidden rounded-lg border border-line-strong">
                     <li v-for="user in suggestions" :key="user.id">
-                        <button
-                            type="button"
+                        <Button
+                            severity="secondary"
+                            text
+                            fluid
                             :disabled="busyUserId === user.id"
-                            class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-raised disabled:cursor-wait disabled:opacity-50"
+                            class="justify-between px-3 py-2 text-left"
                             @click="addMember(user)"
                         >
                             <span class="text-strong">{{ user.displayName }}</span>
                             <span class="text-xs text-muted">{{ user.email }}</span>
-                        </button>
+                        </Button>
                     </li>
                 </ul>
                 <p v-else-if="searching" class="mt-1 text-xs text-faint">Searching…</p>
@@ -158,24 +167,24 @@ onUnmounted(() => clearTimeout(debounceTimer))
                             <p class="truncate text-xs text-faint">{{ member.email }}</p>
                         </div>
                         <div class="flex shrink-0 items-center gap-2">
-                            <select
-                                :value="member.role"
+                            <Select
+                                :model-value="member.role"
+                                :options="roleOptions"
+                                option-label="label"
+                                option-value="value"
+                                size="small"
                                 :disabled="!isAdmin || member.userId === selfId || busyUserId === member.userId"
-                                class="cursor-pointer rounded-lg border border-line-strong bg-raised px-2 py-1 text-xs text-strong outline-none transition-colors focus:border-brand disabled:cursor-default disabled:opacity-60"
-                                @change="changeRole(member, ($event.target as HTMLSelectElement).value as MemberRole)"
-                            >
-                                <option value="member">Member</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button
+                                @update:model-value="(role: MemberRole) => changeRole(member, role)"
+                            />
+                            <Button
                                 v-if="isAdmin && member.userId !== selfId"
-                                type="button"
+                                severity="danger"
+                                text
+                                size="small"
                                 :disabled="busyUserId === member.userId"
-                                class="cursor-pointer rounded-lg px-2 py-1 text-xs text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover disabled:cursor-wait disabled:opacity-50"
+                                label="Remove"
                                 @click="removeMember(member)"
-                            >
-                                Remove
-                            </button>
+                            />
                         </div>
                     </li>
                 </ul>

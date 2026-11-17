@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Button from 'primevue/button'
+import { useConfirm } from 'primevue/useconfirm'
 import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import MembersDialog from '../components/MembersDialog.vue'
 import ProjectCreateDialog from '../components/ProjectCreateDialog.vue'
 import RenameProjectDialog from '../components/RenameProjectDialog.vue'
@@ -14,18 +15,11 @@ import { isGlobalAdmin } from '../utils/roles'
 
 type ApiState = 'checking' | 'ok' | 'down'
 
-interface ConfirmState {
-    title: string
-    message: string
-    confirmLabel: string
-    danger: boolean
-    action: () => Promise<void> | void
-}
-
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const projects = useProjectsStore()
+const confirm = useConfirm()
 const { isDark, toggleTheme } = useTheme()
 
 const apiState = ref<ApiState>('checking')
@@ -35,7 +29,6 @@ const isAdmin = computed(() => isGlobalAdmin(auth.user))
 const showCreate = ref(false)
 const renameTarget = ref<ProjectPayload | null>(null)
 const membersTarget = ref<ProjectPayload | null>(null)
-const confirmState = ref<ConfirmState | null>(null)
 const actionError = ref<string | null>(null)
 const openMenuId = ref<string | null>(null)
 const drawerOpen = ref(false)
@@ -81,31 +74,56 @@ function onCreated(id: string): void {
     router.push({ name: 'project', params: { id } })
 }
 
+interface ConfirmOptions {
+    header: string
+    message: string
+    acceptLabel: string
+    danger: boolean
+    action: () => Promise<void> | void
+}
+
+function ask(options: ConfirmOptions): void {
+    confirm.require({
+        header: options.header,
+        message: options.message,
+        acceptProps: { label: options.acceptLabel, severity: options.danger ? 'danger' : undefined },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: async () => {
+            actionError.value = null
+            try {
+                await options.action()
+            } catch (e) {
+                actionError.value = e instanceof ApiError ? e.message : 'Something went wrong'
+            }
+        },
+    })
+}
+
 function askArchive(project: ProjectPayload): void {
-    confirmState.value = {
-        title: 'Archive project',
+    ask({
+        header: 'Archive project',
         message: `Archive “${project.name}”? It disappears from the active list and can be restored later.`,
-        confirmLabel: 'Archive',
+        acceptLabel: 'Archive',
         danger: false,
         action: () => projects.archiveProject(project.id),
-    }
+    })
 }
 
 function askRestore(project: ProjectPayload): void {
-    confirmState.value = {
-        title: 'Restore project',
+    ask({
+        header: 'Restore project',
         message: `Restore “${project.name}”?`,
-        confirmLabel: 'Restore',
+        acceptLabel: 'Restore',
         danger: false,
         action: () => projects.restoreProject(project.id),
-    }
+    })
 }
 
 function askDelete(project: ProjectPayload): void {
-    confirmState.value = {
-        title: 'Delete project',
+    ask({
+        header: 'Delete project',
         message: `Permanently delete “${project.name}”? This cannot be undone.`,
-        confirmLabel: 'Delete',
+        acceptLabel: 'Delete',
         danger: true,
         action: async () => {
             await projects.deleteProject(project.id)
@@ -113,19 +131,7 @@ function askDelete(project: ProjectPayload): void {
                 router.push({ name: 'board' })
             }
         },
-    }
-}
-
-async function runConfirm(): Promise<void> {
-    const state = confirmState.value
-    if (!state) return
-    confirmState.value = null
-    actionError.value = null
-    try {
-        await state.action()
-    } catch (e) {
-        actionError.value = e instanceof ApiError ? e.message : 'Something went wrong'
-    }
+    })
 }
 </script>
 
@@ -133,16 +139,17 @@ async function runConfirm(): Promise<void> {
     <div class="flex h-screen flex-col">
         <header class="flex h-14 items-center justify-between border-b border-line bg-panel/60 px-4">
             <div class="flex items-center gap-3">
-                <button
-                    type="button"
+                <Button
                     aria-label="Open menu"
                     aria-controls="app-drawer"
                     :aria-expanded="drawerOpen"
-                    class="cursor-pointer rounded-lg border border-line-strong px-2.5 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong lg:hidden"
+                    severity="secondary"
+                    outlined
+                    size="small"
+                    class="lg:hidden"
+                    label="☰"
                     @click="drawerOpen = !drawerOpen"
-                >
-                    ☰
-                </button>
+                />
                 <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
                     <RouterLink to="/" class="cursor-pointer">C</RouterLink>
                 </div>
@@ -162,15 +169,15 @@ async function runConfirm(): Promise<void> {
                 <div class="flex size-8 items-center justify-center rounded-full bg-active text-xs font-semibold text-strong">
                     {{ userInitial }}
                 </div>
-                <button
-                    type="button"
+                <Button
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
-                    class="cursor-pointer rounded-lg border border-line-strong px-2.5 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                    severity="secondary"
+                    outlined
+                    size="small"
+                    :label="isDark ? '☀' : '☾'"
                     @click="toggleTheme"
-                >
-                    {{ isDark ? '☀' : '☾' }}
-                </button>
+                />
                 <RouterLink
                     v-if="isAdmin"
                     to="/admin/users"
@@ -184,13 +191,7 @@ async function runConfirm(): Promise<void> {
                 >
                     Settings
                 </RouterLink>
-                <button
-                    type="button"
-                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                    @click="logout"
-                >
-                    Log out
-                </button>
+                <Button severity="secondary" size="small" label="Log out" @click="logout"/>
             </div>
         </header>
 
@@ -207,14 +208,14 @@ async function runConfirm(): Promise<void> {
             >
                 <div class="mb-4 flex items-center justify-between lg:hidden">
                     <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Menu</h2>
-                    <button
-                        type="button"
+                    <Button
                         aria-label="Close menu"
-                        class="cursor-pointer rounded-lg p-1 text-muted transition-colors hover:bg-raised hover:text-strong"
+                        severity="secondary"
+                        text
+                        size="small"
+                        label="✕"
                         @click="drawerOpen = false"
-                    >
-                        ✕
-                    </button>
+                    />
                 </div>
 
                 <div class="mb-4 flex items-center gap-2 border-b border-line pb-3 lg:hidden">
@@ -235,14 +236,13 @@ async function runConfirm(): Promise<void> {
 
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Projects</h2>
-                    <button
-                        type="button"
+                    <Button
                         aria-label="New project"
-                        class="cursor-pointer rounded-lg px-2 py-0.5 text-sm font-semibold text-brand-text transition-colors hover:bg-raised"
+                        text
+                        size="small"
+                        label="+ New"
                         @click="showCreate = true"
-                    >
-                        + New
-                    </button>
+                    />
                 </div>
 
                 <p
@@ -257,13 +257,14 @@ async function runConfirm(): Promise<void> {
                     class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1.5 text-xs text-danger-text"
                 >
                     {{ projects.error }}
-                    <button
-                        type="button"
-                        class="mt-1 block cursor-pointer font-medium underline"
+                    <Button
+                        severity="secondary"
+                        text
+                        size="small"
+                        class="mt-1"
+                        label="Retry"
                         @click="projects.fetchProjects()"
-                    >
-                        Retry
-                    </button>
+                    />
                 </p>
 
                 <p v-else-if="!projects.initialized" class="text-sm text-faint">Loading…</p>
@@ -283,60 +284,65 @@ async function runConfirm(): Promise<void> {
                             >
                 admin
               </span>
-                            <button
-                                type="button"
+                            <Button
                                 aria-label="Project actions"
-                                class="cursor-pointer rounded-lg px-1.5 py-1 text-faint opacity-100 transition-opacity hover:text-strong focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                                severity="secondary"
+                                text
+                                size="small"
+                                class="opacity-100 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                                label="⋯"
                                 @click.stop="openMenuId = openMenuId === project.id ? null : project.id"
-                            >
-                                ⋯
-                            </button>
+                            />
                         </div>
                         <div
                             v-if="openMenuId === project.id"
                             class="absolute right-0 top-full z-10 mt-1 w-36 rounded-lg border border-line-strong bg-raised py-1 shadow-xl"
                         >
-                            <button
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-body transition-colors hover:bg-active hover:text-strong"
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Members"
                                 @click="membersTarget = project"
-                            >
-                                Members
-                            </button>
-                            <button
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-body transition-colors hover:bg-active hover:text-strong"
+                            />
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Rename"
                                 @click="renameTarget = project"
-                            >
-                                Rename
-                            </button>
-                            <button
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-body transition-colors hover:bg-active hover:text-strong"
+                            />
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Archive"
                                 @click="askArchive(project)"
-                            >
-                                Archive
-                            </button>
-                            <button
+                            />
+                            <Button
                                 v-if="isAdmin"
-                                type="button"
-                                class="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover"
+                                severity="danger"
+                                text
+                                size="small"
+                                class="w-full justify-start"
+                                label="Delete"
                                 @click="askDelete(project)"
-                            >
-                                Delete
-                            </button>
+                            />
                         </div>
                     </li>
                 </ul>
                 <div v-else class="rounded-lg border border-dashed border-line-strong px-3 py-4 text-center">
                     <p class="text-sm text-faint">No projects yet.</p>
-                    <button
-                        type="button"
-                        class="mt-1 cursor-pointer text-sm font-medium text-brand-text transition-colors hover:text-brand-text-hover"
+                    <Button
+                        text
+                        size="small"
+                        class="mt-1"
+                        label="Create your first project"
                         @click="showCreate = true"
-                    >
-                        Create your first project
-                    </button>
+                    />
                 </div>
 
                 <template v-if="projects.archivedProjects.length > 0">
@@ -348,13 +354,13 @@ async function runConfirm(): Promise<void> {
                             class="flex items-center rounded-lg px-2 py-1.5 hover:bg-raised"
                         >
                             <span class="min-w-0 flex-1 truncate text-sm text-faint">{{ project.name }}</span>
-                            <button
-                                type="button"
-                                class="cursor-pointer rounded-lg px-1.5 py-0.5 text-xs text-muted transition-colors hover:text-strong"
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                label="Restore"
                                 @click="askRestore(project)"
-                            >
-                                Restore
-                            </button>
+                            />
                         </li>
                     </ul>
                 </template>
@@ -373,20 +379,22 @@ async function runConfirm(): Promise<void> {
                     >
                         Users
                     </RouterLink>
-                    <button
-                        type="button"
-                        class="block w-full cursor-pointer rounded-lg px-2 py-2 text-left text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                    <Button
+                        severity="secondary"
+                        text
+                        size="small"
+                        class="w-full justify-start"
+                        :label="isDark ? '☀ Light theme' : '☾ Dark theme'"
                         @click="toggleTheme"
-                    >
-                        {{ isDark ? '☀ Light theme' : '☾ Dark theme' }}
-                    </button>
-                    <button
-                        type="button"
-                        class="block w-full cursor-pointer rounded-lg px-2 py-2 text-left text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                    />
+                    <Button
+                        severity="secondary"
+                        text
+                        size="small"
+                        class="w-full justify-start"
+                        label="Log out"
                         @click="logout"
-                    >
-                        Log out
-                    </button>
+                    />
                 </div>
             </aside>
 
@@ -401,14 +409,5 @@ async function runConfirm(): Promise<void> {
             @close="renameTarget = null"
         />
         <MembersDialog v-if="membersTarget" :project-id="membersTarget.id" @close="membersTarget = null"/>
-        <ConfirmDialog
-            v-if="confirmState"
-            :title="confirmState.title"
-            :message="confirmState.message"
-            :confirm-label="confirmState.confirmLabel"
-            :danger="confirmState.danger"
-            @confirm="runConfirm"
-            @cancel="confirmState = null"
-        />
     </div>
 </template>

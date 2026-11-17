@@ -333,6 +333,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@primeuix/themes@npm:^2.0.1":
+  version: 2.0.3
+  resolution: "@primeuix/themes@npm:2.0.3"
+  dependencies:
+    "@primeuix/styled": "npm:^0.7.4"
+  checksum: 10c0/4e51aa7ce0a73946b5605c485c281e3e5d82937efa5da1881e31aaae810ccbef34e29b888d24823428ad3303fa2825c99a88dfcb53718e15bfee18b63a12a53d
+  languageName: node
+  linkType: hard
+
 "@primeuix/utils@npm:^0.6.1, @primeuix/utils@npm:^0.6.2":
   version: 0.6.4
   resolution: "@primeuix/utils@npm:0.6.4"
@@ -1305,6 +1314,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "kanban-frontend@workspace:."
   dependencies:
+    "@primeuix/themes": "npm:^2.0.1"
     "@tailwindcss/vite": "npm:^4.1.0"
     "@types/sortablejs": "npm:^1.15.9"
     "@vitejs/plugin-vue": "npm:^6.0.0"

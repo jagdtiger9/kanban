@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
-import PasswordInput from '../components/PasswordInput.vue'
+import Password from 'primevue/password'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -71,26 +71,37 @@ async function submit(): Promise<void> {
                 </p>
                 <div>
                     <label for="display-name" class="mb-1 block text-sm font-medium text-body">Display name</label>
-                    <InputText id="display-name" v-model="displayName" autocomplete="name" placeholder="Alice"/>
+                    <InputText id="display-name" v-model="displayName" autocomplete="name" placeholder="Alice" class="w-full"/>
                     <p v-if="fieldErrors.displayName" class="mt-1 text-xs text-danger-text">{{ fieldErrors.displayName }}</p>
                 </div>
                 <div>
                     <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
-                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com"/>
+                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" class="w-full"/>
                     <p v-if="fieldErrors.email" class="mt-1 text-xs text-danger-text">{{ fieldErrors.email }}</p>
                 </div>
                 <div>
                     <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
-                    <PasswordInput id="password" v-model="password" autocomplete="new-password" placeholder="At least 8 characters"/>
+                    <Password
+                        v-model="password"
+                        input-id="password"
+                        :input-props="{ autocomplete: 'new-password' }"
+                        placeholder="At least 8 characters"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
+                    />
                     <p v-if="fieldErrors.password" class="mt-1 text-xs text-danger-text">{{ fieldErrors.password }}</p>
                 </div>
                 <div>
                     <label for="password-confirmation" class="mb-1 block text-sm font-medium text-body">Confirm password</label>
-                    <PasswordInput
-                        id="password-confirmation"
+                    <Password
                         v-model="passwordConfirmation"
-                        autocomplete="new-password"
+                        input-id="password-confirmation"
+                        :input-props="{ autocomplete: 'new-password' }"
                         placeholder="Repeat the password"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
                     />
                     <p v-if="fieldErrors.passwordConfirmation" class="mt-1 text-xs text-danger-text">
                         {{ fieldErrors.passwordConfirmation }}

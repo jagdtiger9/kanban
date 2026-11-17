@@ -3,8 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
+import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import { useConfirm } from 'primevue/useconfirm'
 import * as boardApi from '../api/board'
 import type {
     ActivityPayload,
@@ -16,7 +19,7 @@ import type {
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
-import ConfirmDialog from './ConfirmDialog.vue'
+import { fromYmd, toYmd } from '../utils/dates'
 import Modal from './Modal.vue'
 
 const props = defineProps<{
@@ -34,6 +37,7 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
+const confirm = useConfirm()
 const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
 const canDeleteComment = (comment: CommentPayload): boolean =>
@@ -44,10 +48,10 @@ const description = ref(props.card.description)
 const labelIds = ref<string[]>([...props.card.labelIds])
 const assigneeIds = ref<string[]>([...props.card.assigneeIds])
 const dueDate = ref<string | null>(props.card.dueDate)
+const dueDateModel = computed(() => fromYmd(dueDate.value))
 
 const error = ref<string | null>(null)
 const saving = ref(false)
-const confirmArchive = ref(false)
 
 const comments = ref<CommentPayload[]>([])
 const activities = ref<ActivityPayload[]>([])
@@ -58,7 +62,6 @@ const newComment = ref('')
 const commentSaving = ref(false)
 const editingId = ref<string | null>(null)
 const editBody = ref('')
-const deleteTarget = ref<CommentPayload | null>(null)
 
 const memberNames = computed(() => {
     const names = new Map<string, string>()
@@ -226,20 +229,38 @@ async function saveEdit(): Promise<void> {
     }
 }
 
-async function removeComment(): Promise<void> {
-    const target = deleteTarget.value
-    if (!target || commentSaving.value) return
+async function removeComment(target: CommentPayload): Promise<void> {
+    if (commentSaving.value) return
     commentSaving.value = true
     detailError.value = null
     try {
         await boardApi.deleteComment(target.id)
-        deleteTarget.value = null
         await refreshDetail()
     } catch (e) {
         detailError.value = e instanceof ApiError ? e.message : 'Failed to delete comment'
     } finally {
         commentSaving.value = false
     }
+}
+
+function askArchive(): void {
+    confirm.require({
+        header: 'Archive card',
+        message: 'Archive this card? It will disappear from the board until “Show archived cards” is enabled.',
+        acceptProps: { label: 'Archive', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: archive,
+    })
+}
+
+function askDeleteComment(comment: CommentPayload): void {
+    confirm.require({
+        header: 'Delete comment',
+        message: 'Delete this comment? This cannot be undone.',
+        acceptProps: { label: 'Delete', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: () => removeComment(comment),
+    })
 }
 
 async function saveContent(): Promise<void> {
@@ -295,6 +316,14 @@ async function changeDue(value: string | null): Promise<void> {
     } catch (e) {
         dueDate.value = props.card.dueDate
         error.value = e instanceof ApiError ? e.message : 'Failed to set due date'
+    }
+}
+
+function onDueChange(value: Date | Date[] | Array<Date | null> | null | undefined): void {
+    if (value instanceof Date) {
+        void changeDue(toYmd(value))
+    } else if (value == null) {
+        void changeDue(null)
     }
 }
 
@@ -402,11 +431,10 @@ async function restore(): Promise<void> {
                         :key="member.userId"
                         class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm text-body transition-colors hover:bg-raised"
                     >
-                        <input
-                            type="checkbox"
-                            class="h-4 w-4 cursor-pointer accent-brand"
-                            :checked="assigneeIds.includes(member.userId)"
-                            @change="toggleAssignee(member.userId)"
+                        <Checkbox
+                            :model-value="assigneeIds.includes(member.userId)"
+                            :binary="true"
+                            @update:model-value="toggleAssignee(member.userId)"
                         />
                         {{ member.displayName }}
                     </label>
@@ -416,22 +444,13 @@ async function restore(): Promise<void> {
 
             <div>
                 <p class="mb-1.5 text-sm font-medium text-body">Due date</p>
-                <div class="flex items-center gap-2">
-                    <input
-                        type="date"
-                        class="rounded-lg border border-line-strong bg-raised px-3 py-2 text-sm text-strong"
-                        :value="dueDate ?? ''"
-                        @change="changeDue(($event.target as HTMLInputElement).value || null)"
-                    />
-                    <button
-                        v-if="dueDate"
-                        type="button"
-                        class="cursor-pointer text-xs text-muted underline transition-colors hover:text-strong"
-                        @click="changeDue(null)"
-                    >
-                        Clear
-                    </button>
-                </div>
+                <DatePicker
+                    :model-value="dueDateModel"
+                    date-format="yy-mm-dd"
+                    show-icon
+                    show-clear
+                    @update:model-value="onDueChange"
+                />
             </div>
 
             <div class="border-t border-line pt-3">
@@ -441,13 +460,14 @@ async function restore(): Promise<void> {
                     class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
                 >
                     <span>{{ detailError }}</span>
-                    <button
-                        type="button"
-                        class="shrink-0 cursor-pointer text-xs underline transition-colors hover:text-danger-text-hover"
+                    <Button
+                        severity="secondary"
+                        text
+                        size="small"
+                        label="Retry"
+                        class="shrink-0"
                         @click="loadDetail"
-                    >
-                        Retry
-                    </button>
+                    />
                 </div>
                 <div class="space-y-3">
                     <div
@@ -475,13 +495,7 @@ async function restore(): Promise<void> {
                                     :disabled="commentSaving || editBody.trim() === ''"
                                     @click="saveEdit"
                                 />
-                                <button
-                                    type="button"
-                                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                                    @click="cancelEdit"
-                                >
-                                    Cancel
-                                </button>
+                                <Button severity="secondary" label="Cancel" @click="cancelEdit"/>
                             </div>
                         </div>
                         <div
@@ -493,21 +507,21 @@ async function restore(): Promise<void> {
                             v-if="canDeleteComment(comment) && editingId !== comment.id"
                             class="mt-1 flex gap-3 pl-8"
                         >
-                            <button
+                            <Button
                                 v-if="auth.user?.id === comment.authorId"
-                                type="button"
-                                class="cursor-pointer text-xs text-muted underline transition-colors hover:text-strong"
+                                severity="secondary"
+                                text
+                                size="small"
+                                label="Edit"
                                 @click="startEdit(comment)"
-                            >
-                                Edit
-                            </button>
-                            <button
-                                type="button"
-                                class="cursor-pointer text-xs text-muted underline transition-colors hover:text-danger-text-hover"
-                                @click="deleteTarget = comment"
-                            >
-                                Delete
-                            </button>
+                            />
+                            <Button
+                                severity="danger"
+                                text
+                                size="small"
+                                label="Delete"
+                                @click="askDeleteComment(comment)"
+                            />
                         </div>
                     </div>
                     <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
@@ -553,42 +567,22 @@ async function restore(): Promise<void> {
             </div>
 
             <div v-if="canManage" class="border-t border-line pt-3">
-                <button
+                <Button
                     v-if="!props.card.archived"
-                    type="button"
-                    class="cursor-pointer rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger-text transition-colors hover:bg-danger/10 hover:text-danger-text-hover"
-                    @click="confirmArchive = true"
-                >
-                    Archive
-                </button>
-                <button
+                    severity="danger"
+                    outlined
+                    size="small"
+                    label="Archive"
+                    @click="askArchive"
+                />
+                <Button
                     v-else
-                    type="button"
-                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                    severity="secondary"
+                    size="small"
+                    label="Restore"
                     @click="restore"
-                >
-                    Restore
-                </button>
+                />
             </div>
         </div>
-
-        <ConfirmDialog
-            v-if="confirmArchive"
-            title="Archive card"
-            message="Archive this card? It will disappear from the board until “Show archived cards” is enabled."
-            confirm-label="Archive"
-            danger
-            @confirm="archive"
-            @cancel="confirmArchive = false"
-        />
-        <ConfirmDialog
-            v-if="deleteTarget"
-            title="Delete comment"
-            message="Delete this comment? This cannot be undone."
-            confirm-label="Delete"
-            danger
-            @confirm="removeComment"
-            @cancel="deleteTarget = null"
-        />
     </Modal>
 </template>

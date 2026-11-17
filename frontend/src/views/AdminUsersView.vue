@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import Button from 'primevue/button'
 import { ApiError } from '../api/client'
 import { confirmUser, listUsers } from '../api/users'
 import type { AdminUserPayload } from '../api/users'
@@ -104,15 +105,14 @@ onMounted(load)
                             </td>
                             <td class="px-3 py-2.5 sm:px-4">
                                 <div v-if="user.id !== auth.user?.id" class="flex justify-end gap-2">
-                                    <button
+                                    <Button
                                         v-if="!user.confirmed"
-                                        type="button"
+                                        text
+                                        size="small"
                                         :disabled="busyUserId === user.id"
-                                        class="cursor-pointer rounded-lg px-2 py-1 text-xs text-brand-text transition-colors hover:bg-brand/10 disabled:cursor-wait disabled:opacity-50"
+                                        label="Confirm"
                                         @click="confirmAccount(user)"
-                                    >
-                                        Confirm
-                                    </button>
+                                    />
                                 </div>
                             </td>
                         </tr>

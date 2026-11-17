@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Button from 'primevue/button'
+import ColorPicker from 'primevue/colorpicker'
 import InputText from 'primevue/inputtext'
+import { useConfirm } from 'primevue/useconfirm'
 import * as boardApi from '../api/board'
 import type { LabelPayload } from '../api/board'
 import { ApiError } from '../api/client'
-import ConfirmDialog from './ConfirmDialog.vue'
 import Modal from './Modal.vue'
 
 const props = defineProps<{
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const error = ref<string | null>(null)
+const confirm = useConfirm()
 
 const newName = ref('')
 const newColor = ref('#3b82f6')
@@ -30,7 +32,6 @@ const editName = ref('')
 const editColor = ref('#3b82f6')
 const savingEdit = ref(false)
 
-const deleteTarget = ref<LabelPayload | null>(null)
 const deleting = ref(false)
 
 async function create(): Promise<void> {
@@ -72,14 +73,22 @@ async function saveEdit(): Promise<void> {
     }
 }
 
-async function confirmDelete(): Promise<void> {
-    const target = deleteTarget.value
-    if (!target || deleting.value) return
+function askDelete(label: LabelPayload): void {
+    confirm.require({
+        header: 'Delete label',
+        message: `Delete label “${label.name}”? It will be removed from all cards.`,
+        acceptProps: { label: 'Delete', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: () => confirmDelete(label),
+    })
+}
+
+async function confirmDelete(target: LabelPayload): Promise<void> {
+    if (deleting.value) return
     deleting.value = true
     error.value = null
     try {
         await boardApi.deleteLabel(target.id)
-        deleteTarget.value = null
         emit('changed')
     } catch (e) {
         error.value = e instanceof ApiError ? e.message : 'Failed to delete label'
@@ -116,10 +125,10 @@ async function confirmDelete(): Promise<void> {
                             @keydown.enter="saveEdit"
                             @keydown.esc="editingId = null"
                         />
-                        <input
-                            v-model="editColor"
-                            type="color"
-                            class="h-8 w-8 shrink-0 cursor-pointer rounded border border-line-strong bg-raised"
+                        <ColorPicker
+                            :model-value="editColor"
+                            format="hex"
+                            @update:model-value="(value: string) => (editColor = `#${value}`)"
                         />
                         <Button
                             label="Save"
@@ -130,21 +139,21 @@ async function confirmDelete(): Promise<void> {
                     </template>
                     <template v-else>
                         <span class="min-w-0 flex-1 truncate text-sm text-strong">{{ label.name }}</span>
-                        <button
-                            type="button"
-                            class="cursor-pointer text-xs text-muted transition-colors hover:text-strong"
+                        <Button
+                            severity="secondary"
+                            text
+                            size="small"
+                            label="Rename"
                             @click="startEdit(label)"
-                        >
-                            Rename
-                        </button>
-                        <button
+                        />
+                        <Button
                             v-if="props.canDelete"
-                            type="button"
-                            class="cursor-pointer text-xs text-danger-text transition-colors hover:text-danger-text-hover"
-                            @click="deleteTarget = label"
-                        >
-                            Delete
-                        </button>
+                            severity="danger"
+                            text
+                            size="small"
+                            label="Delete"
+                            @click="askDelete(label)"
+                        />
                     </template>
                 </li>
             </ul>
@@ -153,10 +162,10 @@ async function confirmDelete(): Promise<void> {
             <div class="border-t border-line pt-3">
                 <p class="mb-2 text-sm font-medium text-body">New label</p>
                 <div class="flex items-center gap-2">
-                    <input
-                        v-model="newColor"
-                        type="color"
-                        class="h-9 w-9 shrink-0 cursor-pointer rounded border border-line-strong bg-raised"
+                    <ColorPicker
+                        :model-value="newColor"
+                        format="hex"
+                        @update:model-value="(value: string) => (newColor = `#${value}`)"
                     />
                     <InputText
                         v-model="newName"
@@ -168,15 +177,5 @@ async function confirmDelete(): Promise<void> {
                 </div>
             </div>
         </div>
-
-        <ConfirmDialog
-            v-if="deleteTarget"
-            title="Delete label"
-            :message="`Delete label “${deleteTarget.name}”? It will be removed from all cards.`"
-            confirm-label="Delete"
-            danger
-            @confirm="confirmDelete"
-            @cancel="deleteTarget = null"
-        />
     </Modal>
 </template>

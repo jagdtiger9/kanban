@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
-import PasswordInput from '../components/PasswordInput.vue'
+import Password from 'primevue/password'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 
@@ -48,11 +48,19 @@ async function submit(): Promise<void> {
                 </p>
                 <div>
                     <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
-                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com"/>
+                    <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" class="w-full"/>
                 </div>
                 <div>
                     <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
-                    <PasswordInput id="password" v-model="password" autocomplete="current-password" placeholder="••••••••"/>
+                    <Password
+                        v-model="password"
+                        input-id="password"
+                        :input-props="{ autocomplete: 'current-password' }"
+                        placeholder="••••••••"
+                        toggle-mask
+                        :feedback="false"
+                        fluid
+                    />
                 </div>
                 <label for="remember-me" class="flex cursor-pointer items-center gap-2 text-sm text-body">
                     <Checkbox v-model="rememberMe" :binary="true" input-id="remember-me"/>
