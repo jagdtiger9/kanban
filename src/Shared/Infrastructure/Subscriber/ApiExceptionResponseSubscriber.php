@@ -15,6 +15,8 @@ use App\Board\Domain\Exception\ColumnNotFoundException;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Exception\CommentNotFoundException;
 use App\Board\Domain\Exception\LabelNotFoundException;
+use App\News\Domain\Exception\NewsPostForbiddenException;
+use App\News\Domain\Exception\NewsPostNotFoundException;
 use App\Project\Domain\Exception\LastProjectAdminException;
 use App\Project\Domain\Exception\ProjectForbiddenException;
 use App\Project\Domain\Exception\ProjectMemberAlreadyExistsException;
@@ -118,6 +120,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof AttachmentNotFoundException
             || $throwable instanceof FileNotFoundException
             || $throwable instanceof AvatarNotFoundException
+            || $throwable instanceof NewsPostNotFoundException
             || $throwable instanceof UserNotFoundException
         ) {
             return [Response::HTTP_NOT_FOUND, $throwable->getMessage()];
@@ -127,6 +130,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof CardForbiddenException
             || $throwable instanceof CommentForbiddenException
             || $throwable instanceof AttachmentForbiddenException
+            || $throwable instanceof NewsPostForbiddenException
         ) {
             return [Response::HTTP_FORBIDDEN, $throwable->getMessage()];
         }

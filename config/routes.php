@@ -6,6 +6,7 @@ use App\Board\Infrastructure\Controller\AttachmentController;
 use App\Board\Infrastructure\Controller\BoardController;
 use App\Board\Infrastructure\Controller\RealtimeController;
 use App\Common\Infrastructure\Controller\PingController;
+use App\News\Infrastructure\Controller\NewsController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
 use App\User\Infrastructure\Controller\UserAvatarController;
@@ -115,6 +116,36 @@ $config = Routes::config([
         'path' => '/api/users/{userId}/confirm',
         'controller' => [UserController::class, 'confirmUser'],
         'methods' => ['POST'],
+    ],
+    'api_user_promote_news_maker' => [
+        'path' => '/api/users/{userId}/news-maker',
+        'controller' => [UserController::class, 'promoteNewsMaker'],
+        'methods' => ['POST'],
+    ],
+    'api_user_demote_news_maker' => [
+        'path' => '/api/users/{userId}/news-maker',
+        'controller' => [UserController::class, 'demoteNewsMaker'],
+        'methods' => ['DELETE'],
+    ],
+    'api_news_list' => [
+        'path' => '/api/news',
+        'controller' => [NewsController::class, 'list'],
+        'methods' => ['GET'],
+    ],
+    'api_news_create' => [
+        'path' => '/api/news',
+        'controller' => [NewsController::class, 'create'],
+        'methods' => ['POST'],
+    ],
+    'api_news_update' => [
+        'path' => '/api/news/{newsPostId}',
+        'controller' => [NewsController::class, 'update'],
+        'methods' => ['PUT'],
+    ],
+    'api_news_delete' => [
+        'path' => '/api/news/{newsPostId}',
+        'controller' => [NewsController::class, 'delete'],
+        'methods' => ['DELETE'],
     ],
     'api_user_avatar_update' => [
         'path' => '/api/users/me/avatar',

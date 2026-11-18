@@ -59,6 +59,31 @@ final class UserTest extends TestCase
         self::assertSame(['ROLE_USER', 'ROLE_GLOBAL_ADMIN'], $user->roles());
     }
 
+    public function testNewsMakerPromotionAndDemotion(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        self::assertFalse($user->isNewsMaker());
+
+        $user->promoteToNewsMaker();
+        self::assertTrue($user->isNewsMaker());
+        self::assertSame(['ROLE_USER', 'ROLE_NEWS_MAKER'], $user->roles());
+
+        $user->demoteFromNewsMaker();
+        self::assertFalse($user->isNewsMaker());
+        self::assertSame(['ROLE_USER'], $user->roles());
+    }
+
+    public function testRolesCombineGlobalAdminAndNewsMaker(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->promoteToGlobalAdmin();
+        $user->promoteToNewsMaker();
+
+        self::assertSame(['ROLE_USER', 'ROLE_GLOBAL_ADMIN', 'ROLE_NEWS_MAKER'], $user->roles());
+    }
+
     public function testIdReturnsId(): void
     {
         $id = Uuid::uuid4();

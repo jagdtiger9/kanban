@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
@@ -22,6 +20,7 @@ import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { fromYmd, toYmd } from '../utils/dates'
+import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
 import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
 import AttachmentChip from './AttachmentChip.vue'
 import Modal from './Modal.vue'
@@ -111,10 +110,6 @@ function columnName(columnId: string): string {
 
 function payloadString(value: unknown): string {
     return typeof value === 'string' ? value : ''
-}
-
-function renderMarkdown(markdown: string): string {
-    return DOMPurify.sanitize(marked.parse(markdown, { async: false }))
 }
 
 function activityText(activity: ActivityPayload): string {
@@ -673,7 +668,7 @@ async function restore(): Promise<void> {
                         </div>
                         <div
                             v-else
-                            class="pl-8 text-sm text-body [&_a]:text-brand-text [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-line-emphasis [&_blockquote]:pl-3 [&_blockquote]:text-muted [&_code]:rounded [&_code]:bg-raised [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-2 [&_hr]:border-line-strong [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-raised [&_pre]:p-2 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
+                            :class="['pl-8 text-sm text-body', MARKDOWN_CLASS]"
                             v-html="renderMarkdown(comment.body)"
                         />
                         <div

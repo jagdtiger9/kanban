@@ -63,6 +63,7 @@ return App::config([
             ],
             'routing' => [
                 'App\Board\Domain\Event\*' => ['async'],
+                'App\News\Domain\Event\*' => ['async'],
                 'App\Project\Domain\Event\*' => ['async'],
                 'App\User\Domain\Event\*' => ['async'],
                 // Deferred by Symfony Notifier's chatter; retried on its own.

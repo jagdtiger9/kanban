@@ -16,6 +16,8 @@ use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\CommentRepository;
 use App\Board\Domain\Repository\LabelRepository;
+use App\News\Domain\Entity\NewsPost;
+use App\News\Domain\Repository\NewsPostRepository;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Entity\ProjectMember;
 use App\Project\Domain\Enum\MemberRole;
@@ -35,8 +37,8 @@ use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Route × actor matrix over the HTTP edge: every route must answer the agreed
- * status for anonymous, non-member, project member, project admin and global
- * admin actors. One request per test on a freshly reset database.
+ * status for anonymous, non-member, project member, project admin, global admin
+ * and news maker actors. One request per test on a freshly reset database.
  */
 final class AclMatrixTest extends DatabaseTestCase
 {
@@ -193,10 +195,19 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_comment_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
             'api_comment_attachment_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
 
+            // News feed: read for every authenticated user; create for global
+            // admins and news makers; edit/delete for the author or a global admin.
+            'api_news_list' => self::userRoute(200),
+            'api_news_create' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 201, 'news' => 201],
+            'api_news_update' => ['anon' => 401, 'outsider' => 403, 'member' => 200, 'other' => 403, 'admin' => 403, 'global' => 200, 'news' => 403],
+            'api_news_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 403, 'global' => 204, 'news' => 403],
+
             // Global admins only
             'api_project_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
             'api_users_list' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
             'api_user_confirm' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200],
+            'api_user_promote_news_maker' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200, 'news' => 403],
+            'api_user_demote_news_maker' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 200, 'news' => 403],
         ];
     }
 
@@ -205,7 +216,7 @@ final class AclMatrixTest extends DatabaseTestCase
      */
     private static function publicRoute(int $success): array
     {
-        return ['anon' => $success, 'outsider' => $success, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success];
+        return ['anon' => $success, 'outsider' => $success, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success, 'news' => $success];
     }
 
     /**
@@ -213,7 +224,7 @@ final class AclMatrixTest extends DatabaseTestCase
      */
     private static function userRoute(int $success): array
     {
-        return ['anon' => 401, 'outsider' => $success, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success];
+        return ['anon' => 401, 'outsider' => $success, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success, 'news' => $success];
     }
 
     /**
@@ -221,7 +232,7 @@ final class AclMatrixTest extends DatabaseTestCase
      */
     private static function memberRoute(int $success): array
     {
-        return ['anon' => 401, 'outsider' => 403, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success];
+        return ['anon' => 401, 'outsider' => 403, 'member' => $success, 'other' => $success, 'admin' => $success, 'global' => $success, 'news' => 403];
     }
 
     /**
@@ -229,7 +240,7 @@ final class AclMatrixTest extends DatabaseTestCase
      */
     private static function adminRoute(int $success): array
     {
-        return ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => $success, 'global' => $success];
+        return ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => $success, 'global' => $success, 'news' => 403];
     }
 
     private function uploadedTextFile(): UploadedFile
@@ -261,12 +272,12 @@ final class AclMatrixTest extends DatabaseTestCase
     }
 
     /**
-     * Actors: member authored the seeded card and comment; other is a plain
-     * member; admin holds the project admin role; global is a global admin
-     * with no project membership; outsider has no access at all; candidate is
-     * unconfirmed with a pending token.
+     * Actors: member authored the seeded card, comment and news post; other is a
+     * plain member; admin holds the project admin role; global is a global admin
+     * with no project membership; news holds the news-maker role; outsider has no
+     * access at all; candidate is unconfirmed with a pending token.
      *
-     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string}
+     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string}
      */
     private function seedFixture(): array
     {
@@ -277,10 +288,13 @@ final class AclMatrixTest extends DatabaseTestCase
             ->getPasswordHasher(User::class)
             ->hash('secret123');
         $users = [];
-        foreach (['outsider', 'member', 'other', 'admin', 'global', 'candidate'] as $name) {
+        foreach (['outsider', 'member', 'other', 'admin', 'global', 'news', 'candidate'] as $name) {
             $user = User::create(Uuid::uuid4(), sprintf('%s@acl.test', $name), $passwordHash, ucfirst($name));
             if ($name === 'global') {
                 $user->promoteToGlobalAdmin();
+            }
+            if ($name === 'news') {
+                $user->promoteToNewsMaker();
             }
             if ($name === 'candidate') {
                 $user->beginEmailConfirmation(hash('sha256', $confirmationToken), new \DateTimeImmutable('+24 hours'));
@@ -311,6 +325,9 @@ final class AclMatrixTest extends DatabaseTestCase
 
         $comment = Comment::create(Uuid::uuid4(), $card->id(), $users['member']->id(), 'Seed comment');
         $this->repo(CommentRepository::class)->save($comment);
+
+        $newsPost = NewsPost::create(Uuid::uuid4(), $users['member']->id(), 'Seed news');
+        $this->repo(NewsPostRepository::class)->save($newsPost);
 
         $attachmentsRepo = $this->repo(AttachmentRepository::class);
         $fileAttachment = Attachment::create(
@@ -374,6 +391,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'labelId' => (string) $label->id(),
             'cardId' => (string) $card->id(),
             'commentId' => (string) $comment->id(),
+            'newsPostId' => (string) $newsPost->id(),
             'fileAttachmentId' => (string) $fileAttachment->id(),
             'thumbnailAttachmentId' => (string) $imageAttachment->id(),
             'commentAttachmentId' => (string) $commentAttachment->id(),
@@ -382,7 +400,7 @@ final class AclMatrixTest extends DatabaseTestCase
     }
 
     /**
-     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string} $fx
+     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string} $fx
      *
      * @return array<string, array{0: string, 1: string, 2: array<string, mixed>|null, 3?: array<string, UploadedFile>}>
      */
@@ -449,10 +467,17 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_comment_update' => ['PUT', "/api/comments/$comment", ['body' => 'Edited comment']],
             'api_card_comment_delete' => ['DELETE', "/api/comments/$comment", null],
 
+            'api_news_list' => ['GET', '/api/news', null],
+            'api_news_create' => ['POST', '/api/news', ['body' => 'Created news']],
+            'api_news_update' => ['PUT', "/api/news/{$fx['newsPostId']}", ['body' => 'Edited news']],
+            'api_news_delete' => ['DELETE', "/api/news/{$fx['newsPostId']}", null],
+
             'api_project_delete' => ['DELETE', "/api/projects/$project", null],
 
             'api_users_list' => ['GET', '/api/users', null],
             'api_user_confirm' => ['POST', "/api/users/$candidateId/confirm", null],
+            'api_user_promote_news_maker' => ['POST', "/api/users/$candidateId/news-maker", null],
+            'api_user_demote_news_maker' => ['DELETE', "/api/users/$candidateId/news-maker", null],
         ];
     }
 }

@@ -44,6 +44,9 @@ final class User implements DomainEventAwareInterface
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $isGlobalAdmin;
 
+    #[ORM\Column(type: Types::BOOLEAN)]
+    private bool $isNewsMaker;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
 
@@ -70,6 +73,7 @@ final class User implements DomainEventAwareInterface
         $this->avatarStorageKey = null;
         $this->avatarUpdatedAt = null;
         $this->isGlobalAdmin = false;
+        $this->isNewsMaker = false;
         $this->createdAt = $createdAt;
         $this->confirmedAt = null;
         $this->confirmationTokenHash = null;
@@ -161,6 +165,11 @@ final class User implements DomainEventAwareInterface
     public function isGlobalAdmin(): bool
     {
         return $this->isGlobalAdmin;
+    }
+
+    public function isNewsMaker(): bool
+    {
+        return $this->isNewsMaker;
     }
 
     public function createdAt(): \DateTimeImmutable
@@ -258,6 +267,16 @@ final class User implements DomainEventAwareInterface
         $this->isGlobalAdmin = false;
     }
 
+    public function promoteToNewsMaker(): void
+    {
+        $this->isNewsMaker = true;
+    }
+
+    public function demoteFromNewsMaker(): void
+    {
+        $this->isNewsMaker = false;
+    }
+
     /**
      * @return list<string>
      */
@@ -266,6 +285,9 @@ final class User implements DomainEventAwareInterface
         $roles = [UserRole::ROLE_USER->name];
         if ($this->isGlobalAdmin) {
             $roles[] = UserRole::ROLE_GLOBAL_ADMIN->name;
+        }
+        if ($this->isNewsMaker) {
+            $roles[] = UserRole::ROLE_NEWS_MAKER->name;
         }
 
         return $roles;

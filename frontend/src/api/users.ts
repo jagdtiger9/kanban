@@ -16,6 +16,7 @@ export interface AdminUserPayload {
     email: string
     displayName: string
     isGlobalAdmin: boolean
+    isNewsMaker: boolean
     confirmed: boolean
     createdAt: string
     avatarVersion: string | null
@@ -27,6 +28,14 @@ export function listUsers(): Promise<AdminUserPayload[]> {
 
 export function confirmUser(id: string): Promise<AdminUserPayload> {
     return api<AdminUserPayload>(`/users/${id}/confirm`, { method: 'POST' })
+}
+
+export function promoteNewsMaker(id: string): Promise<AdminUserPayload> {
+    return api<AdminUserPayload>(`/users/${id}/news-maker`, { method: 'POST' })
+}
+
+export function demoteNewsMaker(id: string): Promise<AdminUserPayload> {
+    return api<AdminUserPayload>(`/users/${id}/news-maker`, { method: 'DELETE' })
 }
 
 export interface AvatarPayload {
