@@ -346,12 +346,12 @@ watch(projectId, () => {
         <div class="border-b border-line px-4 py-3 sm:px-6 sm:py-4">
             <div
                 v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger-text">
+                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-danger-text">
                 {{ error }}
             </div>
             <template v-else-if="detail">
                 <div class="mb-2 flex items-center gap-3">
-                    <h1 class="text-xl font-semibold text-strong sm:text-2xl">{{ detail.project.name }}</h1>
+                    <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
@@ -367,24 +367,24 @@ watch(projectId, () => {
                     </span>
                 </div>
             </template>
-            <p v-else class="text-sm text-faint">Loading…</p>
+            <p v-else class="text-faint">Loading…</p>
         </div>
 
         <div class="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
             <p
                 v-if="actionError"
-                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ actionError }}
             </p>
             <div class="mb-3 flex items-center justify-between gap-3">
-                <label class="flex cursor-pointer select-none items-center gap-2 text-sm text-muted">
+                <label class="flex cursor-pointer select-none items-center gap-2 text-muted">
                     <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived"/>
                     Show archived cards
                 </label>
                 <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
             </div>
             <div ref="boardEl" class="flex items-start gap-3">
-                <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-sm text-faint">
+                <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-faint">
                     This board has no columns yet. Use “+ Add column” to start organizing cards.
                 </p>
                 <div
@@ -394,7 +394,7 @@ watch(projectId, () => {
                 >
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle min-w-0 flex-1 cursor-grab px-3 py-2 active:cursor-grabbing">
-                            <span class="block truncate text-sm font-semibold text-strong">{{ column.name }}</span>
+                            <span class="block truncate font-semibold">{{ column.name }}</span>
                         </div>
                         <Button
                             aria-label="Column actions"
@@ -448,7 +448,7 @@ watch(projectId, () => {
                                     </div>
                                     <button
                                         type="button"
-                                        class="block w-full cursor-pointer rounded-sm text-left text-sm break-words text-strong focus-visible:outline-2 focus-visible:outline-brand"
+                                        class="block w-full cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand"
                                     >
                                         {{ card.title }}
                                     </button>
@@ -521,7 +521,7 @@ watch(projectId, () => {
                 <button
                     v-else
                     type="button"
-                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-sm text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
+                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
                     @click="addingColumn = true"
                 >
                     + Add column

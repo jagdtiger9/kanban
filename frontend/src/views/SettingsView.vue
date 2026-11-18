@@ -101,7 +101,7 @@ async function submit(): Promise<void> {
         <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-semibold">Settings</h1>
-                <p class="mt-1 text-sm text-muted">Manage your photo and password</p>
+                <p class="mt-1 text-muted">Manage your photo and password</p>
             </div>
 
             <div class="mb-8 flex flex-col items-center gap-3">
@@ -143,17 +143,17 @@ async function submit(): Promise<void> {
             <div class="mb-6 border-t border-line"></div>
 
             <form class="space-y-4" @submit.prevent="submit">
-                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                     {{ error }}
                 </p>
                 <p
                     v-if="success"
-                    class="rounded-lg border border-line bg-panel px-3 py-2 text-sm text-body"
+                    class="rounded-lg border border-line bg-panel px-3 py-2 text-body"
                 >
                     {{ success }}
                 </p>
                 <div>
-                    <label for="current-password" class="mb-1 block text-sm font-medium text-body">Current password</label>
+                    <label for="current-password" class="mb-1 block font-medium text-body">Current password</label>
                     <Password
                         v-model="currentPassword"
                         input-id="current-password"
@@ -167,7 +167,7 @@ async function submit(): Promise<void> {
                     </p>
                 </div>
                 <div>
-                    <label for="new-password" class="mb-1 block text-sm font-medium text-body">New password</label>
+                    <label for="new-password" class="mb-1 block font-medium text-body">New password</label>
                     <Password
                         v-model="newPassword"
                         input-id="new-password"
@@ -182,7 +182,7 @@ async function submit(): Promise<void> {
                     </p>
                 </div>
                 <div>
-                    <label for="new-password-confirmation" class="mb-1 block text-sm font-medium text-body">
+                    <label for="new-password-confirmation" class="mb-1 block font-medium text-body">
                         Confirm new password
                     </label>
                     <Password

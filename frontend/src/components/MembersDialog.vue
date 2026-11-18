@@ -141,12 +141,12 @@ onUnmounted(() => clearTimeout(debounceTimer))
     <Modal @close="emit('close')">
         <template #title>Members</template>
         <div class="space-y-4">
-            <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+            <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ error }}
             </p>
 
             <div v-if="isAdmin">
-                <label for="member-search" class="mb-1 block text-sm font-medium text-body">Add member</label>
+                <label for="member-search" class="mb-1 block font-medium text-body">Add member</label>
                 <div class="flex items-start gap-2">
                     <div class="min-w-0 flex-1">
                         <InputText
@@ -187,11 +187,11 @@ onUnmounted(() => clearTimeout(debounceTimer))
             </div>
 
             <div>
-                <p v-if="loading" class="text-sm text-faint">Loading…</p>
+                <p v-if="loading" class="text-faint">Loading…</p>
                 <ul v-else class="divide-y divide-line">
                     <li v-for="member in members" :key="member.userId" class="flex items-center justify-between gap-3 py-2">
                         <div class="min-w-0">
-                            <p class="truncate text-sm text-strong">
+                            <p class="truncate text-strong">
                                 {{ member.displayName }}
                                 <span v-if="member.userId === selfId" class="text-xs text-faint">(you)</span>
                             </p>
@@ -219,7 +219,7 @@ onUnmounted(() => clearTimeout(debounceTimer))
                         </div>
                     </li>
                 </ul>
-                <p v-if="!loading && members.length === 0" class="text-sm text-faint">No members yet.</p>
+                <p v-if="!loading && members.length === 0" class="text-faint">No members yet.</p>
             </div>
         </div>
     </Modal>

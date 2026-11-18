@@ -485,25 +485,25 @@ async function restore(): Promise<void> {
         <div class="space-y-4">
             <p
                 v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
             >
                 {{ error }}
             </p>
 
             <div
                 v-if="props.card.archived"
-                class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn-text"
+                class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-warn-text"
             >
                 This card is archived.
             </div>
 
             <template v-if="canManage">
                 <div>
-                    <label for="card-title" class="mb-1 block text-sm font-medium text-body">Title</label>
+                    <label for="card-title" class="mb-1 block font-medium text-body">Title</label>
                     <InputText id="card-title" v-model="title" class="w-full"/>
                 </div>
                 <div>
-                    <label for="card-description" class="mb-1 block text-sm font-medium text-body">Description</label>
+                    <label for="card-description" class="mb-1 block font-medium text-body">Description</label>
                     <Textarea id="card-description" v-model="description" rows="4" class="w-full resize-none"/>
                     <div class="mt-2 flex justify-end">
                         <Button label="Save" :disabled="saving || title.trim() === ''" @click="saveContent"/>
@@ -514,7 +514,7 @@ async function restore(): Promise<void> {
                 <p class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
                 <div
                     v-if="props.card.description !== ''"
-                    class="whitespace-pre-wrap rounded-lg bg-raised/50 px-3 py-2 text-sm text-body"
+                    class="whitespace-pre-wrap rounded-lg bg-raised/50 px-3 py-2 text-body"
                 >
                     {{ props.card.description }}
                 </div>
@@ -522,7 +522,7 @@ async function restore(): Promise<void> {
 
             <div>
                 <div class="mb-1.5 flex items-center justify-between gap-2">
-                    <p class="text-sm font-medium text-body">Attachments</p>
+                    <p class="font-medium text-body">Attachments</p>
                     <div class="flex items-center gap-2">
                         <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
                         <input
@@ -544,7 +544,7 @@ async function restore(): Promise<void> {
                 </div>
                 <p
                     v-if="attachmentError"
-                    class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                    class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
                 >
                     {{ attachmentError }}
                 </p>
@@ -561,7 +561,7 @@ async function restore(): Promise<void> {
             </div>
 
             <div>
-                <p class="mb-1.5 text-sm font-medium text-body">Labels</p>
+                <p class="mb-1.5 font-medium text-body">Labels</p>
                 <div v-if="props.labels.length > 0" class="flex flex-wrap gap-1.5">
                     <button
                         v-for="label in props.labels"
@@ -587,12 +587,12 @@ async function restore(): Promise<void> {
             </div>
 
             <div>
-                <p class="mb-1.5 text-sm font-medium text-body">Assignees</p>
+                <p class="mb-1.5 font-medium text-body">Assignees</p>
                 <div v-if="props.members.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
                     <label
                         v-for="member in props.members"
                         :key="member.userId"
-                        class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm text-body transition-colors hover:bg-raised"
+                        class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-body transition-colors hover:bg-raised"
                     >
                         <Checkbox
                             :model-value="assigneeIds.includes(member.userId)"
@@ -611,7 +611,7 @@ async function restore(): Promise<void> {
             </div>
 
             <div>
-                <p class="mb-1.5 text-sm font-medium text-body">Due date</p>
+                <p class="mb-1.5 font-medium text-body">Due date</p>
                 <DatePicker
                     :model-value="dueDateModel"
                     date-format="yy-mm-dd"
@@ -622,10 +622,10 @@ async function restore(): Promise<void> {
             </div>
 
             <div class="border-t border-line pt-3">
-                <p class="mb-2 text-sm font-medium text-body">Comments</p>
+                <p class="mb-2 font-medium text-body">Comments</p>
                 <div
                     v-if="detailError"
-                    class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                    class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
                 >
                     <span>{{ detailError }}</span>
                     <Button
@@ -649,7 +649,7 @@ async function restore(): Promise<void> {
                                 :name="memberName(comment.authorId)"
                                 :avatar-version="memberAvatarVersion(comment.authorId)"
                             />
-                            <span class="text-sm font-medium text-strong">{{ memberName(comment.authorId) }}</span>
+                            <span class="font-medium text-strong">{{ memberName(comment.authorId) }}</span>
                             <span v-if="comment.updatedAt !== comment.createdAt" class="text-xs text-faint">
                 edited
               </span>
@@ -668,7 +668,7 @@ async function restore(): Promise<void> {
                         </div>
                         <div
                             v-else
-                            :class="['pl-8 text-sm text-body', MARKDOWN_CLASS]"
+                            :class="['pl-8 text-body', MARKDOWN_CLASS]"
                             v-html="renderMarkdown(comment.body)"
                         />
                         <div
@@ -758,7 +758,7 @@ async function restore(): Promise<void> {
             </div>
 
             <div class="border-t border-line pt-3">
-                <p class="mb-2 text-sm font-medium text-body">Activity</p>
+                <p class="mb-2 font-medium text-body">Activity</p>
                 <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
                 <p v-else-if="activitiesNewest.length === 0 && !detailError" class="text-xs text-faint">No activity yet.</p>
                 <div v-else class="space-y-2.5">
@@ -769,7 +769,7 @@ async function restore(): Promise<void> {
                             :avatar-version="activity.actorId ? memberAvatarVersion(activity.actorId) : null"
                             class="mt-0.5"
                         />
-                        <p class="min-w-0 flex-1 text-sm text-body">
+                        <p class="min-w-0 flex-1 text-body">
               <span class="font-medium text-strong">
                 {{ activity.actorId ? memberName(activity.actorId) : 'System' }}
               </span>

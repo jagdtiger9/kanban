@@ -30,30 +30,30 @@ onMounted(async () => {
                     C
                 </div>
                 <h1 class="text-2xl font-semibold">Kanban</h1>
-                <p class="mt-1 text-sm text-muted">Email confirmation</p>
+                <p class="mt-1 text-muted">Email confirmation</p>
             </div>
 
-            <div v-if="state === 'loading'" class="text-center text-sm text-muted">
+            <div v-if="state === 'loading'" class="text-center text-muted">
                 Confirming your email address…
             </div>
 
             <div v-else-if="state === 'success'" class="space-y-4 text-center">
-                <p class="rounded-lg border border-line bg-panel px-3 py-2 text-sm text-body">
+                <p class="rounded-lg border border-line bg-panel px-3 py-2 text-body">
                     {{ message }}
                 </p>
-                <p class="text-sm">
+                <p>
                     <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Continue to sign in</RouterLink>
                 </p>
             </div>
 
             <div v-else class="space-y-4 text-center">
-                <p class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                <p class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                     {{ message }}
                 </p>
-                <p class="text-sm text-muted">
+                <p class="text-muted">
                     If the link has expired, ask a project admin to confirm your account.
                 </p>
-                <p class="text-sm">
+                <p>
                     <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Back to sign in</RouterLink>
                 </p>
             </div>

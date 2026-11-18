@@ -20,7 +20,7 @@ const selfId = computed(() => auth.user?.id ?? null)
 <template>
     <Modal @close="emit('close')">
         <template #title>People on this card</template>
-        <p class="mb-3 truncate text-sm text-muted">{{ cardTitle }}</p>
+        <p class="mb-3 truncate text-muted">{{ cardTitle }}</p>
         <ul class="divide-y divide-line">
             <li v-for="person in people" :key="person.id" class="flex items-center gap-3 py-2.5">
                 <UserAvatar
@@ -30,7 +30,7 @@ const selfId = computed(() => auth.user?.id ?? null)
                     size="md"
                 />
                 <div class="min-w-0">
-                    <p class="truncate text-sm text-strong">
+                    <p class="truncate text-strong">
                         {{ person.name ?? 'Unknown member' }}
                         <span v-if="person.id === selfId" class="ml-1 text-xs text-faint">(you)</span>
                     </p>

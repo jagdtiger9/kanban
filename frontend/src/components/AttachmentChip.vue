@@ -72,7 +72,7 @@ async function togglePreview(): Promise<void> {
                     :href="attachmentUrl(attachment.id)"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="block truncate text-sm text-strong hover:underline"
+                    class="block truncate text-strong hover:underline"
                 >
                     {{ attachment.name }}
                 </a>

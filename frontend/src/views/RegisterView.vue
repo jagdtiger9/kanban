@@ -49,38 +49,38 @@ async function submit(): Promise<void> {
                     C
                 </div>
                 <h1 class="text-2xl font-semibold">Kanban</h1>
-                <p class="mt-1 text-sm text-muted">{{ registered ? 'Check your inbox' : 'Create your account' }}</p>
+                <p class="mt-1 text-muted">{{ registered ? 'Check your inbox' : 'Create your account' }}</p>
             </div>
 
             <div v-if="registered" class="space-y-4 text-center">
-                <p class="text-sm text-body">
+                <p class="text-body">
                     We sent a confirmation email to <span class="font-medium break-all">{{ email }}</span>.
                 </p>
-                <p class="text-sm text-muted">
+                <p class="text-muted">
                     Open the link in the message to activate your account. Can't find it? Ask a project admin to
                     confirm your account.
                 </p>
-                <p class="pt-2 text-sm">
+                <p class="pt-2">
                     <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Back to sign in</RouterLink>
                 </p>
             </div>
 
             <form v-else class="space-y-4" @submit.prevent="submit">
-                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                     {{ error }}
                 </p>
                 <div>
-                    <label for="display-name" class="mb-1 block text-sm font-medium text-body">Display name</label>
+                    <label for="display-name" class="mb-1 block font-medium text-body">Display name</label>
                     <InputText id="display-name" v-model="displayName" autocomplete="name" placeholder="Alice" class="w-full"/>
                     <p v-if="fieldErrors.displayName" class="mt-1 text-xs text-danger-text">{{ fieldErrors.displayName }}</p>
                 </div>
                 <div>
-                    <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
+                    <label for="email" class="mb-1 block font-medium text-body">Email</label>
                     <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" class="w-full"/>
                     <p v-if="fieldErrors.email" class="mt-1 text-xs text-danger-text">{{ fieldErrors.email }}</p>
                 </div>
                 <div>
-                    <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
+                    <label for="password" class="mb-1 block font-medium text-body">Password</label>
                     <Password
                         v-model="password"
                         input-id="password"
@@ -93,7 +93,7 @@ async function submit(): Promise<void> {
                     <p v-if="fieldErrors.password" class="mt-1 text-xs text-danger-text">{{ fieldErrors.password }}</p>
                 </div>
                 <div>
-                    <label for="password-confirmation" class="mb-1 block text-sm font-medium text-body">Confirm password</label>
+                    <label for="password-confirmation" class="mb-1 block font-medium text-body">Confirm password</label>
                     <Password
                         v-model="passwordConfirmation"
                         input-id="password-confirmation"
@@ -108,7 +108,7 @@ async function submit(): Promise<void> {
                     </p>
                 </div>
                 <Button type="submit" label="Create account" class="w-full" :disabled="submitting"/>
-                <p class="text-center text-sm text-muted">
+                <p class="text-center text-muted">
                     Already registered?
                     <RouterLink to="/login" class="text-brand-text hover:text-brand-text-hover">Sign in</RouterLink>
                 </p>

@@ -176,7 +176,7 @@ function askDelete(post: NewsPostPayload): void {
             <div class="mx-auto max-w-3xl space-y-3">
                 <div
                     v-if="error"
-                    class="flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                    class="flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
                 >
                     <span>{{ error }}</span>
                     <Button
@@ -204,7 +204,7 @@ function askDelete(post: NewsPostPayload): void {
                         />
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <span class="truncate text-sm font-medium text-strong">{{ post.authorName }}</span>
+                                <span class="truncate font-medium">{{ post.authorName }}</span>
                                 <span v-if="post.updatedAt !== post.createdAt" class="text-xs text-faint">
                                     edited
                                 </span>
@@ -242,7 +242,7 @@ function askDelete(post: NewsPostPayload): void {
                     </div>
                     <div
                         v-else
-                        :class="['text-sm text-body', MARKDOWN_CLASS]"
+                        :class="['text-body', MARKDOWN_CLASS]"
                         v-html="renderMarkdown(post.body)"
                     />
                 </article>
@@ -250,7 +250,7 @@ function askDelete(post: NewsPostPayload): void {
                 <p v-if="loading" class="py-2 text-center text-xs text-faint">Loading…</p>
                 <p
                     v-else-if="posts.length === 0 && !error"
-                    class="py-8 text-center text-sm text-faint"
+                    class="py-8 text-center text-faint"
                 >
                     No posts yet.
                 </p>

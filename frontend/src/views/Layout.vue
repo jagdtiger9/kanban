@@ -160,10 +160,10 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                     label="☰"
                     @click="drawerOpen = !drawerOpen"
                 />
-                <div class="flex size-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
-                    <RouterLink to="/" class="cursor-pointer">C</RouterLink>
+                <div class="flex size-8 items-center justify-center rounded-lg bg-brand font-bold text-white">
+                    <RouterLink to="/">C</RouterLink>
                 </div>
-                <RouterLink to="/" class="cursor-pointer font-semibold">
+                <RouterLink to="/" class="font-semibold">
                     Kanban
                 </RouterLink>
             </div>
@@ -175,7 +175,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
           />
           {{ apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…' }}
         </span>
-                <span class="text-sm text-body">{{ auth.user?.displayName }}</span>
+                <span class="text-body">{{ auth.user?.displayName }}</span>
                 <UserAvatar
                     :user-id="auth.user?.id ?? ''"
                     :name="auth.user?.displayName ?? null"
@@ -194,13 +194,13 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                 <RouterLink
                     v-if="isAdmin"
                     to="/admin/users"
-                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                    class="rounded-lg border border-line-strong px-3 py-1.5 text-body transition-colors hover:border-line-emphasis hover:text-strong"
                 >
                     Users
                 </RouterLink>
                 <RouterLink
                     to="/settings"
-                    class="cursor-pointer rounded-lg border border-line-strong px-3 py-1.5 text-sm text-body transition-colors hover:border-line-emphasis hover:text-strong"
+                    class="rounded-lg border border-line-strong px-3 py-1.5 text-body transition-colors hover:border-line-emphasis hover:text-strong"
                 >
                     Settings
                 </RouterLink>
@@ -239,7 +239,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                         size="md"
                     />
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-medium text-strong">{{ auth.user?.displayName }}</p>
+                        <p class="truncate font-medium">{{ auth.user?.displayName }}</p>
                         <span class="flex items-center gap-1.5 text-xs text-muted">
                             <span
                                 class="size-2 rounded-full"
@@ -300,7 +300,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                         @click="projects.fetchProjects()"/>
                 </p>
 
-                <p v-else-if="!projects.initialized" class="text-sm text-faint">Loading…</p>
+                <p v-else-if="!projects.initialized" class="text-faint">Loading…</p>
 
                 <template v-else>
                     <ul v-show="!projectsCollapsed" id="other-projects" class="space-y-0.5">
@@ -317,7 +317,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                     </ul>
                     <div v-if="projects.activeProjects.length === 0"
                          class="rounded-lg border border-dashed border-line-strong px-3 py-4 text-center">
-                        <p class="text-sm text-faint">No projects yet.</p>
+                        <p class="text-faint">No projects yet.</p>
                         <Button
                             text
                             size="small"
@@ -333,7 +333,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                         <li v-for="project in projects.archivedProjects"
                             :key="project.id"
                             class="flex items-center rounded-lg px-2 py-1.5 hover:bg-raised">
-                            <span class="min-w-0 flex-1 truncate text-sm text-faint">{{ project.name }}</span>
+                            <span class="min-w-0 flex-1 truncate text-faint">{{ project.name }}</span>
                             <Button
                                 severity="secondary"
                                 text
@@ -347,14 +347,14 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                 <div class="mt-auto space-y-1 border-t border-line pt-4 lg:hidden">
                     <RouterLink
                         to="/settings"
-                        class="block cursor-pointer rounded-lg px-2 py-2 text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                        class="block rounded-lg px-2 py-2 text-body transition-colors hover:bg-raised hover:text-strong"
                     >
                         Settings
                     </RouterLink>
                     <RouterLink
                         v-if="isAdmin"
                         to="/admin/users"
-                        class="block cursor-pointer rounded-lg px-2 py-2 text-sm text-body transition-colors hover:bg-raised hover:text-strong"
+                        class="block rounded-lg px-2 py-2 text-body transition-colors hover:bg-raised hover:text-strong"
                     >
                         Users
                     </RouterLink>
