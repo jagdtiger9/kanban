@@ -1,200 +1,14 @@
 <?php
 
-# Pre-migration config/routes.yaml, kept for reference:
-#
-# yaml-language-server: $schema=../vendor/symfony/routing/Loader/schema/routing.schema.json
-#
-# Explicit API routes live here (routing stays in config, not in controllers).
-# routing.controllers additionally imports any controller action carrying #[Route].
-#
-# controllers:
-#     resource: routing.controllers
-#
-# api_ping:
-#     path: /api/ping
-#     controller: App\Common\Infrastructure\Controller\PingController::ping
-#     methods: GET
-# login_check:
-#     path: /login_check
-#     methods: [GET]
-#
-# api_auth_login:
-#     path: /api/auth/login
-#     controller: App\User\Infrastructure\Controller\AuthController::login
-#     methods: POST
-#
-# api_auth_register:
-#     path: /api/auth/register
-#     controller: App\User\Infrastructure\Controller\AuthController::register
-#     methods: POST
-#
-# api_auth_me:
-#     path: /api/auth/me
-#     controller: App\User\Infrastructure\Controller\AuthController::me
-#     methods: GET
-#
-# api_projects_list:
-#     path: /api/projects
-#     controller: App\Project\Infrastructure\Controller\ProjectController::listProjects
-#     methods: GET
-#
-# api_project_create:
-#     path: /api/projects
-#     controller: App\Project\Infrastructure\Controller\ProjectController::create
-#     methods: POST
-#
-# api_project_get:
-#     path: /api/projects/{projectId}
-#     controller: App\Project\Infrastructure\Controller\ProjectController::get
-#     methods: GET
-#
-# api_project_rename:
-#     path: /api/projects/{projectId}
-#     controller: App\Project\Infrastructure\Controller\ProjectController::rename
-#     methods: PUT
-#
-# api_project_delete:
-#     path: /api/projects/{projectId}
-#     controller: App\Project\Infrastructure\Controller\ProjectController::delete
-#     methods: DELETE
-#
-# api_project_archive:
-#     path: /api/projects/{projectId}/archive
-#     controller: App\Project\Infrastructure\Controller\ProjectController::archive
-#     methods: POST
-#
-# api_project_restore:
-#     path: /api/projects/{projectId}/restore
-#     controller: App\Project\Infrastructure\Controller\ProjectController::restore
-#     methods: POST
-#
-# api_project_member_add:
-#     path: /api/projects/{projectId}/members
-#     controller: App\Project\Infrastructure\Controller\ProjectController::addMember
-#     methods: POST
-#
-# api_project_member_change_role:
-#     path: /api/projects/{projectId}/members/{userId}
-#     controller: App\Project\Infrastructure\Controller\ProjectController::changeMemberRole
-#     methods: PUT
-#
-# api_project_member_remove:
-#     path: /api/projects/{projectId}/members/{userId}
-#     controller: App\Project\Infrastructure\Controller\ProjectController::removeMember
-#     methods: DELETE
-#
-# api_user_search:
-#     path: /api/users/search
-#     controller: App\User\Infrastructure\Controller\UserController::search
-#     methods: GET
-#
-# api_board_get:
-#     path: /api/projects/{projectId}/board
-#     controller: App\Board\Infrastructure\Controller\BoardController::get
-#     methods: GET
-#
-# api_column_create:
-#     path: /api/projects/{projectId}/columns
-#     controller: App\Board\Infrastructure\Controller\BoardController::createColumn
-#     methods: POST
-#
-# api_column_rename:
-#     path: /api/columns/{columnId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::renameColumn
-#     methods: PUT
-#
-# api_column_delete:
-#     path: /api/columns/{columnId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::deleteColumn
-#     methods: DELETE
-#
-# api_column_reorder:
-#     path: /api/columns/{columnId}/reorder
-#     controller: App\Board\Infrastructure\Controller\BoardController::reorderColumn
-#     methods: PUT
-#
-# api_card_create:
-#     path: /api/columns/{columnId}/cards
-#     controller: App\Board\Infrastructure\Controller\BoardController::createCard
-#     methods: POST
-#
-# api_card_update:
-#     path: /api/cards/{cardId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::updateCard
-#     methods: PUT
-#
-# api_card_archive:
-#     path: /api/cards/{cardId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::archiveCard
-#     methods: DELETE
-#
-# api_card_restore:
-#     path: /api/cards/{cardId}/restore
-#     controller: App\Board\Infrastructure\Controller\BoardController::restoreCard
-#     methods: POST
-#
-# api_card_move:
-#     path: /api/cards/{cardId}/move
-#     controller: App\Board\Infrastructure\Controller\BoardController::moveCard
-#     methods: PUT
-#
-# api_card_labels:
-#     path: /api/cards/{cardId}/labels
-#     controller: App\Board\Infrastructure\Controller\BoardController::setCardLabels
-#     methods: PUT
-#
-# api_card_assignees:
-#     path: /api/cards/{cardId}/assignees
-#     controller: App\Board\Infrastructure\Controller\BoardController::setCardAssignees
-#     methods: PUT
-#
-# api_card_due_date:
-#     path: /api/cards/{cardId}/due-date
-#     controller: App\Board\Infrastructure\Controller\BoardController::setCardDueDate
-#     methods: PUT
-#
-# api_card_get:
-#     path: /api/cards/{cardId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::getCard
-#     methods: GET
-#
-# api_card_comment_create:
-#     path: /api/cards/{cardId}/comments
-#     controller: App\Board\Infrastructure\Controller\BoardController::createComment
-#     methods: POST
-#
-# api_card_comment_update:
-#     path: /api/comments/{commentId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::updateComment
-#     methods: PUT
-#
-# api_card_comment_delete:
-#     path: /api/comments/{commentId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::deleteComment
-#     methods: DELETE
-#
-# api_label_create:
-#     path: /api/projects/{projectId}/labels
-#     controller: App\Board\Infrastructure\Controller\BoardController::createLabel
-#     methods: POST
-#
-# api_label_update:
-#     path: /api/labels/{labelId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::updateLabel
-#     methods: PUT
-#
-# api_label_delete:
-#     path: /api/labels/{labelId}
-#     controller: App\Board\Infrastructure\Controller\BoardController::deleteLabel
-#     methods: DELETE
-
 namespace Symfony\Component\Routing\Loader\Configurator;
 
+use App\Board\Infrastructure\Controller\AttachmentController;
 use App\Board\Infrastructure\Controller\BoardController;
 use App\Board\Infrastructure\Controller\RealtimeController;
 use App\Common\Infrastructure\Controller\PingController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
+use App\User\Infrastructure\Controller\UserAvatarController;
 use App\User\Infrastructure\Controller\UserController;
 
 // Explicit API routes live here (routing stays in config, not in controllers).
@@ -302,6 +116,21 @@ $config = Routes::config([
         'controller' => [UserController::class, 'confirmUser'],
         'methods' => ['POST'],
     ],
+    'api_user_avatar_update' => [
+        'path' => '/api/users/me/avatar',
+        'controller' => [UserAvatarController::class, 'update'],
+        'methods' => ['POST'],
+    ],
+    'api_user_avatar_delete' => [
+        'path' => '/api/users/me/avatar',
+        'controller' => [UserAvatarController::class, 'delete'],
+        'methods' => ['DELETE'],
+    ],
+    'api_user_avatar_get' => [
+        'path' => '/api/users/{userId}/avatar',
+        'controller' => [UserAvatarController::class, 'get'],
+        'methods' => ['GET'],
+    ],
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',
         'controller' => [BoardController::class, 'get'],
@@ -391,6 +220,31 @@ $config = Routes::config([
         'path' => '/api/comments/{commentId}',
         'controller' => [BoardController::class, 'deleteComment'],
         'methods' => ['DELETE'],
+    ],
+    'api_card_attachment_create' => [
+        'path' => '/api/cards/{cardId}/attachments',
+        'controller' => [AttachmentController::class, 'createCardAttachment'],
+        'methods' => ['POST'],
+    ],
+    'api_card_attachment_delete' => [
+        'path' => '/api/cards/{cardId}/attachments/{attachmentId}',
+        'controller' => [AttachmentController::class, 'deleteCardAttachment'],
+        'methods' => ['DELETE'],
+    ],
+    'api_comment_attachment_delete' => [
+        'path' => '/api/comments/{commentId}/attachments/{attachmentId}',
+        'controller' => [AttachmentController::class, 'deleteCommentAttachment'],
+        'methods' => ['DELETE'],
+    ],
+    'api_attachment_download' => [
+        'path' => '/api/attachments/{attachmentId}',
+        'controller' => [AttachmentController::class, 'download'],
+        'methods' => ['GET'],
+    ],
+    'api_attachment_thumbnail' => [
+        'path' => '/api/attachments/{attachmentId}/thumbnail',
+        'controller' => [AttachmentController::class, 'thumbnail'],
+        'methods' => ['GET'],
     ],
     'api_label_create' => [
         'path' => '/api/projects/{projectId}/labels',

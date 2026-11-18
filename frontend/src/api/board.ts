@@ -1,4 +1,5 @@
-import { api } from './client'
+import { api, upload } from './client'
+import type { AttachmentPayload } from './attachments'
 
 export interface ColumnPayload {
     id: string
@@ -141,6 +142,7 @@ export interface CommentPayload {
     body: string
     createdAt: string
     updatedAt: string
+    attachments: AttachmentPayload[]
 }
 
 export interface ActivityPayload {
@@ -154,6 +156,7 @@ export interface ActivityPayload {
 
 export interface CardDetailPayload {
     card: CardPayload
+    attachments: AttachmentPayload[]
     comments: CommentPayload[]
     activities: ActivityPayload[]
 }
@@ -162,11 +165,14 @@ export function getCard(cardId: string): Promise<CardDetailPayload> {
     return api<CardDetailPayload>(`/cards/${cardId}`)
 }
 
-export function createComment(cardId: string, body: string): Promise<CommentPayload> {
-    return api<CommentPayload>(`/cards/${cardId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ body }),
-    })
+export function createComment(cardId: string, body: string, files: File[] = []): Promise<CommentPayload> {
+    const form = new FormData()
+    form.append('body', body)
+    for (const file of files) {
+        form.append('attachments[]', file)
+    }
+
+    return upload<CommentPayload>(`/cards/${cardId}/comments`, form)
 }
 
 export function updateComment(commentId: string, body: string): Promise<CommentPayload> {

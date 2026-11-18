@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Shared\Infrastructure\Subscriber;
 
 use Aljerom\SymfonyBoilerplate\Request\ValidationException;
+use App\Board\Domain\Exception\AttachmentForbiddenException;
+use App\Board\Domain\Exception\AttachmentLimitException;
+use App\Board\Domain\Exception\AttachmentNotFoundException;
 use App\Board\Domain\Exception\CardForbiddenException;
 use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Exception\ColumnNotEmptyException;
@@ -17,7 +20,9 @@ use App\Project\Domain\Exception\ProjectForbiddenException;
 use App\Project\Domain\Exception\ProjectMemberAlreadyExistsException;
 use App\Project\Domain\Exception\ProjectMemberNotFoundException;
 use App\Project\Domain\Exception\ProjectNotFoundException;
+use App\Shared\Application\Storage\Exception\FileNotFoundException;
 use App\Shared\Domain\Exception\AccessForbiddenException;
+use App\User\Domain\Exception\AvatarNotFoundException;
 use App\User\Domain\Exception\ConfirmationTokenExpiredException;
 use App\User\Domain\Exception\ConfirmationTokenInvalidException;
 use App\User\Domain\Exception\CurrentPasswordInvalidException;
@@ -110,6 +115,9 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof CardNotFoundException
             || $throwable instanceof LabelNotFoundException
             || $throwable instanceof CommentNotFoundException
+            || $throwable instanceof AttachmentNotFoundException
+            || $throwable instanceof FileNotFoundException
+            || $throwable instanceof AvatarNotFoundException
             || $throwable instanceof UserNotFoundException
         ) {
             return [Response::HTTP_NOT_FOUND, $throwable->getMessage()];
@@ -118,6 +126,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof ProjectForbiddenException
             || $throwable instanceof CardForbiddenException
             || $throwable instanceof CommentForbiddenException
+            || $throwable instanceof AttachmentForbiddenException
         ) {
             return [Response::HTTP_FORBIDDEN, $throwable->getMessage()];
         }
@@ -125,6 +134,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof ProjectMemberAlreadyExistsException
             || $throwable instanceof ColumnNotEmptyException
             || $throwable instanceof UserAlreadyConfirmedException
+            || $throwable instanceof AttachmentLimitException
         ) {
             return [Response::HTTP_CONFLICT, $throwable->getMessage()];
         }

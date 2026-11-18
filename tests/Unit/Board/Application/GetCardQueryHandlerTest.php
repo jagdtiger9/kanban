@@ -7,12 +7,14 @@ namespace App\Tests\Unit\Board\Application;
 use App\Board\Application\Message\Query\GetCardQuery;
 use App\Board\Application\MessageHandler\GetCardQueryHandler;
 use App\Board\Application\Service\CardGuard;
+use App\Board\Domain\Entity\Attachment;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Exception\CardNotFoundException;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
 use App\Board\Domain\Repository\CardRepository;
@@ -37,6 +39,7 @@ final class GetCardQueryHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private CommentRepository $commentRepository;
+    private AttachmentRepository $attachmentRepository;
     private CardActivityRepository $activityRepository;
 
     protected function setUp(): void
@@ -47,11 +50,13 @@ final class GetCardQueryHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->commentRepository = $this->createMock(CommentRepository::class);
+        $this->attachmentRepository = $this->createMock(AttachmentRepository::class);
         $this->activityRepository = $this->createMock(CardActivityRepository::class);
     }
 
     /**
      * @param list<Comment> $comments
+     * @param list<Attachment> $attachments
      * @param list<CardActivity> $activities
      */
     private function handler(
@@ -61,12 +66,14 @@ final class GetCardQueryHandlerTest extends TestCase
         ?ProjectMember $actorMembership,
         array $comments,
         array $activities,
+        array $attachments = [],
     ): GetCardQueryHandler {
         $this->cardRepository->method('findById')->willReturn($card);
         $this->columnRepository->method('findById')->willReturn($column);
         $this->boardRepository->method('findById')->willReturn($board);
         $this->memberRepository->method('findByProjectAndUser')->willReturn($actorMembership);
         $this->commentRepository->method('findByCard')->willReturn($comments);
+        $this->attachmentRepository->method('findByCard')->willReturn($attachments);
         $this->activityRepository->method('findByCard')->willReturn($activities);
 
         $guard = new CardGuard(
@@ -76,7 +83,12 @@ final class GetCardQueryHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new GetCardQueryHandler($guard, $this->commentRepository, $this->activityRepository);
+        return new GetCardQueryHandler(
+            $guard,
+            $this->commentRepository,
+            $this->attachmentRepository,
+            $this->activityRepository,
+        );
     }
 
     /**
@@ -97,13 +109,15 @@ final class GetCardQueryHandlerTest extends TestCase
         [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
         $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
         $comments = [Comment::create(Uuid::uuid4(), $card->id(), $actorId, 'First')];
+        $attachments = [Attachment::create(Uuid::uuid4(), $card->id(), null, $actorId, 'notes.txt', 'attachments/a/notes.txt', null, 'text/plain', 5)];
         $activities = [CardActivity::create(Uuid::uuid4(), $card->id(), $actorId, 'card_created', [])];
 
-        $result = $this->handler($card, $column, $board, $member, $comments, $activities)
+        $result = $this->handler($card, $column, $board, $member, $comments, $activities, $attachments)
             ->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
 
         self::assertSame($card, $result['card']);
         self::assertSame($comments, $result['comments']);
+        self::assertSame($attachments, $result['attachments']);
         self::assertSame($activities, $result['activities']);
     }
 

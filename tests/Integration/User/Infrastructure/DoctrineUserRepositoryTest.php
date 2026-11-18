@@ -98,6 +98,54 @@ final class DoctrineUserRepositoryTest extends DatabaseTestCase
 
         $all = $this->repo->findAllOrderedByDisplayName();
 
-        self::assertSame(['Alice', 'Bob', 'Zed'], array_map(static fn (User $u): string => $u->displayName(), $all));
+        self::assertSame(['Alice', 'Bob', 'Zed'], array_map(static fn(User $u): string => $u->displayName(), $all));
+    }
+
+    public function testAvatarIsPersistedAndReloaded(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatar('avatars/'.$user->id()->toString().'/avatar.webp');
+        $version = $user->avatarVersion();
+        $this->repo->save($user);
+        $this->em()->clear();
+
+        $found = $this->repo->findById($user->id());
+
+        self::assertNotNull($found);
+        self::assertSame('avatars/'.$user->id()->toString().'/avatar.webp', $found->avatarStorageKey());
+        self::assertNotNull($found->avatarUpdatedAt());
+        self::assertSame($version, $found->avatarVersion());
+    }
+
+    public function testAllAvatarStorageKeysSkipsUsersWithoutAvatar(): void
+    {
+        $withAvatar = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $withAvatar->changeAvatar('avatars/alice/photo.webp');
+        $this->repo->save($withAvatar);
+        $this->repo->save(User::create(Uuid::uuid4(), 'bob@example.com', 'hash', 'Bob'));
+        $this->em()->clear();
+
+        self::assertSame(['avatars/alice/photo.webp'], $this->repo->allAvatarStorageKeys());
+    }
+
+    public function testRemovingTheAvatarClearsTheColumns(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatar('avatars/'.$user->id()->toString().'/avatar.webp');
+        $this->repo->save($user);
+        $this->em()->clear();
+
+        $found = $this->repo->findById($user->id());
+        self::assertNotNull($found);
+        $found->removeAvatar();
+        $this->repo->save($found);
+        $this->em()->clear();
+
+        $reloaded = $this->repo->findById($user->id());
+
+        self::assertNotNull($reloaded);
+        self::assertNull($reloaded->avatarStorageKey());
+        self::assertNull($reloaded->avatarUpdatedAt());
+        self::assertNull($reloaded->avatarVersion());
     }
 }

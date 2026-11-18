@@ -15,6 +15,7 @@ export interface MemberPayload {
     role: MemberRole
     email: string
     displayName: string
+    avatarVersion: string | null
     joinedAt: string
 }
 

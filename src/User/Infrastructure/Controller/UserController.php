@@ -31,6 +31,7 @@ final class UserController extends AbstractController
                     'id' => (string)$user->id(),
                     'email' => $user->email(),
                     'displayName' => $user->displayName(),
+                    'avatarVersion' => $user->avatarVersion(),
                 ],
                 $this->queryBus->query($query),
             )
@@ -67,7 +68,7 @@ final class UserController extends AbstractController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string, isGlobalAdmin: bool, confirmed: bool, createdAt: string}
+     * @return array{id: string, email: string, displayName: string, isGlobalAdmin: bool, confirmed: bool, createdAt: string, avatarVersion: ?string}
      */
     private function adminUserPayload(User $user): array
     {
@@ -78,6 +79,7 @@ final class UserController extends AbstractController
             'isGlobalAdmin' => $user->isGlobalAdmin(),
             'confirmed' => $user->isConfirmed(),
             'createdAt' => $user->createdAt()->format(\DateTimeInterface::ATOM),
+            'avatarVersion' => $user->avatarVersion(),
         ];
     }
 }

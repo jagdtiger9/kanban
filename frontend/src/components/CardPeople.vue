@@ -9,6 +9,7 @@ const props = defineProps<{
     creatorId: string
     assigneeIds: string[]
     memberNames: Map<string, string>
+    memberAvatars: Map<string, string | null>
 }>()
 
 const VISIBLE_LIMIT = 4
@@ -35,7 +36,11 @@ function roleSummary(person: CardPerson): string {
             :title="`${person.name ?? 'Unknown member'} — ${roleSummary(person)}`"
             @click.stop="showModal = true"
         >
-            <UserAvatar :user-id="person.id" :name="person.name"/>
+            <UserAvatar
+                :user-id="person.id"
+                :name="person.name"
+                :avatar-version="memberAvatars.get(person.id) ?? null"
+            />
         </button>
         <button
             v-if="hiddenCount > 0"
@@ -52,6 +57,7 @@ function roleSummary(person: CardPerson): string {
         v-if="showModal"
         :card-title="cardTitle"
         :people="people"
+        :member-avatars="memberAvatars"
         @close="showModal = false"
     />
 </template>

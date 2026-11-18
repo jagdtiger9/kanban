@@ -10,6 +10,8 @@ use App\Board\Application\Service\RealtimeNotifierInterface;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Event\AttachmentAdded;
+use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
@@ -146,6 +148,7 @@ final class RealtimeEventForwarderTest extends TestCase
         $labelId = Uuid::uuid4()->toString();
         $commentId = Uuid::uuid4()->toString();
         $columnId = Uuid::uuid4()->toString();
+        $attachmentId = Uuid::uuid4()->toString();
 
         yield 'card created' => [new CardCreated($cardId, $actorId), 'onCardCreated', 'card.created'];
         yield 'card field changed' => [new CardFieldChanged($cardId, 'title', 'a', 'b', $actorId), 'onCardFieldChanged', 'card.updated'];
@@ -159,6 +162,16 @@ final class RealtimeEventForwarderTest extends TestCase
         yield 'comment created' => [new CommentCreated($cardId, $commentId, $userId), 'onCommentCreated', 'comment.created'];
         yield 'comment edited' => [new CommentEdited($cardId, $commentId, $userId), 'onCommentEdited', 'comment.updated'];
         yield 'comment deleted' => [new CommentDeleted($cardId, $commentId, $actorId), 'onCommentDeleted', 'comment.deleted'];
+        yield 'attachment added' => [new AttachmentAdded($attachmentId, $cardId, null, 'notes.txt', $actorId), 'onAttachmentAdded', 'attachment.added'];
+        yield 'attachment removed' => [new AttachmentRemoved(
+            $attachmentId,
+            $cardId,
+            null,
+            'notes.txt',
+            'attachments/card/notes.txt',
+            null,
+            $actorId,
+        ), 'onAttachmentRemoved', 'attachment.removed'];
     }
 
     public static function provideBoardEvents(): iterable

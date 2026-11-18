@@ -40,6 +40,14 @@ const memberNames = computed(() => {
     return names
 })
 
+const memberAvatars = computed(() => {
+    const versions = new Map<string, string | null>()
+    for (const member of detail.value?.members ?? []) {
+        versions.set(member.userId, member.avatarVersion)
+    }
+    return versions
+})
+
 const labelColors = computed(() => {
     const colors = new Map<string, string>()
     for (const label of labels.value) {
@@ -462,6 +470,7 @@ watch(projectId, () => {
                                             :creator-id="card.creatorId"
                                             :assignee-ids="card.assigneeIds"
                                             :member-names="memberNames"
+                                            :member-avatars="memberAvatars"
                                         />
                                     </div>
                                 </template>

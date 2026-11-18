@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import * as authApi from '../api/auth'
+import * as usersApi from '../api/users'
 import type { MessageResponse, UserPayload } from '../api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -42,10 +43,35 @@ export const useAuthStore = defineStore('auth', () => {
         return authApi.changePassword(currentPassword, newPassword, newPasswordConfirmation)
     }
 
+    async function updateAvatar(file: File): Promise<void> {
+        const { avatarVersion } = await usersApi.uploadAvatar(file)
+        if (user.value !== null) {
+            user.value = { ...user.value, avatarVersion }
+        }
+    }
+
+    async function removeAvatar(): Promise<void> {
+        await usersApi.removeAvatar()
+        if (user.value !== null) {
+            user.value = { ...user.value, avatarVersion: null }
+        }
+    }
+
     async function logout(): Promise<void> {
         await authApi.logout()
         user.value = null
     }
 
-    return { user, initialized, isAuth, fetchMe, login, register, changePassword, logout }
+    return {
+        user,
+        initialized,
+        isAuth,
+        fetchMe,
+        login,
+        register,
+        changePassword,
+        updateAvatar,
+        removeAvatar,
+        logout,
+    }
 })

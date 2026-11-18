@@ -70,6 +70,7 @@ final class ProjectController extends AbstractController
                     'role' => $member['role']->value,
                     'email' => $member['email'],
                     'displayName' => $member['displayName'],
+                    'avatarVersion' => $member['avatarVersion'],
                     'joinedAt' => $member['joinedAt']->format(\DateTimeInterface::ATOM),
                 ],
                 $result['members'],

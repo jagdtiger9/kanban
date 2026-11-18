@@ -6,6 +6,7 @@ export interface UserPayload {
     email: string
     displayName: string
     roles: string[]
+    avatarVersion: string | null
 }
 
 export interface AuthResponse {

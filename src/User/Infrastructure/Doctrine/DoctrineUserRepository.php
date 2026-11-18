@@ -67,4 +67,15 @@ final class DoctrineUserRepository extends ServiceEntityRepository implements Us
             ->getQuery()
             ->getResult();
     }
+
+    public function allAvatarStorageKeys(): array
+    {
+        $rows = $this->createQueryBuilder('u')
+            ->select('u.avatarStorageKey')
+            ->where('u.avatarStorageKey IS NOT NULL')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn(array $row): string => $row['avatarStorageKey'], $rows);
+    }
 }

@@ -8,7 +8,6 @@ parameters:
         - tests/
     excludePaths:
         - scripts/*
-        - config/reference.php
         - tests/*
     fileExtensions:
         - php

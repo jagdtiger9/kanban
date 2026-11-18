@@ -39,6 +39,7 @@ final class GetProjectQueryHandler
      *         role: MemberRole,
      *         email: string,
      *         displayName: string,
+     *         avatarVersion: ?string,
      *         joinedAt: \DateTimeImmutable
      *     }>
      * }
@@ -72,6 +73,7 @@ final class GetProjectQueryHandler
                 'role' => $member->role(),
                 'email' => $user->email(),
                 'displayName' => $user->displayName(),
+                'avatarVersion' => $user->avatarVersion(),
                 'joinedAt' => $member->joinedAt(),
             ];
         }

@@ -6,6 +6,8 @@ namespace App\Board\Application\MessageHandler;
 
 use App\Board\Application\Service\BoardChannelResolver;
 use App\Board\Application\Service\RealtimeNotifierInterface;
+use App\Board\Domain\Event\AttachmentAdded;
+use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
@@ -108,6 +110,18 @@ final class RealtimeEventForwarder
     public function onCommentDeleted(CommentDeleted $event): void
     {
         $this->notifyForCard($event->cardId, 'comment.deleted', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onAttachmentAdded(AttachmentAdded $event): void
+    {
+        $this->notifyForCard($event->cardId, 'attachment.added', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onAttachmentRemoved(AttachmentRemoved $event): void
+    {
+        $this->notifyForCard($event->cardId, 'attachment.removed', $event->actorId);
     }
 
     #[AsMessageHandler]

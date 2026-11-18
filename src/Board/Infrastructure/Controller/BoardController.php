@@ -26,6 +26,7 @@ use App\Board\Application\Message\Command\UpdateCommentCommand;
 use App\Board\Application\Message\Command\UpdateLabelCommand;
 use App\Board\Application\Message\Query\GetBoardQuery;
 use App\Board\Application\Message\Query\GetCardQuery;
+use App\Board\Domain\Entity\Attachment;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Entity\Column;
@@ -75,10 +76,28 @@ final class BoardController extends AbstractController
 
         $result = $this->queryBus->query($query);
 
+        $cardAttachments = [];
+        $commentAttachments = [];
+        foreach ($result['attachments'] as $attachment) {
+            $commentId = $attachment->commentId();
+            if ($commentId === null) {
+                $cardAttachments[] = $attachment;
+            } else {
+                $commentAttachments[$commentId->toString()][] = $attachment;
+            }
+        }
+
         return $this->json([
             'card' => $this->cardPayload($result['card']),
+            'attachments' => array_map(
+                fn(Attachment $attachment): array => $this->attachmentPayload($attachment),
+                $cardAttachments,
+            ),
             'comments' => array_map(
-                fn(Comment $comment): array => $this->commentPayload($comment),
+                fn(Comment $comment): array => $this->commentPayload(
+                    $comment,
+                    $commentAttachments[$comment->id()->toString()] ?? [],
+                ),
                 $result['comments'],
             ),
             'activities' => array_map(
@@ -190,8 +209,10 @@ final class BoardController extends AbstractController
     {
         $command->actorId = $this->actorId($security);
 
+        $result = $this->commandBus->dispatch($command);
+
         return $this->json(
-            $this->commentPayload($this->commandBus->dispatch($command)),
+            $this->commentPayload($result['comment'], $result['attachments']),
             Response::HTTP_CREATED,
         );
     }
@@ -200,7 +221,9 @@ final class BoardController extends AbstractController
     {
         $command->actorId = $this->actorId($security);
 
-        return $this->json($this->commentPayload($this->commandBus->dispatch($command)));
+        $result = $this->commandBus->dispatch($command);
+
+        return $this->json($this->commentPayload($result['comment'], $result['attachments']));
     }
 
     public function deleteComment(DeleteCommentCommand $command, Security $security): Response
@@ -313,9 +336,19 @@ final class BoardController extends AbstractController
     }
 
     /**
-     * @return array{id: string, cardId: string, authorId: string, body: string, createdAt: string, updatedAt: string}
+     * @param list<Attachment> $attachments
+     *
+     * @return array{
+     *     id: string,
+     *     cardId: string,
+     *     authorId: string,
+     *     body: string,
+     *     createdAt: string,
+     *     updatedAt: string,
+     *     attachments: list<array<string, mixed>>,
+     * }
      */
-    private function commentPayload(Comment $comment): array
+    private function commentPayload(Comment $comment, array $attachments = []): array
     {
         return [
             'id' => (string)$comment->id(),
@@ -324,6 +357,40 @@ final class BoardController extends AbstractController
             'body' => $comment->body(),
             'createdAt' => $comment->createdAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $comment->updatedAt()->format(\DateTimeInterface::ATOM),
+            'attachments' => array_map(
+                fn(Attachment $attachment): array => $this->attachmentPayload($attachment),
+                $attachments,
+            ),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     id: string,
+     *     cardId: string,
+     *     commentId: ?string,
+     *     uploaderId: string,
+     *     name: string,
+     *     mimeType: string,
+     *     sizeBytes: int,
+     *     width: ?int,
+     *     height: ?int,
+     *     createdAt: string,
+     * }
+     */
+    private function attachmentPayload(Attachment $attachment): array
+    {
+        return [
+            'id' => (string)$attachment->id(),
+            'cardId' => (string)$attachment->cardId(),
+            'commentId' => $attachment->commentId() !== null ? $attachment->commentId()->toString() : null,
+            'uploaderId' => (string)$attachment->uploaderId(),
+            'name' => $attachment->originalName(),
+            'mimeType' => $attachment->mimeType(),
+            'sizeBytes' => $attachment->sizeBytes(),
+            'width' => $attachment->width(),
+            'height' => $attachment->height(),
+            'createdAt' => $attachment->createdAt()->format(\DateTimeInterface::ATOM),
         ];
     }
 

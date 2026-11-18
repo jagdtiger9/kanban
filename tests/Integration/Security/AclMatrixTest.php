@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Security;
 
+use App\Board\Domain\Entity\Attachment;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Entity\Label;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -19,6 +21,7 @@ use App\Project\Domain\Entity\ProjectMember;
 use App\Project\Domain\Enum\MemberRole;
 use App\Project\Domain\Repository\ProjectMemberRepository;
 use App\Project\Domain\Repository\ProjectRepository;
+use App\Shared\Application\Storage\FileStorage;
 use App\Shared\Infrastructure\Security\SecurityUser;
 use App\Tests\Integration\DatabaseTestCase;
 use App\User\Domain\Entity\User;
@@ -26,6 +29,7 @@ use App\User\Domain\Repository\UserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Ramsey\Uuid\Uuid;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
 use Symfony\Component\Routing\RouterInterface;
 
@@ -38,6 +42,9 @@ final class AclMatrixTest extends DatabaseTestCase
 {
     private KernelBrowser $client;
 
+    /** @var list<string> */
+    private array $temporaryFiles = [];
+
     protected function setUp(): void
     {
         // createClient() must run before the kernel is booted any other way.
@@ -45,24 +52,46 @@ final class AclMatrixTest extends DatabaseTestCase
         $this->prepareDatabase();
     }
 
+    protected function tearDown(): void
+    {
+        foreach ($this->temporaryFiles as $path) {
+            @unlink($path);
+        }
+
+        parent::tearDown();
+    }
+
     #[DataProvider('aclMatrix')]
     public function testAclMatrix(string $route, string $actor, int $expectedStatus): void
     {
         $fx = $this->seedFixture();
-        [$method, $path, $body] = $this->routes($fx)[$route];
+        /** @var array{0: string, 1: string, 2: array<string, mixed>|null, 3?: array<string, UploadedFile>} $spec */
+        $spec = $this->routes($fx)[$route];
+        [$method, $path, $body] = $spec;
+        $files = $spec[3] ?? [];
 
         if ($actor !== 'anon') {
             $this->client->loginUser(SecurityUser::fromUser($fx['users'][$actor]));
         }
 
-        $this->client->request(
-            $method,
-            $path,
-            [],
-            [],
-            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
-            $body === null ? null : json_encode($body, JSON_THROW_ON_ERROR),
-        );
+        if ($files === []) {
+            $this->client->request(
+                $method,
+                $path,
+                [],
+                [],
+                ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json'],
+                $body === null ? null : json_encode($body, JSON_THROW_ON_ERROR),
+            );
+        } else {
+            $this->client->request(
+                $method,
+                $path,
+                $body ?? [],
+                $files,
+                ['CONTENT_TYPE' => 'multipart/form-data', 'HTTP_ACCEPT' => 'application/json'],
+            );
+        }
 
         self::assertSame(
             $expectedStatus,
@@ -111,6 +140,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_user_search' => self::userRoute(200),
             'api_auth_me' => self::userRoute(200),
             'api_auth_password' => self::userRoute(200),
+            'api_user_avatar_update' => self::userRoute(200),
+            'api_user_avatar_delete' => self::userRoute(204),
+            'api_user_avatar_get' => self::userRoute(200),
 
             // Public
             'api_ping' => self::publicRoute(200),
@@ -129,6 +161,10 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_assignees' => self::memberRoute(204),
             'api_card_due_date' => self::memberRoute(204),
             'api_card_comment_create' => self::memberRoute(201),
+            'api_card_attachment_create' => self::memberRoute(201),
+            'api_card_attachment_delete' => self::memberRoute(204),
+            'api_attachment_download' => self::memberRoute(200),
+            'api_attachment_thumbnail' => self::memberRoute(200),
             'api_label_create' => self::memberRoute(201),
             'api_label_update' => self::memberRoute(200),
 
@@ -155,6 +191,7 @@ final class AclMatrixTest extends DatabaseTestCase
 
             // Comment manager: author or project/global admin
             'api_card_comment_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
+            'api_comment_attachment_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 403, 'admin' => 204, 'global' => 204],
 
             // Global admins only
             'api_project_delete' => ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => 403, 'global' => 204],
@@ -195,13 +232,41 @@ final class AclMatrixTest extends DatabaseTestCase
         return ['anon' => 401, 'outsider' => 403, 'member' => 403, 'other' => 403, 'admin' => $success, 'global' => $success];
     }
 
+    private function uploadedTextFile(): UploadedFile
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'kanban-acl-');
+        file_put_contents($path, 'hello upload');
+        $this->temporaryFiles[] = $path;
+
+        return new UploadedFile($path, 'upload.txt', 'text/plain', null, true);
+    }
+
+    private function uploadedImageFile(): UploadedFile
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'kanban-acl-');
+        file_put_contents($path, self::imagePngBytes());
+        $this->temporaryFiles[] = $path;
+
+        return new UploadedFile($path, 'avatar.png', 'image/png', null, true);
+    }
+
+    private static function imagePngBytes(): string
+    {
+        $image = imagecreatetruecolor(64, 64);
+        self::assertNotFalse($image);
+        ob_start();
+        imagepng($image);
+
+        return (string) ob_get_clean();
+    }
+
     /**
      * Actors: member authored the seeded card and comment; other is a plain
      * member; admin holds the project admin role; global is a global admin
      * with no project membership; outsider has no access at all; candidate is
      * unconfirmed with a pending token.
      *
-     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, confirmationToken: string}
+     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string}
      */
     private function seedFixture(): array
     {
@@ -247,6 +312,55 @@ final class AclMatrixTest extends DatabaseTestCase
         $comment = Comment::create(Uuid::uuid4(), $card->id(), $users['member']->id(), 'Seed comment');
         $this->repo(CommentRepository::class)->save($comment);
 
+        $attachmentsRepo = $this->repo(AttachmentRepository::class);
+        $fileAttachment = Attachment::create(
+            Uuid::uuid4(),
+            $card->id(),
+            null,
+            $users['member']->id(),
+            'notes.txt',
+            'acl/notes.txt',
+            null,
+            'text/plain',
+            12,
+        );
+        $imageAttachment = Attachment::create(
+            Uuid::uuid4(),
+            $card->id(),
+            null,
+            $users['member']->id(),
+            'photo.png',
+            'acl/photo.png',
+            'acl/photo-thumb.webp',
+            'image/png',
+            12,
+            10,
+            10,
+        );
+        $commentAttachment = Attachment::create(
+            Uuid::uuid4(),
+            $card->id(),
+            $comment->id(),
+            $users['member']->id(),
+            'comment.txt',
+            'acl/comment.txt',
+            null,
+            'text/plain',
+            12,
+        );
+        $attachmentsRepo->save($fileAttachment);
+        $attachmentsRepo->save($imageAttachment);
+        $attachmentsRepo->save($commentAttachment);
+
+        $storage = self::getContainer()->get(FileStorage::class);
+        $storage->write('acl/notes.txt', 'hello upload');
+        $storage->write('acl/photo-thumb.webp', 'thumbnail');
+
+        $avatarKey = 'avatars/'.$users['member']->id()->toString().'/acl.webp';
+        $users['member']->changeAvatar($avatarKey);
+        $usersRepo->save($users['member']);
+        $storage->write($avatarKey, self::imagePngBytes());
+
         $membersRepo = $this->repo(ProjectMemberRepository::class);
         $membersRepo->save(ProjectMember::create(Uuid::uuid4(), $project->id(), $users['member']->id(), MemberRole::Member));
         $membersRepo->save(ProjectMember::create(Uuid::uuid4(), $project->id(), $users['other']->id(), MemberRole::Member));
@@ -260,14 +374,17 @@ final class AclMatrixTest extends DatabaseTestCase
             'labelId' => (string) $label->id(),
             'cardId' => (string) $card->id(),
             'commentId' => (string) $comment->id(),
+            'fileAttachmentId' => (string) $fileAttachment->id(),
+            'thumbnailAttachmentId' => (string) $imageAttachment->id(),
+            'commentAttachmentId' => (string) $commentAttachment->id(),
             'confirmationToken' => $confirmationToken,
         ];
     }
 
     /**
-     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, confirmationToken: string} $fx
+     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string} $fx
      *
-     * @return array<string, array{string, string, array<string, mixed>|null}>
+     * @return array<string, array{0: string, 1: string, 2: array<string, mixed>|null, 3?: array<string, UploadedFile>}>
      */
     private function routes(array $fx): array
     {
@@ -287,6 +404,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_user_search' => ['GET', '/api/users/search?term=acl', null],
             'api_auth_me' => ['GET', '/api/auth/me', null],
             'api_auth_password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
+            'api_user_avatar_update' => ['POST', '/api/users/me/avatar', null, ['file' => $this->uploadedImageFile()]],
+            'api_user_avatar_delete' => ['DELETE', '/api/users/me/avatar', null],
+            'api_user_avatar_get' => ['GET', '/api/users/'.$memberId.'/avatar', null],
             'api_auth_register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
             'api_auth_confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],
             'api_auth_login' => ['POST', '/api/auth/login', ['email' => 'member@acl.test', 'password' => 'secret123']],
@@ -305,6 +425,11 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_assignees' => ['PUT', "/api/cards/$card/assignees", ['userIds' => [$memberId]]],
             'api_card_due_date' => ['PUT', "/api/cards/$card/due-date", ['dueDate' => '2026-12-01']],
             'api_card_comment_create' => ['POST', "/api/cards/$card/comments", ['body' => 'Created comment']],
+            'api_card_attachment_create' => ['POST', "/api/cards/$card/attachments", null, ['file' => $this->uploadedTextFile()]],
+            'api_card_attachment_delete' => ['DELETE', "/api/cards/$card/attachments/{$fx['fileAttachmentId']}", null],
+            'api_comment_attachment_delete' => ['DELETE', "/api/comments/$comment/attachments/{$fx['commentAttachmentId']}", null],
+            'api_attachment_download' => ['GET', "/api/attachments/{$fx['fileAttachmentId']}", null],
+            'api_attachment_thumbnail' => ['GET', "/api/attachments/{$fx['thumbnailAttachmentId']}/thumbnail", null],
             'api_label_create' => ['POST', "/api/projects/$project/labels", ['name' => 'New label', 'color' => '#00ff00']],
             'api_label_update' => ['PUT', "/api/labels/$label", ['name' => 'Renamed label', 'color' => '#0000ff']],
 
