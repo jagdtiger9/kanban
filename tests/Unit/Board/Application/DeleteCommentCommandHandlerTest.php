@@ -7,13 +7,16 @@ namespace App\Tests\Unit\Board\Application;
 use App\Board\Application\Message\Command\DeleteCommentCommand;
 use App\Board\Application\MessageHandler\DeleteCommentCommandHandler;
 use App\Board\Application\Service\CardGuard;
+use App\Board\Domain\Entity\Attachment;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CommentDeleted;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -38,6 +41,7 @@ final class DeleteCommentCommandHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private CommentRepository $commentRepository;
+    private AttachmentRepository $attachmentRepository;
 
     protected function setUp(): void
     {
@@ -47,6 +51,7 @@ final class DeleteCommentCommandHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->commentRepository = $this->createMock(CommentRepository::class);
+        $this->attachmentRepository = $this->createMock(AttachmentRepository::class);
     }
 
     private function handler(
@@ -71,7 +76,7 @@ final class DeleteCommentCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new DeleteCommentCommandHandler($guard, $this->commentRepository);
+        return new DeleteCommentCommandHandler($guard, $this->commentRepository, $this->attachmentRepository);
     }
 
     private function context(UuidInterface $authorId): array
@@ -97,12 +102,41 @@ final class DeleteCommentCommandHandlerTest extends TestCase
 
         $events = array_values(array_filter(
             $comment->releaseEvents(),
-            static fn (object $event): bool => $event instanceof CommentDeleted,
+            static fn(object $event): bool => $event instanceof CommentDeleted,
         ));
         self::assertCount(1, $events);
         self::assertSame($card->id()->toString(), $events[0]->cardId);
         self::assertSame($comment->id()->toString(), $events[0]->commentId);
         self::assertSame($authorId->toString(), $events[0]->actorId);
+    }
+
+    public function testDeletesCommentAttachmentsWithTheComment(): void
+    {
+        [$comment, $card, $column, $board, $project] = $this->context($authorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $authorId, MemberRole::Member);
+        $attachment = Attachment::create(
+            Uuid::uuid4(),
+            $card->id(),
+            $comment->id(),
+            $authorId,
+            'notes.txt',
+            'attachments/'.$card->id()->toString().'/notes.txt',
+            null,
+            'text/plain',
+            12,
+        );
+
+        $this->attachmentRepository->method('findByComment')->willReturn([$attachment]);
+        $this->attachmentRepository->expects($this->once())->method('remove')->with($attachment);
+
+        $this->handler($comment, $card, $column, $board, $member)
+            ->__invoke(new DeleteCommentCommand((string)$comment->id(), (string)$authorId));
+
+        $events = array_filter(
+            $attachment->releaseEvents(),
+            static fn(object $event): bool => $event instanceof AttachmentRemoved,
+        );
+        self::assertCount(1, array_values($events));
     }
 
     public function testThrowsWhenActorIsNotAuthor(): void

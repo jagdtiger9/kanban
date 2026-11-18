@@ -8,7 +8,8 @@ the status — a card moves between columns and carries no separate status field
 - Projects with members and project/global admin roles
 - One board per project: columns, cards, drag-and-drop reordering
 - Labels, due dates, assignees, markdown comments, and an activity log
-- Email-confirmed accounts and self-service password change
+- File attachments on cards and comments, with image thumbnails and text previews
+- Email-confirmed accounts, self-service password change, and profile photos
 - Dark/light theme, dark by default
 - Realtime board invalidation over Centrifugo
 
@@ -25,7 +26,18 @@ realtime; RabbitMQ worker for async side effects.
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | Coding-agent contract and project principles |
 | [docs/conventions.md](docs/conventions.md) | Project conventions, package usage, cookbook |
-| [docs/plans/](docs/plans/) | Implementation decision records (outbox, realtime) |
+| [docs/plans/](docs/plans/) | Implementation decision records (outbox, realtime, attachments) |
+
+## Media storage
+
+Uploads live outside the document root, under `MEDIA_DIR` (`var/media` by default), and
+are served only through authenticated API routes. Include that directory in backups and
+give the web user access with `make permissions`.
+
+`app:media:sweep --dry-run` reports stored files with no database reference and
+referenced files missing from storage. Without `--dry-run` it deletes unreferenced files
+older than the grace period (`--older-than`, default `24 hours`); run it from cron after
+project deletions or crashes.
 
 ## Status
 

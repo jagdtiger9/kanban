@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/auth'
 defineProps<{
     cardTitle: string
     people: CardPerson[]
+    memberAvatars: Map<string, string | null>
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -22,7 +23,12 @@ const selfId = computed(() => auth.user?.id ?? null)
         <p class="mb-3 truncate text-sm text-muted">{{ cardTitle }}</p>
         <ul class="divide-y divide-line">
             <li v-for="person in people" :key="person.id" class="flex items-center gap-3 py-2.5">
-                <UserAvatar :user-id="person.id" :name="person.name" size="md"/>
+                <UserAvatar
+                    :user-id="person.id"
+                    :name="person.name"
+                    :avatar-version="memberAvatars.get(person.id) ?? null"
+                    size="md"
+                />
                 <div class="min-w-0">
                     <p class="truncate text-sm text-strong">
                         {{ person.name ?? 'Unknown member' }}

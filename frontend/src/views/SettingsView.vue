@@ -5,6 +5,8 @@ import Password from 'primevue/password'
 import McpSettings from '../components/McpSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
+import { AVATAR_ACCEPT, MAX_AVATAR_BYTES } from '../utils/attachments'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 
@@ -15,6 +17,53 @@ const error = ref<string | null>(null)
 const fieldErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
 const success = ref<string | null>(null)
+
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarBusy = ref(false)
+const avatarError = ref<string | null>(null)
+const avatarSuccess = ref<string | null>(null)
+
+async function onAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (file === undefined) return
+
+    avatarError.value = null
+    avatarSuccess.value = null
+    if (!AVATAR_ACCEPT.split(',').includes(file.type)) {
+        avatarError.value = 'Choose a JPEG, PNG, WebP, or GIF image'
+        return
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+        avatarError.value = 'The photo must be 5 MB or smaller'
+        return
+    }
+
+    avatarBusy.value = true
+    try {
+        await auth.updateAvatar(file)
+        avatarSuccess.value = 'Photo updated'
+    } catch (e) {
+        avatarError.value = e instanceof ApiError ? e.message : 'Failed to upload photo'
+    } finally {
+        avatarBusy.value = false
+    }
+}
+
+async function removeAvatar(): Promise<void> {
+    avatarError.value = null
+    avatarSuccess.value = null
+    avatarBusy.value = true
+    try {
+        await auth.removeAvatar()
+        avatarSuccess.value = 'Photo removed'
+    } catch (e) {
+        avatarError.value = e instanceof ApiError ? e.message : 'Failed to remove photo'
+    } finally {
+        avatarBusy.value = false
+    }
+}
 
 async function submit(): Promise<void> {
     error.value = null
@@ -53,8 +102,46 @@ async function submit(): Promise<void> {
         <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-semibold">Settings</h1>
-                <p class="mt-1 text-sm text-muted">Change your password</p>
+                <p class="mt-1 text-sm text-muted">Manage your photo and password</p>
             </div>
+
+            <div class="mb-8 flex flex-col items-center gap-3">
+                <UserAvatar
+                    :user-id="auth.user?.id ?? ''"
+                    :name="auth.user?.displayName ?? null"
+                    :avatar-version="auth.user?.avatarVersion ?? null"
+                    size="lg"
+                />
+                <input
+                    ref="avatarInput"
+                    type="file"
+                    class="hidden"
+                    :accept="AVATAR_ACCEPT"
+                    @change="onAvatarSelected"
+                />
+                <div class="flex items-center gap-2">
+                    <Button
+                        severity="secondary"
+                        size="small"
+                        label="Upload photo"
+                        :disabled="avatarBusy"
+                        @click="avatarInput?.click()"
+                    />
+                    <Button
+                        v-if="auth.user?.avatarVersion"
+                        severity="danger"
+                        text
+                        size="small"
+                        label="Remove"
+                        :disabled="avatarBusy"
+                        @click="removeAvatar"
+                    />
+                </div>
+                <p v-if="avatarError" class="text-xs text-danger-text">{{ avatarError }}</p>
+                <p v-if="avatarSuccess" class="text-xs text-body">{{ avatarSuccess }}</p>
+            </div>
+
+            <div class="mb-6 border-t border-line"></div>
 
             <form class="space-y-4" @submit.prevent="submit">
                 <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">

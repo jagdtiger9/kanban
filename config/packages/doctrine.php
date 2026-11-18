@@ -43,6 +43,12 @@ return App::config([
                     'prefix' => 'App\\Board\\Domain\\Entity',
                     'is_bundle' => false,
                 ],
+                'App\\News' => [
+                    'type' => 'attribute',
+                    'dir' => '%kernel.project_dir%/src/News/Domain/Entity',
+                    'prefix' => 'App\\News\\Domain\\Entity',
+                    'is_bundle' => false,
+                ],
                 'App\\Shared' => [
                     'type' => 'attribute',
                     'dir' => '%kernel.project_dir%/src/Shared/Domain/Entity',

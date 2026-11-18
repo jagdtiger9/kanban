@@ -1,3 +1,5 @@
+import { useLoader } from '../composables/useLoader'
+
 export interface ApiFieldError {
     property: string
     value: unknown
@@ -15,6 +17,41 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+    const { fetchStart, fetchStop } = useLoader()
+    fetchStart()
+    try {
+        return await send<T>(path, init)
+    } finally {
+        fetchStop()
+    }
+}
+
+export function upload<T>(path: string, form: FormData): Promise<T> {
+    // An empty headers object replaces the JSON default so fetch sets the
+    // multipart boundary itself.
+    return api<T>(path, { method: 'POST', body: form, headers: {} })
+}
+
+export async function apiText(path: string): Promise<string> {
+    const { fetchStart, fetchStop } = useLoader()
+    fetchStart()
+    try {
+        const res = await request(path, { headers: { Accept: 'text/plain' } })
+        return await res.text()
+    } finally {
+        fetchStop()
+    }
+}
+
+async function send<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await request(path, init)
+    if (res.status === 204) {
+        return undefined as T
+    }
+    return res.json() as Promise<T>
+}
+
+async function request(path: string, init?: RequestInit): Promise<Response> {
     const res = await fetch(`/api${path}`, {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
@@ -39,10 +76,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
         }
         throw new ApiError(res.status, message, errors)
     }
-    if (res.status === 204) {
-        return undefined as T
-    }
-    return res.json() as Promise<T>
+
+    return res
 }
 
 export interface PingResponse {

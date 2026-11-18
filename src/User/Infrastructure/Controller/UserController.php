@@ -8,6 +8,8 @@ use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
 use App\Shared\Infrastructure\Security\SecurityUser;
 use App\User\Application\Message\Command\ConfirmUserAccountCommand;
+use App\User\Application\Message\Command\DemoteUserFromNewsMakerCommand;
+use App\User\Application\Message\Command\PromoteUserToNewsMakerCommand;
 use App\User\Application\Message\Query\ListUsersQuery;
 use App\User\Application\Message\Query\SearchUsersQuery;
 use App\User\Domain\Entity\User;
@@ -31,6 +33,7 @@ final class UserController extends AbstractController
                     'id' => (string)$user->id(),
                     'email' => $user->email(),
                     'displayName' => $user->displayName(),
+                    'avatarVersion' => $user->avatarVersion(),
                 ],
                 $this->queryBus->query($query),
             )
@@ -56,6 +59,20 @@ final class UserController extends AbstractController
         return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
     }
 
+    public function promoteNewsMaker(PromoteUserToNewsMakerCommand $command, Security $security): JsonResponse
+    {
+        $command->actorId = $this->actorId($security);
+
+        return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
+    }
+
+    public function demoteNewsMaker(DemoteUserFromNewsMakerCommand $command, Security $security): JsonResponse
+    {
+        $command->actorId = $this->actorId($security);
+
+        return $this->json($this->adminUserPayload($this->commandBus->dispatch($command)));
+    }
+
     private function actorId(Security $security): string
     {
         $user = $security->getUser();
@@ -67,7 +84,7 @@ final class UserController extends AbstractController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string, isGlobalAdmin: bool, confirmed: bool, createdAt: string}
+     * @return array{id: string, email: string, displayName: string, isGlobalAdmin: bool, isNewsMaker: bool, confirmed: bool, createdAt: string, avatarVersion: ?string}
      */
     private function adminUserPayload(User $user): array
     {
@@ -76,8 +93,10 @@ final class UserController extends AbstractController
             'email' => $user->email(),
             'displayName' => $user->displayName(),
             'isGlobalAdmin' => $user->isGlobalAdmin(),
+            'isNewsMaker' => $user->isNewsMaker(),
             'confirmed' => $user->isConfirmed(),
             'createdAt' => $user->createdAt()->format(\DateTimeInterface::ATOM),
+            'avatarVersion' => $user->avatarVersion(),
         ];
     }
 }

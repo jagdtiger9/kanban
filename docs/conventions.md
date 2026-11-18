@@ -231,6 +231,17 @@ applies regardless of which interface (HTTP, CLI, Messenger) dispatches the mess
   Centrifugo publishing, and token issuance already follow this pattern.
 - No HTTP client calls from controllers or handlers. Add a gateway or notifier adapter.
 
+### Media storage
+
+- Files are stored behind the `FileStorage` port (`Shared/Application/Storage`). The local
+  adapter writes under `MEDIA_DIR` (`var/media`), never under `public/`; downloads pass
+  through authenticated controllers.
+- Storage keys are generated server-side. Deleting an aggregate records a domain event
+  whose handler removes the file; `app:media:sweep` reconciles files left behind by hard
+  deletes or crashes.
+- Attachment validation (MIME, size, dimensions) lives in `MediaPolicy` and
+  `AttachmentFileValidator`; do not duplicate limits in controllers or the frontend alone.
+
 ### Configuration, schema, timestamps
 
 - Symfony config uses the `App::config([...])` array format. New bundle config goes in
@@ -240,6 +251,10 @@ applies regardless of which interface (HTTP, CLI, Messenger) dispatches the mess
   third-party classes or bindings.
 - Schema changes: generate a migration, review it, run the project's migration command.
   Never `doctrine:schema:update` or hand-written SQL.
+- Mappings store cross-entity references as plain UUID columns, so Doctrine cannot infer
+  their foreign keys. Those FKs are added manually to the generated migration (see
+  `Version20261112212817`); `doctrine:migrations:diff` therefore proposes dropping them —
+  strip those `DROP CONSTRAINT`/`DROP INDEX` statements and keep the manual FKs.
 - Timestamps use `datetimetz_micro` (`DatetimeTzMicroType` plus
   `columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE'`). Do not introduce a plain datetime
   column.

@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
@@ -9,6 +7,8 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import * as boardApi from '../api/board'
+import * as attachmentsApi from '../api/attachments'
+import type { AttachmentPayload } from '../api/attachments'
 import type {
     ActivityPayload,
     CardPayload,
@@ -20,7 +20,11 @@ import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { fromYmd, toYmd } from '../utils/dates'
+import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
+import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
+import AttachmentChip from './AttachmentChip.vue'
 import Modal from './Modal.vue'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps<{
     card: CardPayload
@@ -54,14 +58,21 @@ const error = ref<string | null>(null)
 const saving = ref(false)
 
 const comments = ref<CommentPayload[]>([])
+const attachments = ref<AttachmentPayload[]>([])
 const activities = ref<ActivityPayload[]>([])
 const detailLoading = ref(true)
 const detailError = ref<string | null>(null)
 
 const newComment = ref('')
 const commentSaving = ref(false)
+const commentFiles = ref<File[]>([])
+const commentFileInput = ref<HTMLInputElement | null>(null)
 const editingId = ref<string | null>(null)
 const editBody = ref('')
+
+const cardFileInput = ref<HTMLInputElement | null>(null)
+const attachmentBusy = ref(false)
+const attachmentError = ref<string | null>(null)
 
 const memberNames = computed(() => {
     const names = new Map<string, string>()
@@ -71,14 +82,22 @@ const memberNames = computed(() => {
     return names
 })
 
+const memberAvatars = computed(() => {
+    const versions = new Map<string, string | null>()
+    for (const member of props.members) {
+        versions.set(member.userId, member.avatarVersion)
+    }
+    return versions
+})
+
 const activitiesNewest = computed(() => [...activities.value].reverse())
 
 function memberName(userId: string): string {
     return memberNames.value.get(userId) ?? 'Unknown member'
 }
 
-function initials(name: string | undefined): string {
-    return name ? name.slice(0, 1).toUpperCase() : '?'
+function memberAvatarVersion(userId: string): string | null {
+    return memberAvatars.value.get(userId) ?? null
 }
 
 function formatTime(iso: string): string {
@@ -91,10 +110,6 @@ function columnName(columnId: string): string {
 
 function payloadString(value: unknown): string {
     return typeof value === 'string' ? value : ''
-}
-
-function renderMarkdown(markdown: string): string {
-    return DOMPurify.sanitize(marked.parse(markdown, { async: false }))
 }
 
 function activityText(activity: ActivityPayload): string {
@@ -133,6 +148,10 @@ function activityText(activity: ActivityPayload): string {
             return `assigned ${payloadString(p.userName)}`
         case 'member_unassigned':
             return `unassigned ${payloadString(p.userName)}`
+        case 'attachment_added':
+            return `attached ${payloadString(p.fileName)}`
+        case 'attachment_removed':
+            return `removed attachment ${payloadString(p.fileName)}`
         default:
             return activity.type
     }
@@ -141,6 +160,7 @@ function activityText(activity: ActivityPayload): string {
 async function refreshDetail(): Promise<void> {
     const detail = await boardApi.getCard(props.card.id)
     comments.value = detail.comments
+    attachments.value = detail.attachments
     activities.value = detail.activities
 }
 
@@ -194,14 +214,117 @@ async function addComment(): Promise<void> {
     commentSaving.value = true
     detailError.value = null
     try {
-        await boardApi.createComment(props.card.id, body)
+        await boardApi.createComment(props.card.id, body, commentFiles.value)
         newComment.value = ''
+        commentFiles.value = []
         await refreshDetail()
     } catch (e) {
         detailError.value = e instanceof ApiError ? e.message : 'Failed to add comment'
     } finally {
         commentSaving.value = false
     }
+}
+
+function onCardFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement
+    const files = [...(input.files ?? [])]
+    input.value = ''
+    if (files.length > 0) {
+        void uploadCardFiles(files)
+    }
+}
+
+async function uploadCardFiles(files: File[]): Promise<void> {
+    attachmentBusy.value = true
+    attachmentError.value = null
+    try {
+        for (const file of files) {
+            await attachmentsApi.uploadCardAttachment(props.card.id, file)
+        }
+    } catch (e) {
+        attachmentError.value = e instanceof ApiError ? e.message : 'Failed to upload attachment'
+    } finally {
+        attachmentBusy.value = false
+    }
+
+    try {
+        await refreshDetail()
+    } catch (e) {
+        detailError.value = e instanceof ApiError ? e.message : 'Failed to refresh attachments'
+    }
+}
+
+async function removeCardAttachment(target: AttachmentPayload): Promise<void> {
+    attachmentBusy.value = true
+    attachmentError.value = null
+    try {
+        await attachmentsApi.deleteCardAttachment(props.card.id, target.id)
+        await refreshDetail()
+    } catch (e) {
+        attachmentError.value = e instanceof ApiError ? e.message : 'Failed to remove attachment'
+    } finally {
+        attachmentBusy.value = false
+    }
+}
+
+function askRemoveCardAttachment(target: AttachmentPayload): void {
+    confirm.require({
+        header: 'Remove attachment',
+        message: `Remove “${target.name}”?`,
+        acceptProps: { label: 'Remove', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: () => removeCardAttachment(target),
+    })
+}
+
+function onCommentFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement
+    const files = [...(input.files ?? [])]
+    input.value = ''
+    detailError.value = null
+
+    const selected = [...commentFiles.value]
+    for (const file of files) {
+        if (selected.length >= MAX_COMMENT_FILES) {
+            detailError.value = `A comment can have at most ${MAX_COMMENT_FILES} attachments`
+            break
+        }
+        const total = selected.reduce((sum, f) => sum + f.size, 0) + file.size
+        if (total > MAX_COMMENT_BYTES) {
+            detailError.value = 'Comment attachments cannot exceed 50 MB in total'
+            break
+        }
+        selected.push(file)
+    }
+
+    commentFiles.value = selected
+}
+
+function removeCommentFile(index: number): void {
+    commentFiles.value = commentFiles.value.filter((_, i) => i !== index)
+}
+
+async function removeCommentAttachment(comment: CommentPayload, target: AttachmentPayload): Promise<void> {
+    commentSaving.value = true
+    detailError.value = null
+    try {
+        await attachmentsApi.deleteCommentAttachment(comment.id, target.id)
+        await refreshDetail()
+    } catch (e) {
+        detailError.value = e instanceof ApiError ? e.message : 'Failed to remove attachment'
+    } finally {
+        commentSaving.value = false
+    }
+}
+
+function askRemoveCommentAttachment(comment: CommentPayload, target: AttachmentPayload): void {
+    confirm.require({
+        header: 'Remove attachment',
+        message: `Remove “${target.name}”?`,
+        acceptProps: { label: 'Remove', severity: 'danger' },
+        rejectProps: { label: 'Cancel', severity: 'secondary' },
+        accept: () => removeCommentAttachment(comment, target),
+    })
 }
 
 function startEdit(comment: CommentPayload): void {
@@ -398,6 +521,46 @@ async function restore(): Promise<void> {
             </template>
 
             <div>
+                <div class="mb-1.5 flex items-center justify-between gap-2">
+                    <p class="text-sm font-medium text-body">Attachments</p>
+                    <div class="flex items-center gap-2">
+                        <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
+                        <input
+                            ref="cardFileInput"
+                            type="file"
+                            multiple
+                            class="hidden"
+                            :accept="MEDIA_ACCEPT"
+                            @change="onCardFilesSelected"
+                        />
+                        <Button
+                            severity="secondary"
+                            size="small"
+                            label="Add files"
+                            :disabled="attachmentBusy"
+                            @click="cardFileInput?.click()"
+                        />
+                    </div>
+                </div>
+                <p
+                    v-if="attachmentError"
+                    class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                >
+                    {{ attachmentError }}
+                </p>
+                <div v-if="attachments.length > 0" class="space-y-1.5">
+                    <AttachmentChip
+                        v-for="attachment in attachments"
+                        :key="attachment.id"
+                        :attachment="attachment"
+                        :can-delete="true"
+                        @remove="askRemoveCardAttachment(attachment)"
+                    />
+                </div>
+                <p v-else class="text-xs text-faint">No attachments yet.</p>
+            </div>
+
+            <div>
                 <p class="mb-1.5 text-sm font-medium text-body">Labels</p>
                 <div v-if="props.labels.length > 0" class="flex flex-wrap gap-1.5">
                     <button
@@ -435,6 +598,11 @@ async function restore(): Promise<void> {
                             :model-value="assigneeIds.includes(member.userId)"
                             :binary="true"
                             @update:model-value="toggleAssignee(member.userId)"
+                        />
+                        <UserAvatar
+                            :user-id="member.userId"
+                            :name="member.displayName"
+                            :avatar-version="member.avatarVersion"
                         />
                         {{ member.displayName }}
                     </label>
@@ -476,11 +644,11 @@ async function restore(): Promise<void> {
                         class="rounded-lg bg-raised/50 px-3 py-2"
                     >
                         <div class="mb-1 flex items-center gap-2">
-              <span
-                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-active text-[10px] text-strong"
-              >
-                {{ initials(memberName(comment.authorId)) }}
-              </span>
+                            <UserAvatar
+                                :user-id="comment.authorId"
+                                :name="memberName(comment.authorId)"
+                                :avatar-version="memberAvatarVersion(comment.authorId)"
+                            />
                             <span class="text-sm font-medium text-strong">{{ memberName(comment.authorId) }}</span>
                             <span v-if="comment.updatedAt !== comment.createdAt" class="text-xs text-faint">
                 edited
@@ -500,9 +668,21 @@ async function restore(): Promise<void> {
                         </div>
                         <div
                             v-else
-                            class="pl-8 text-sm text-body [&_a]:text-brand-text [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-line-emphasis [&_blockquote]:pl-3 [&_blockquote]:text-muted [&_code]:rounded [&_code]:bg-raised [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-2 [&_hr]:border-line-strong [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1.5 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-raised [&_pre]:p-2 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
+                            :class="['pl-8 text-sm text-body', MARKDOWN_CLASS]"
                             v-html="renderMarkdown(comment.body)"
                         />
+                        <div
+                            v-if="comment.attachments.length > 0"
+                            class="mt-1.5 space-y-1.5 pl-8"
+                        >
+                            <AttachmentChip
+                                v-for="attachment in comment.attachments"
+                                :key="attachment.id"
+                                :attachment="attachment"
+                                :can-delete="canDeleteComment(comment)"
+                                @remove="askRemoveCommentAttachment(comment, attachment)"
+                            />
+                        </div>
                         <div
                             v-if="canDeleteComment(comment) && editingId !== comment.id"
                             class="mt-1 flex gap-3 pl-8"
@@ -528,13 +708,46 @@ async function restore(): Promise<void> {
                     <p v-else-if="comments.length === 0 && !detailError" class="text-xs text-faint">No comments yet.</p>
                 </div>
                 <div class="mt-3">
-          <Textarea
-              v-model="newComment"
-              rows="3"
-              class="w-full resize-none"
-              placeholder="Write a comment… (markdown supported)"
-          />
-                    <div class="mt-1.5 flex justify-end">
+                    <Textarea
+                        v-model="newComment"
+                        rows="3"
+                        class="w-full resize-none"
+                        placeholder="Write a comment… (markdown supported)"
+                    />
+                    <input
+                        ref="commentFileInput"
+                        type="file"
+                        multiple
+                        class="hidden"
+                        :accept="MEDIA_ACCEPT"
+                        @change="onCommentFilesSelected"
+                    />
+                    <div v-if="commentFiles.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
+                        <span
+                            v-for="(file, index) in commentFiles"
+                            :key="`${file.name}-${index}`"
+                            class="flex items-center gap-1 rounded-full bg-active px-2 py-0.5 text-xs text-body"
+                        >
+                            {{ file.name }}
+                            <button
+                                type="button"
+                                class="cursor-pointer text-faint hover:text-strong"
+                                :aria-label="`Remove ${file.name}`"
+                                @click="removeCommentFile(index)"
+                            >
+                                ×
+                            </button>
+                        </span>
+                    </div>
+                    <div class="mt-1.5 flex items-center justify-end gap-2">
+                        <Button
+                            severity="secondary"
+                            text
+                            size="small"
+                            label="Attach files"
+                            :disabled="commentSaving"
+                            @click="commentFileInput?.click()"
+                        />
                         <Button
                             label="Add comment"
                             :disabled="commentSaving || newComment.trim() === ''"
@@ -550,11 +763,12 @@ async function restore(): Promise<void> {
                 <p v-else-if="activitiesNewest.length === 0 && !detailError" class="text-xs text-faint">No activity yet.</p>
                 <div v-else class="space-y-2.5">
                     <div v-for="activity in activitiesNewest" :key="activity.id" class="flex items-start gap-2">
-            <span
-                class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-active text-[10px] text-strong"
-            >
-              {{ initials(activity.actorId ? memberName(activity.actorId) : undefined) }}
-            </span>
+                        <UserAvatar
+                            :user-id="activity.actorId ?? ''"
+                            :name="activity.actorId ? memberName(activity.actorId) : null"
+                            :avatar-version="activity.actorId ? memberAvatarVersion(activity.actorId) : null"
+                            class="mt-0.5"
+                        />
                         <p class="min-w-0 flex-1 text-sm text-body">
               <span class="font-medium text-strong">
                 {{ activity.actorId ? memberName(activity.actorId) : 'System' }}

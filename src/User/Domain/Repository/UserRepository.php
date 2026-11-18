@@ -31,4 +31,7 @@ interface UserRepository
      * @return list<User>
      */
     public function findBySearchTerm(string $term): array;
+
+    /** @return list<string> non-null avatar storage keys, for media sweeps */
+    public function allAvatarStorageKeys(): array;
 }

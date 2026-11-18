@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import Button from 'primevue/button'
+import ToggleSwitch from 'primevue/toggleswitch'
 import { ApiError } from '../api/client'
-import { confirmUser, listUsers } from '../api/users'
+import { confirmUser, demoteNewsMaker, listUsers, promoteNewsMaker } from '../api/users'
 import type { AdminUserPayload } from '../api/users'
 import { useAuthStore } from '../stores/auth'
 
@@ -45,6 +46,10 @@ function confirmAccount(user: AdminUserPayload): Promise<void> {
     return run(user, confirmUser)
 }
 
+function setNewsMaker(user: AdminUserPayload, enabled: boolean): Promise<void> {
+    return run(user, enabled ? promoteNewsMaker : demoteNewsMaker)
+}
+
 onMounted(load)
 </script>
 
@@ -53,7 +58,7 @@ onMounted(load)
         <div class="mx-auto max-w-3xl">
             <div class="mb-6">
                 <h1 class="text-xl font-semibold">Users</h1>
-                <p class="mt-1 text-sm text-muted">Confirm accounts.</p>
+                <p class="mt-1 text-sm text-muted">Confirm accounts and manage news makers.</p>
             </div>
 
             <p
@@ -88,6 +93,15 @@ onMounted(load)
                                         class="rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-text"
                                     >
                                         admin
+                                    </span>
+                                    <span class="flex items-center gap-1.5 text-[10px] font-medium text-muted">
+                                        <ToggleSwitch
+                                            aria-label="News maker"
+                                            :model-value="user.isNewsMaker"
+                                            :disabled="busyUserId === user.id"
+                                            @update:model-value="setNewsMaker(user, $event)"
+                                        />
+                                        news maker
                                     </span>
                                     <span
                                         v-if="user.confirmed"

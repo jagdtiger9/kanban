@@ -6,8 +6,10 @@ namespace App\Board\Application\MessageHandler;
 
 use App\Board\Application\Message\Command\UpdateCommentCommand;
 use App\Board\Application\Service\CardGuard;
+use App\Board\Domain\Entity\Attachment;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\CommentRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -18,10 +20,14 @@ final class UpdateCommentCommandHandler
     public function __construct(
         private CardGuard $guard,
         private CommentRepository $commentRepository,
+        private AttachmentRepository $attachmentRepository,
     ) {
     }
 
-    public function __invoke(UpdateCommentCommand $command): Comment
+    /**
+     * @return array{comment: Comment, attachments: list<Attachment>}
+     */
+    public function __invoke(UpdateCommentCommand $command): array
     {
         $actorId = Uuid::fromString($command->actorId);
 
@@ -34,6 +40,9 @@ final class UpdateCommentCommandHandler
         $comment->edit($command->body);
         $this->commentRepository->save($comment);
 
-        return $comment;
+        return [
+            'comment' => $comment,
+            'attachments' => $this->attachmentRepository->findByComment($comment->id()),
+        ];
     }
 }

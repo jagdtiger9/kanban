@@ -8,12 +8,12 @@ help: ## Print this help screen
 ##
 ## —— Permissions 🔐 ——————————————————————————————————————————————————————
 # Usage: make permissions
-permissions: ## Set filesystem ACLs for web-user on public/uploads/ and var/
+permissions: ## Set filesystem ACLs for web-user on var/
 	HTTPDUSER=web-user && HTTPDGROUP=web-group \
 	&& echo $$HTTPDUSER \
-	&& sudo chown -R "$$HTTPDUSER:$$HTTPDGROUP" public/uploads/ var/ \
-	&& sudo setfacl -R -m d:u:"$$HTTPDUSER":rwX,u:"$$HTTPDUSER":rwX -m d:u:$$(whoami):rwX,u:$$(whoami):rwX public/uploads/ \
-	&& sudo setfacl -R -m d:u:"$$HTTPDUSER":rwX,u:"$$HTTPDUSER":rwX -m d:u:$$(whoami):rwX,u:$$(whoami):rwX public/var/
+	&& mkdir -p var/media \
+	&& sudo chown -R "$$HTTPDUSER:$$HTTPDGROUP" var/ \
+	&& sudo setfacl -R -m d:u:"$$HTTPDUSER":rwX,u:"$$HTTPDUSER":rwX -m d:u:$$(whoami):rwX,u:$$(whoami):rwX var/
 
 ##
 ## —— Packages 📦 ————————————————————————————————————————————————————————
@@ -28,3 +28,11 @@ migrations.diff: ## Generate main DB migration diff
 
 migrations.migrate: ## Run main DB migrations
 	php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+##
+## —— Services ————————————————————————————————————————————
+storage.sweep.dry: ## Remove orphaned attachments, dry-run
+	bin/console app:media:sweep --dry-run
+
+storage.sweep: ## Remove orphaned attachments
+	bin/console app:media:sweep --dry-run

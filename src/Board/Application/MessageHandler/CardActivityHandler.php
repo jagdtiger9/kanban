@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Board\Application\MessageHandler;
 
 use App\Board\Domain\Entity\CardActivity;
+use App\Board\Domain\Event\AttachmentAdded;
+use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
@@ -113,6 +115,29 @@ final class CardActivityHandler
     public function onCommentEdited(CommentEdited $event): void
     {
         $this->store($event->cardId, $event->authorId, 'comment_edited', [
+            'commentId' => $event->commentId,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onAttachmentAdded(AttachmentAdded $event): void
+    {
+        if ($event->commentId !== null) {
+            return;
+        }
+
+        $this->store($event->cardId, $event->actorId, 'attachment_added', [
+            'attachmentId' => $event->attachmentId,
+            'fileName' => $event->fileName,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onAttachmentRemoved(AttachmentRemoved $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'attachment_removed', [
+            'attachmentId' => $event->attachmentId,
+            'fileName' => $event->fileName,
             'commentId' => $event->commentId,
         ]);
     }

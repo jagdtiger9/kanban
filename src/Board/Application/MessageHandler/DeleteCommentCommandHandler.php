@@ -7,6 +7,7 @@ namespace App\Board\Application\MessageHandler;
 use App\Board\Application\Message\Command\DeleteCommentCommand;
 use App\Board\Application\Service\CardGuard;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\CommentRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -17,6 +18,7 @@ final class DeleteCommentCommandHandler
     public function __construct(
         private CardGuard $guard,
         private CommentRepository $commentRepository,
+        private AttachmentRepository $attachmentRepository,
     ) {
     }
 
@@ -29,6 +31,11 @@ final class DeleteCommentCommandHandler
             throw new CommentNotFoundException('Comment not found');
         }
         $this->guard->requireCommentDeletable($comment, $actorId);
+
+        foreach ($this->attachmentRepository->findByComment($comment->id()) as $attachment) {
+            $attachment->remove($actorId);
+            $this->attachmentRepository->remove($attachment);
+        }
 
         $comment->delete($actorId);
         $this->commentRepository->remove($comment);

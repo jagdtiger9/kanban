@@ -6,6 +6,8 @@ namespace App\User\Domain\Entity;
 
 use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
 use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
+use App\User\Domain\Event\UserAvatarChanged;
+use App\User\Domain\Event\UserAvatarRemoved;
 use App\User\Domain\Exception\ConfirmationTokenExpiredException;
 use App\User\Domain\Exception\ConfirmationTokenInvalidException;
 use App\User\Domain\Exception\UserAlreadyConfirmedException;
@@ -33,8 +35,17 @@ final class User implements DomainEventAwareInterface
     #[ORM\Column(type: Types::STRING, length: 100)]
     private string $displayName;
 
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true, unique: true)]
+    private ?string $avatarStorageKey;
+
+    #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE', nullable: true)]
+    private ?\DateTimeImmutable $avatarUpdatedAt;
+
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $isGlobalAdmin;
+
+    #[ORM\Column(type: Types::BOOLEAN)]
+    private bool $isNewsMaker;
 
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
@@ -59,7 +70,10 @@ final class User implements DomainEventAwareInterface
         $this->email = $email;
         $this->passwordHash = $passwordHash;
         $this->displayName = $displayName;
+        $this->avatarStorageKey = null;
+        $this->avatarUpdatedAt = null;
         $this->isGlobalAdmin = false;
+        $this->isNewsMaker = false;
         $this->createdAt = $createdAt;
         $this->confirmedAt = null;
         $this->confirmationTokenHash = null;
@@ -102,9 +116,60 @@ final class User implements DomainEventAwareInterface
         return $this->displayName;
     }
 
+    public function avatarStorageKey(): ?string
+    {
+        return $this->avatarStorageKey;
+    }
+
+    public function avatarUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->avatarUpdatedAt;
+    }
+
+    public function avatarVersion(): ?string
+    {
+        if ($this->avatarStorageKey === null || $this->avatarUpdatedAt === null) {
+            return null;
+        }
+
+        return $this->avatarUpdatedAt->format('Uu');
+    }
+
+    public function changeAvatar(string $storageKey): void
+    {
+        $storageKey = trim($storageKey);
+        if ($storageKey === '' || strlen($storageKey) > 255) {
+            throw new \InvalidArgumentException('Avatar storage key must be between 1 and 255 characters');
+        }
+
+        $previousStorageKey = $this->avatarStorageKey;
+        $this->avatarStorageKey = $storageKey;
+        $this->avatarUpdatedAt = new \DateTimeImmutable();
+
+        $this->recordEvent(new UserAvatarChanged($this->id->toString(), $previousStorageKey, $storageKey));
+    }
+
+    public function removeAvatar(): void
+    {
+        if ($this->avatarStorageKey === null) {
+            return;
+        }
+
+        $storageKey = $this->avatarStorageKey;
+        $this->avatarStorageKey = null;
+        $this->avatarUpdatedAt = null;
+
+        $this->recordEvent(new UserAvatarRemoved($this->id->toString(), $storageKey));
+    }
+
     public function isGlobalAdmin(): bool
     {
         return $this->isGlobalAdmin;
+    }
+
+    public function isNewsMaker(): bool
+    {
+        return $this->isNewsMaker;
     }
 
     public function createdAt(): \DateTimeImmutable
@@ -202,6 +267,16 @@ final class User implements DomainEventAwareInterface
         $this->isGlobalAdmin = false;
     }
 
+    public function promoteToNewsMaker(): void
+    {
+        $this->isNewsMaker = true;
+    }
+
+    public function demoteFromNewsMaker(): void
+    {
+        $this->isNewsMaker = false;
+    }
+
     /**
      * @return list<string>
      */
@@ -210,6 +285,9 @@ final class User implements DomainEventAwareInterface
         $roles = [UserRole::ROLE_USER->name];
         if ($this->isGlobalAdmin) {
             $roles[] = UserRole::ROLE_GLOBAL_ADMIN->name;
+        }
+        if ($this->isNewsMaker) {
+            $roles[] = UserRole::ROLE_NEWS_MAKER->name;
         }
 
         return $roles;

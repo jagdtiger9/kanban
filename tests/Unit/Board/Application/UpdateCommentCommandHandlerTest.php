@@ -14,6 +14,7 @@ use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Event\CommentEdited;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -37,6 +38,7 @@ final class UpdateCommentCommandHandlerTest extends TestCase
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
     private CommentRepository $commentRepository;
+    private AttachmentRepository $attachmentRepository;
 
     protected function setUp(): void
     {
@@ -46,6 +48,7 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
         $this->commentRepository = $this->createMock(CommentRepository::class);
+        $this->attachmentRepository = $this->createMock(AttachmentRepository::class);
     }
 
     private function handler(
@@ -68,7 +71,7 @@ final class UpdateCommentCommandHandlerTest extends TestCase
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
 
-        return new UpdateCommentCommandHandler($guard, $this->commentRepository);
+        return new UpdateCommentCommandHandler($guard, $this->commentRepository, $this->attachmentRepository);
     }
 
     private function context(UuidInterface $authorId): array
@@ -91,14 +94,16 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $this->commentRepository->expects($this->once())->method('save');
 
         $result = $this->handler($comment, $card, $column, $board, $member)
-            ->__invoke(new UpdateCommentCommand((string) $comment->id(), 'Edited', (string) $authorId));
+            ->__invoke(new UpdateCommentCommand((string)$comment->id(), 'Edited', (string)$authorId));
 
-        $events = $result->releaseEvents();
+        $edited = $result['comment'];
+        $events = $edited->releaseEvents();
         self::assertCount(1, $events);
         self::assertInstanceOf(CommentEdited::class, $events[0]);
         self::assertSame($card->id()->toString(), $events[0]->cardId);
         self::assertSame($comment->id()->toString(), $events[0]->commentId);
-        self::assertSame('Edited', $result->body());
+        self::assertSame('Edited', $edited->body());
+        self::assertSame([], $result['attachments']);
     }
 
     public function testUnchangedBodyDispatchesNoEvent(): void
@@ -109,10 +114,10 @@ final class UpdateCommentCommandHandlerTest extends TestCase
         $this->commentRepository->expects($this->once())->method('save');
 
         $result = $this->handler($comment, $card, $column, $board, $member)
-            ->__invoke(new UpdateCommentCommand((string) $comment->id(), 'Original', (string) $authorId));
+            ->__invoke(new UpdateCommentCommand((string)$comment->id(), 'Original', (string)$authorId));
 
-        self::assertSame([], $result->releaseEvents());
-        self::assertSame('Original', $result->body());
+        self::assertSame([], $result['comment']->releaseEvents());
+        self::assertSame('Original', $result['comment']->body());
     }
 
     public function testThrowsWhenActorIsNotAuthor(): void

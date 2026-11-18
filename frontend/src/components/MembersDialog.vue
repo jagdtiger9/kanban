@@ -75,7 +75,12 @@ async function addMember(user: UserSuggestion): Promise<void> {
     error.value = null
     try {
         const added = await projectsApi.addMember(props.projectId, user.id, 'member')
-        members.value.push({ ...added, email: user.email, displayName: user.displayName })
+        members.value.push({
+            ...added,
+            email: user.email,
+            displayName: user.displayName,
+            avatarVersion: user.avatarVersion,
+        })
         searchTerm.value = ''
         suggestions.value = []
     } catch (e) {

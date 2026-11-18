@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\User\Domain\Entity;
 
 use App\User\Domain\Entity\User;
+use App\User\Domain\Event\UserAvatarChanged;
+use App\User\Domain\Event\UserAvatarRemoved;
 use App\User\Domain\Exception\ConfirmationTokenExpiredException;
 use App\User\Domain\Exception\ConfirmationTokenInvalidException;
 use App\User\Domain\Exception\UserAlreadyConfirmedException;
@@ -55,6 +57,31 @@ final class UserTest extends TestCase
 
         $user->promoteToGlobalAdmin();
         self::assertSame(['ROLE_USER', 'ROLE_GLOBAL_ADMIN'], $user->roles());
+    }
+
+    public function testNewsMakerPromotionAndDemotion(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        self::assertFalse($user->isNewsMaker());
+
+        $user->promoteToNewsMaker();
+        self::assertTrue($user->isNewsMaker());
+        self::assertSame(['ROLE_USER', 'ROLE_NEWS_MAKER'], $user->roles());
+
+        $user->demoteFromNewsMaker();
+        self::assertFalse($user->isNewsMaker());
+        self::assertSame(['ROLE_USER'], $user->roles());
+    }
+
+    public function testRolesCombineGlobalAdminAndNewsMaker(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->promoteToGlobalAdmin();
+        $user->promoteToNewsMaker();
+
+        self::assertSame(['ROLE_USER', 'ROLE_GLOBAL_ADMIN', 'ROLE_NEWS_MAKER'], $user->roles());
     }
 
     public function testIdReturnsId(): void
@@ -167,5 +194,104 @@ final class UserTest extends TestCase
 
         $this->expectException(UserAlreadyConfirmedException::class);
         $user->confirmAccount();
+    }
+
+    public function testNewUserHasNoAvatar(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        self::assertNull($user->avatarStorageKey());
+        self::assertNull($user->avatarUpdatedAt());
+        self::assertNull($user->avatarVersion());
+    }
+
+    public function testChangeAvatarStoresKeyAndRecordsEvent(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->changeAvatar('avatars/user-id/avatar.webp');
+
+        self::assertSame('avatars/user-id/avatar.webp', $user->avatarStorageKey());
+        self::assertNotNull($user->avatarUpdatedAt());
+        self::assertNotNull($user->avatarVersion());
+
+        $events = $user->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(UserAvatarChanged::class, $events[0]);
+        self::assertSame($user->id()->toString(), $events[0]->userId);
+        self::assertNull($events[0]->previousStorageKey);
+        self::assertSame('avatars/user-id/avatar.webp', $events[0]->storageKey);
+    }
+
+    public function testChangeAvatarReportsPreviousKeyWhenReplacing(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatar('avatars/one/old.webp');
+        $previousVersion = $user->avatarVersion();
+        $user->releaseEvents();
+        usleep(2000);
+
+        $user->changeAvatar('avatars/two/new.webp');
+
+        $events = $user->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(UserAvatarChanged::class, $events[0]);
+        self::assertSame('avatars/one/old.webp', $events[0]->previousStorageKey);
+        self::assertSame('avatars/two/new.webp', $events[0]->storageKey);
+        self::assertNotSame($previousVersion, $user->avatarVersion());
+    }
+
+    public function testChangeAvatarTrimsTheKey(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->changeAvatar('  avatars/user-id/avatar.webp  ');
+
+        self::assertSame('avatars/user-id/avatar.webp', $user->avatarStorageKey());
+    }
+
+    public function testChangeAvatarRejectsEmptyKey(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $user->changeAvatar('   ');
+    }
+
+    public function testChangeAvatarRejectsOverlongKey(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $user->changeAvatar(str_repeat('a', 256));
+    }
+
+    public function testRemoveAvatarClearsTheKeyAndRecordsEvent(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatar('avatars/user-id/avatar.webp');
+        $user->releaseEvents();
+
+        $user->removeAvatar();
+
+        self::assertNull($user->avatarStorageKey());
+        self::assertNull($user->avatarUpdatedAt());
+        self::assertNull($user->avatarVersion());
+
+        $events = $user->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(UserAvatarRemoved::class, $events[0]);
+        self::assertSame($user->id()->toString(), $events[0]->userId);
+        self::assertSame('avatars/user-id/avatar.webp', $events[0]->storageKey);
+    }
+
+    public function testRemoveAvatarWithoutAvatarIsANoOp(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->removeAvatar();
+
+        self::assertNull($user->avatarStorageKey());
+        self::assertSame([], $user->releaseEvents());
     }
 }

@@ -6,6 +6,8 @@ namespace App\Tests\Unit\Board\Application;
 
 use App\Board\Application\MessageHandler\CardActivityHandler;
 use App\Board\Domain\Entity\CardActivity;
+use App\Board\Domain\Event\AttachmentAdded;
+use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
@@ -192,5 +194,59 @@ final class CardActivityHandlerTest extends TestCase
         self::assertSame('comment_edited', $activity->type());
         self::assertSame($authorId, $activity->actorId()?->toString());
         self::assertSame(['commentId' => $commentId], $activity->payload());
+    }
+
+    public function testCardAttachmentAdded(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $attachmentId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onAttachmentAdded(new AttachmentAdded($attachmentId, $cardId, null, 'notes.txt', $actorId));
+
+        $activity = $this->last();
+        self::assertSame('attachment_added', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['attachmentId' => $attachmentId, 'fileName' => 'notes.txt'], $activity->payload());
+    }
+
+    public function testCommentAttachmentAddedIsNotRecordedSeparately(): void
+    {
+        $this->handler()->onAttachmentAdded(new AttachmentAdded(
+            Uuid::uuid4()->toString(),
+            Uuid::uuid4()->toString(),
+            Uuid::uuid4()->toString(),
+            'notes.txt',
+            Uuid::uuid4()->toString(),
+        ));
+
+        self::assertSame([], $this->saved);
+    }
+
+    public function testAttachmentRemoved(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $attachmentId = Uuid::uuid4()->toString();
+        $commentId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onAttachmentRemoved(new AttachmentRemoved(
+            $attachmentId,
+            $cardId,
+            $commentId,
+            'notes.txt',
+            'attachments/card/notes.txt',
+            null,
+            $actorId,
+        ));
+
+        $activity = $this->last();
+        self::assertSame('attachment_removed', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame([
+            'attachmentId' => $attachmentId,
+            'fileName' => 'notes.txt',
+            'commentId' => $commentId,
+        ], $activity->payload());
     }
 }
