@@ -12,6 +12,8 @@ import type { CardPayload, ColumnPayload, LabelPayload } from '../api/board'
 import * as projectsApi from '../api/projects'
 import type { ProjectDetail } from '../api/projects'
 import { ApiError } from '../api/client'
+import CallBadge from '../call/CallBadge.vue'
+import CallButton from '../call/CallButton.vue'
 import CardDialog from '../components/CardDialog.vue'
 import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
@@ -352,6 +354,7 @@ watch(projectId, () => {
             <template v-else-if="detail">
                 <div class="mb-2 flex items-center gap-3">
                     <h1 class="text-xl font-semibold text-strong sm:text-2xl">{{ detail.project.name }}</h1>
+                    <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
@@ -364,6 +367,7 @@ watch(projectId, () => {
                         class="rounded-full bg-raised px-2.5 py-1 text-xs text-body">
                         {{ member.displayName }}
                     <span v-if="member.role === 'admin'" class="text-brand-text">· admin</span>
+                    <CallBadge :project-id="projectId" :user-id="member.userId"/>
                     </span>
                 </div>
             </template>

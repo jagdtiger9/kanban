@@ -6,6 +6,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
 import MembersDialog from '../components/MembersDialog.vue'
+import CallBadge from '../call/CallBadge.vue'
+import CallLayer from '../call/CallLayer.vue'
 import ProjectCreateDialog from '../components/ProjectCreateDialog.vue'
 import RenameProjectDialog from '../components/RenameProjectDialog.vue'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -284,6 +286,7 @@ function askDelete(project: ProjectPayload): void {
                             >
                                 {{ project.name }}
                             </RouterLink>
+                            <CallBadge :project-id="project.id" class="mr-1"/>
                             <span
                                 v-if="project.role === 'admin'"
                                 class="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-text"
@@ -415,5 +418,6 @@ function askDelete(project: ProjectPayload): void {
             @close="renameTarget = null"
         />
         <MembersDialog v-if="membersTarget" :project-id="membersTarget.id" @close="membersTarget = null"/>
+        <CallLayer/>
     </div>
 </template>

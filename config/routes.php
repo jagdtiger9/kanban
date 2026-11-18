@@ -5,6 +5,7 @@ namespace Symfony\Component\Routing\Loader\Configurator;
 use App\Board\Infrastructure\Controller\AttachmentController;
 use App\Board\Infrastructure\Controller\BoardController;
 use App\Board\Infrastructure\Controller\RealtimeController;
+use App\Call\Infrastructure\Controller\CallController;
 use App\Common\Infrastructure\Controller\PingController;
 use App\Mcp\Infrastructure\Controller\McpTokenController;
 use App\News\Infrastructure\Controller\NewsController;
@@ -177,6 +178,46 @@ $config = Routes::config([
         'path' => '/api/realtime/token',
         'controller' => [RealtimeController::class, 'token'],
         'methods' => ['GET'],
+    ],
+    'api_call_token' => [
+        'path' => '/api/call/token',
+        'controller' => [CallController::class, 'token'],
+        'methods' => ['GET'],
+    ],
+    'api_call_rooms' => [
+        'path' => '/api/call/rooms',
+        'controller' => [CallController::class, 'rooms'],
+        'methods' => ['GET'],
+    ],
+    'api_call_join' => [
+        'path' => '/api/projects/{projectId}/call/join',
+        'controller' => [CallController::class, 'join'],
+        'methods' => ['POST'],
+    ],
+    'api_call_leave' => [
+        'path' => '/api/projects/{projectId}/call/leave',
+        'controller' => [CallController::class, 'leave'],
+        'methods' => ['POST'],
+    ],
+    'api_call_heartbeat' => [
+        'path' => '/api/projects/{projectId}/call/heartbeat',
+        'controller' => [CallController::class, 'heartbeat'],
+        'methods' => ['POST'],
+    ],
+    'api_call_signal' => [
+        'path' => '/api/projects/{projectId}/call/signal',
+        'controller' => [CallController::class, 'signal'],
+        'methods' => ['POST'],
+    ],
+    'api_call_invite' => [
+        'path' => '/api/projects/{projectId}/call/invite',
+        'controller' => [CallController::class, 'invite'],
+        'methods' => ['POST'],
+    ],
+    'api_call_decline' => [
+        'path' => '/api/projects/{projectId}/call/decline',
+        'controller' => [CallController::class, 'decline'],
+        'methods' => ['POST'],
     ],
     'api_column_create' => [
         'path' => '/api/projects/{projectId}/columns',
