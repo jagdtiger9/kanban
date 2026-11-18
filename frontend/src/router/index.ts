@@ -7,7 +7,7 @@ const router = createRouter({
     routes: [
         {
             path: '/',
-            component: () => import('../views/ShellView.vue'),
+            component: () => import('../views/Layout.vue'),
             children: [
                 { path: '', name: 'board', component: () => import('../views/BoardHomeView.vue') },
                 { path: 'settings', name: 'settings', component: () => import('../views/SettingsView.vue') },

@@ -8,6 +8,7 @@ import type { ProjectPayload } from '../api/projects'
 import MembersDialog from '../components/MembersDialog.vue'
 import ProjectCreateDialog from '../components/ProjectCreateDialog.vue'
 import RenameProjectDialog from '../components/RenameProjectDialog.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
 import { useProjectsStore } from '../stores/projects'
 import { useTheme } from '../composables/useTheme'
@@ -23,7 +24,6 @@ const confirm = useConfirm()
 const { isDark, toggleTheme } = useTheme()
 
 const apiState = ref<ApiState>('checking')
-const userInitial = computed(() => (auth.user?.displayName[0] ?? '?').toUpperCase())
 const isAdmin = computed(() => isGlobalAdmin(auth.user))
 
 const showCreate = ref(false)
@@ -166,9 +166,12 @@ function askDelete(project: ProjectPayload): void {
           {{ apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…' }}
         </span>
                 <span class="text-sm text-body">{{ auth.user?.displayName }}</span>
-                <div class="flex size-8 items-center justify-center rounded-full bg-active text-xs font-semibold text-strong">
-                    {{ userInitial }}
-                </div>
+                <UserAvatar
+                    :user-id="auth.user?.id ?? ''"
+                    :name="auth.user?.displayName ?? null"
+                    :avatar-version="auth.user?.avatarVersion ?? null"
+                    size="md"
+                />
                 <Button
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
@@ -219,9 +222,12 @@ function askDelete(project: ProjectPayload): void {
                 </div>
 
                 <div class="mb-4 flex items-center gap-2 border-b border-line pb-3 lg:hidden">
-                    <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-active text-xs font-semibold text-strong">
-                        {{ userInitial }}
-                    </div>
+                    <UserAvatar
+                        :user-id="auth.user?.id ?? ''"
+                        :name="auth.user?.displayName ?? null"
+                        :avatar-version="auth.user?.avatarVersion ?? null"
+                        size="md"
+                    />
                     <div class="min-w-0">
                         <p class="truncate text-sm font-medium text-strong">{{ auth.user?.displayName }}</p>
                         <span class="flex items-center gap-1.5 text-xs text-muted">

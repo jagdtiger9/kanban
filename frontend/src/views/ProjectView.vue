@@ -346,8 +346,7 @@ watch(projectId, () => {
         <div class="border-b border-line px-4 py-3 sm:px-6 sm:py-4">
             <div
                 v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger-text"
-            >
+                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger-text">
                 {{ error }}
             </div>
             <template v-else-if="detail">
@@ -355,20 +354,17 @@ watch(projectId, () => {
                     <h1 class="text-xl font-semibold text-strong sm:text-2xl">{{ detail.project.name }}</h1>
                     <span
                         v-if="detail.project.archived"
-                        class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text"
-                    >
-            Archived
-          </span>
+                        class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
+                        Archived</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
-          <span
-              v-for="member in detail.members"
-              :key="member.userId"
-              class="rounded-full bg-raised px-2.5 py-1 text-xs text-body"
-          >
-            {{ member.displayName }}
-            <span v-if="member.role === 'admin'" class="text-brand-text">· admin</span>
-          </span>
+                    <span
+                        v-for="member in detail.members"
+                        :key="member.userId"
+                        class="rounded-full bg-raised px-2.5 py-1 text-xs text-body">
+                        {{ member.displayName }}
+                    <span v-if="member.role === 'admin'" class="text-brand-text">· admin</span>
+                    </span>
                 </div>
             </template>
             <p v-else class="text-sm text-faint">Loading…</p>
@@ -377,13 +373,12 @@ watch(projectId, () => {
         <div class="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
             <p
                 v-if="actionError"
-                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
-            >
+                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
                 {{ actionError }}
             </p>
             <div class="mb-3 flex items-center justify-between gap-3">
                 <label class="flex cursor-pointer select-none items-center gap-2 text-sm text-muted">
-                    <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived" />
+                    <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived"/>
                     Show archived cards
                 </label>
                 <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
@@ -444,12 +439,12 @@ watch(projectId, () => {
                             >
                                 <template #content>
                                     <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
-                                        <span
-                                            v-for="labelId in card.labelIds"
-                                            :key="labelId"
-                                            class="h-2 w-6 rounded-sm"
-                                            :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"
-                                        />
+                                    <span
+                                        v-for="labelId in card.labelIds"
+                                        :key="labelId"
+                                        class="h-2 w-6 rounded-sm"
+                                        :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"
+                                    />
                                     </div>
                                     <button
                                         type="button"
@@ -463,8 +458,8 @@ watch(projectId, () => {
                                             v-if="card.archived"
                                             class="rounded bg-active px-1.5 py-0.5 text-body"
                                         >
-                                            Archived
-                                        </span>
+                                        Archived
+                                    </span>
                                         <CardPeople
                                             :card-title="card.title"
                                             :creator-id="card.creatorId"
