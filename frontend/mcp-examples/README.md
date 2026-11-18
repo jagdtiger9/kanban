@@ -11,13 +11,12 @@
 
 | Файл                   | Агент                                   |
 | ---------------------- | --------------------------------------- |
-| `claude-code.sh`       | Claude Code                             |
 | `codex-config.toml`    | Codex CLI (`~/.codex/config.toml`)      |
 | `gemini-settings.json` | Gemini CLI (`~/.gemini/settings.json`)  |
 | `opencode-deepseek.json` | DeepSeek через opencode (`opencode.json`) |
 
-Формат Claude Code проверен; остальные — по документации клиентов, при ошибке сверьте
-с актуальной документацией агента.
+Форматы — по документации клиентов, при ошибке сверьте с актуальной документацией
+агента.
 
 Инструменты: `list_projects`, `get_board`, `get_card`, `whats_new`, `create_card`,
 `rename_card`, `set_description`, `append_to_description`, `set_due_date`, `add_label`,

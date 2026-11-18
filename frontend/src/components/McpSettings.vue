@@ -5,7 +5,6 @@ import { issueMcpToken, type McpTokenResponse } from '../api/mcp'
 import { ApiError } from '../api/client'
 
 const serverUrl = `${window.location.origin}/mcp`
-const examplesUrl = `${import.meta.env.BASE_URL}mcp/kanban-mcp-examples.zip`
 
 const issued = ref<McpTokenResponse | null>(null)
 const error = ref<string | null>(null)
@@ -93,10 +92,6 @@ function formatDate(iso: string): string {
                 @click="createToken"
             />
             <p class="text-xs text-muted">A new token replaces the previous one: agents using the old token stop working.</p>
-
-            <a :href="examplesUrl" download class="block text-center text-sm text-body underline">
-                Download connection examples (zip)
-            </a>
         </div>
     </section>
 </template>
