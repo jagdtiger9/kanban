@@ -116,4 +116,45 @@ final class DoctrineProjectRepositoryTest extends DatabaseTestCase
 
         self::assertNull($this->repo->findById($project->id()));
     }
+
+    public function testFindByUser(): void
+    {
+        $userId = Uuid::uuid4();
+        $otherUserId = Uuid::uuid4();
+        $mine = Project::create(Uuid::uuid4(), 'Mine');
+        $theirs = Project::create(Uuid::uuid4(), 'Theirs');
+        $this->repo->save($mine);
+        $this->repo->save($theirs);
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $mine->id(), $userId, MemberRole::Admin));
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $theirs->id(), $otherUserId, MemberRole::Admin));
+        $this->em()->clear();
+
+        $memberships = $this->members->findByUser($userId);
+
+        self::assertCount(1, $memberships);
+        self::assertTrue($memberships[0]->projectId()->equals($mine->id()));
+    }
+
+    public function testCountByProjects(): void
+    {
+        $first = Project::create(Uuid::uuid4(), 'First');
+        $second = Project::create(Uuid::uuid4(), 'Second');
+        $unlisted = Project::create(Uuid::uuid4(), 'Unlisted');
+        $this->repo->save($first);
+        $this->repo->save($second);
+        $this->repo->save($unlisted);
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $first->id(), Uuid::uuid4(), MemberRole::Admin));
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $first->id(), Uuid::uuid4(), MemberRole::Member));
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $second->id(), Uuid::uuid4(), MemberRole::Member));
+        $this->members->save(ProjectMember::create(Uuid::uuid4(), $unlisted->id(), Uuid::uuid4(), MemberRole::Member));
+        $this->em()->clear();
+
+        $counts = $this->members->countByProjects([$first->id(), $second->id()]);
+        $expected = [$first->id()->toString() => 2, $second->id()->toString() => 1];
+        ksort($expected);
+        ksort($counts);
+
+        self::assertSame($expected, $counts);
+        self::assertSame([], $this->members->countByProjects([]));
+    }
 }

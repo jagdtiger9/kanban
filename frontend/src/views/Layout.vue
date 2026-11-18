@@ -7,6 +7,7 @@ import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
 import MembersDialog from '../components/MembersDialog.vue'
 import ProjectCreateDialog from '../components/ProjectCreateDialog.vue'
+import ProjectListItem from '../components/ProjectListItem.vue'
 import RenameProjectDialog from '../components/RenameProjectDialog.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
@@ -30,12 +31,8 @@ const showCreate = ref(false)
 const renameTarget = ref<ProjectPayload | null>(null)
 const membersTarget = ref<ProjectPayload | null>(null)
 const actionError = ref<string | null>(null)
-const openMenuId = ref<string | null>(null)
+const projectsCollapsed = ref(true)
 const drawerOpen = ref(false)
-
-function onDocumentClick(): void {
-    openMenuId.value = null
-}
 
 function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') drawerOpen.value = false
@@ -48,8 +45,13 @@ watch(
     },
 )
 
+watch(membersTarget, (target) => {
+    if (target === null) {
+        projects.fetchProjects()
+    }
+})
+
 onMounted(async () => {
-    document.addEventListener('click', onDocumentClick)
     document.addEventListener('keydown', onKeydown)
     projects.fetchProjects()
     try {
@@ -61,7 +63,6 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-    document.removeEventListener('click', onDocumentClick)
     document.removeEventListener('keydown', onKeydown)
 })
 
@@ -132,6 +133,15 @@ function askDelete(project: ProjectPayload): void {
             }
         },
     })
+}
+
+async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promise<void> {
+    actionError.value = null
+    try {
+        await projects.toggleFavourite(project.id, isFavourite)
+    } catch (e) {
+        actionError.value = e instanceof ApiError ? e.message : 'Something went wrong'
+    }
 }
 </script>
 
@@ -240,8 +250,30 @@ function askDelete(project: ProjectPayload): void {
                     </div>
                 </div>
 
+                <ul v-if="projects.favouriteProjects.length > 0" class="mb-3 space-y-0.5">
+                    <ProjectListItem
+                        v-for="project in projects.favouriteProjects"
+                        :key="project.id"
+                        :project="project"
+                        :can-delete="isAdmin"
+                        @favourite="onFavourite(project, $event)"
+                        @members="membersTarget = project"
+                        @rename="renameTarget = project"
+                        @archive="askArchive(project)"
+                        @delete="askDelete(project)"
+                    />
+                </ul>
+
                 <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Projects</h2>
+                    <button
+                        type="button"
+                        class="flex cursor-pointer items-center gap-1 text-xs font-semibold uppercase tracking-wider text-faint transition-colors hover:text-body"
+                        :aria-expanded="!projectsCollapsed"
+                        aria-controls="other-projects"
+                        @click="projectsCollapsed = !projectsCollapsed">
+                        <span class="text-[10px]">{{ projectsCollapsed ? '▸' : '▾' }}</span>
+                        Projects
+                    </button>
                     <Button
                         aria-label="New project"
                         text
@@ -251,17 +283,13 @@ function askDelete(project: ProjectPayload): void {
                     />
                 </div>
 
-                <p
-                    v-if="actionError"
-                    class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1.5 text-xs text-danger-text"
-                >
+                <p v-if="actionError"
+                   class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1.5 text-xs text-danger-text">
                     {{ actionError }}
                 </p>
 
-                <p
-                    v-if="projects.error"
-                    class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1.5 text-xs text-danger-text"
-                >
+                <p v-if="projects.error"
+                   class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-2 py-1.5 text-xs text-danger-text">
                     {{ projects.error }}
                     <Button
                         severity="secondary"
@@ -269,104 +297,49 @@ function askDelete(project: ProjectPayload): void {
                         size="small"
                         class="mt-1"
                         label="Retry"
-                        @click="projects.fetchProjects()"
-                    />
+                        @click="projects.fetchProjects()"/>
                 </p>
 
                 <p v-else-if="!projects.initialized" class="text-sm text-faint">Loading…</p>
 
-                <ul v-else-if="projects.activeProjects.length > 0" class="space-y-0.5">
-                    <li v-for="project in projects.activeProjects" :key="project.id" class="relative">
-                        <div class="group flex items-center rounded-lg transition-colors hover:bg-raised">
-                            <RouterLink
-                                :to="{ name: 'project', params: { id: project.id } }"
-                                class="min-w-0 flex-1 truncate rounded-lg px-2 py-1.5 text-sm text-body transition-colors hover:text-strong"
-                            >
-                                {{ project.name }}
-                            </RouterLink>
-                            <span
-                                v-if="project.role === 'admin'"
-                                class="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-medium text-brand-text"
-                            >
-                admin
-              </span>
-                            <Button
-                                aria-label="Project actions"
-                                severity="secondary"
-                                text
-                                size="small"
-                                class="opacity-100 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                                label="⋯"
-                                @click.stop="openMenuId = openMenuId === project.id ? null : project.id"
-                            />
-                        </div>
-                        <div
-                            v-if="openMenuId === project.id"
-                            class="absolute right-0 top-full z-10 mt-1 w-36 rounded-lg border border-line-strong bg-raised py-1 shadow-xl"
-                        >
-                            <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Members"
-                                @click="membersTarget = project"
-                            />
-                            <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Rename"
-                                @click="renameTarget = project"
-                            />
-                            <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Archive"
-                                @click="askArchive(project)"
-                            />
-                            <Button
-                                v-if="isAdmin"
-                                severity="danger"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Delete"
-                                @click="askDelete(project)"
-                            />
-                        </div>
-                    </li>
-                </ul>
-                <div v-else class="rounded-lg border border-dashed border-line-strong px-3 py-4 text-center">
-                    <p class="text-sm text-faint">No projects yet.</p>
-                    <Button
-                        text
-                        size="small"
-                        class="mt-1"
-                        label="Create your first project"
-                        @click="showCreate = true"
-                    />
-                </div>
+                <template v-else>
+                    <ul v-show="!projectsCollapsed" id="other-projects" class="space-y-0.5">
+                        <ProjectListItem
+                            v-for="project in projects.otherProjects"
+                            :key="project.id"
+                            :project="project"
+                            :can-delete="isAdmin"
+                            @favourite="onFavourite(project, $event)"
+                            @members="membersTarget = project"
+                            @rename="renameTarget = project"
+                            @archive="askArchive(project)"
+                            @delete="askDelete(project)"/>
+                    </ul>
+                    <div v-if="projects.activeProjects.length === 0"
+                         class="rounded-lg border border-dashed border-line-strong px-3 py-4 text-center">
+                        <p class="text-sm text-faint">No projects yet.</p>
+                        <Button
+                            text
+                            size="small"
+                            class="mt-1"
+                            label="Create your first project"
+                            @click="showCreate = true"/>
+                    </div>
+                </template>
 
                 <template v-if="projects.archivedProjects.length > 0">
                     <h2 class="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-faint">Archived</h2>
                     <ul class="space-y-0.5">
-                        <li
-                            v-for="project in projects.archivedProjects"
+                        <li v-for="project in projects.archivedProjects"
                             :key="project.id"
-                            class="flex items-center rounded-lg px-2 py-1.5 hover:bg-raised"
-                        >
+                            class="flex items-center rounded-lg px-2 py-1.5 hover:bg-raised">
                             <span class="min-w-0 flex-1 truncate text-sm text-faint">{{ project.name }}</span>
                             <Button
                                 severity="secondary"
                                 text
                                 size="small"
                                 label="Restore"
-                                @click="askRestore(project)"
-                            />
+                                @click="askRestore(project)"/>
                         </li>
                     </ul>
                 </template>

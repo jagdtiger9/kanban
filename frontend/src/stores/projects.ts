@@ -10,6 +10,8 @@ export const useProjectsStore = defineStore('projects', () => {
 
     const activeProjects = computed(() => projects.value.filter((p) => !p.archived))
     const archivedProjects = computed(() => projects.value.filter((p) => p.archived))
+    const favouriteProjects = computed(() => activeProjects.value.filter((p) => p.isFavourite === true))
+    const otherProjects = computed(() => activeProjects.value.filter((p) => p.isFavourite !== true))
 
     async function fetchProjects(): Promise<void> {
         try {
@@ -46,10 +48,19 @@ export const useProjectsStore = defineStore('projects', () => {
         projects.value = projects.value.filter((p) => p.id !== id)
     }
 
+    async function toggleFavourite(id: string, isFavourite: boolean): Promise<void> {
+        await projectsApi.setProjectFavourite(id, isFavourite)
+        patch(id, { isFavourite })
+    }
+
     function replace(updated: ProjectPayload): void {
-        const index = projects.value.findIndex((p) => p.id === updated.id)
+        patch(updated.id, updated)
+    }
+
+    function patch(id: string, changes: Partial<ProjectPayload>): void {
+        const index = projects.value.findIndex((p) => p.id === id)
         if (index >= 0) {
-            projects.value[index] = updated
+            projects.value[index] = { ...projects.value[index], ...changes }
         }
     }
 
@@ -59,11 +70,14 @@ export const useProjectsStore = defineStore('projects', () => {
         error,
         activeProjects,
         archivedProjects,
+        favouriteProjects,
+        otherProjects,
         fetchProjects,
         createProject,
         renameProject,
         archiveProject,
         restoreProject,
         deleteProject,
+        toggleFavourite,
     }
 })

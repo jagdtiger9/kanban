@@ -24,6 +24,7 @@ const error = ref<string | null>(null)
 
 const searchTerm = ref('')
 const suggestions = ref<UserSuggestion[]>([])
+const selectedUser = ref<UserSuggestion | null>(null)
 const searching = ref(false)
 const busyUserId = ref<string | null>(null)
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
@@ -50,6 +51,7 @@ async function loadMembers(): Promise<void> {
 }
 
 function onSearchInput(): void {
+    selectedUser.value = null
     clearTimeout(debounceTimer)
     const term = searchTerm.value.trim()
     if (term === '') {
@@ -70,7 +72,17 @@ function onSearchInput(): void {
     }, 300)
 }
 
-async function addMember(user: UserSuggestion): Promise<void> {
+function selectUser(user: UserSuggestion): void {
+    selectedUser.value = user
+    searchTerm.value = user.displayName
+    suggestions.value = []
+}
+
+async function addMember(): Promise<void> {
+    const user = selectedUser.value
+    if (user === null) {
+        return
+    }
     busyUserId.value = user.id
     error.value = null
     try {
@@ -83,6 +95,7 @@ async function addMember(user: UserSuggestion): Promise<void> {
         })
         searchTerm.value = ''
         suggestions.value = []
+        selectedUser.value = null
     } catch (e) {
         error.value = e instanceof ApiError ? e.message : 'Failed to add member'
     } finally {
@@ -134,30 +147,43 @@ onUnmounted(() => clearTimeout(debounceTimer))
 
             <div v-if="isAdmin">
                 <label for="member-search" class="mb-1 block text-sm font-medium text-body">Add member</label>
-                <InputText
-                    id="member-search"
-                    v-model="searchTerm"
-                    placeholder="Search by email or name…"
-                    autocomplete="off"
-                    class="w-full"
-                    @input="onSearchInput"
-                />
-                <ul v-if="suggestions.length > 0" class="mt-1 overflow-hidden rounded-lg border border-line-strong">
-                    <li v-for="user in suggestions" :key="user.id">
-                        <Button
-                            severity="secondary"
-                            text
-                            fluid
-                            :disabled="busyUserId === user.id"
-                            class="justify-between px-3 py-2 text-left"
-                            @click="addMember(user)"
-                        >
-                            <span class="text-strong">{{ user.displayName }}</span>
-                            <span class="text-xs text-muted">{{ user.email }}</span>
-                        </Button>
-                    </li>
-                </ul>
-                <p v-else-if="searching" class="mt-1 text-xs text-faint">Searching…</p>
+                <div class="flex items-start gap-2">
+                    <div class="min-w-0 flex-1">
+                        <InputText
+                            id="member-search"
+                            v-model="searchTerm"
+                            placeholder="Search by email or name…"
+                            autocomplete="off"
+                            class="w-full"
+                            @input="onSearchInput"
+                        />
+                        <ul v-if="suggestions.length > 0" class="mt-1 overflow-hidden rounded-lg border border-line-strong">
+                            <li v-for="user in suggestions" :key="user.id">
+                                <Button
+                                    severity="secondary"
+                                    text
+                                    fluid
+                                    class="justify-between px-3 py-2 text-left"
+                                    @click="selectUser(user)"
+                                >
+                                    <span class="text-strong">{{ user.displayName }}</span>
+                                    <span class="text-xs text-muted">{{ user.email }}</span>
+                                </Button>
+                            </li>
+                        </ul>
+                        <p v-else-if="searching" class="mt-1 text-xs text-faint">Searching…</p>
+                    </div>
+                    <Button
+                        label="Add"
+                        size="small"
+                        :disabled="selectedUser === null || busyUserId !== null"
+                        :loading="selectedUser !== null && busyUserId === selectedUser.id"
+                        @click="addMember"
+                    />
+                </div>
+                <p v-if="selectedUser" class="mt-1 text-xs text-muted">
+                    Add <span class="text-strong">{{ selectedUser.displayName }}</span> ({{ selectedUser.email }}) as a member?
+                </p>
             </div>
 
             <div>

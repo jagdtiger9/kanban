@@ -57,4 +57,40 @@ final class ProjectMemberTest extends TestCase
         self::assertTrue($admin->isAdmin());
         self::assertFalse($member->isAdmin());
     }
+
+    public function testNewMemberIsNotFavouriteByDefault(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+
+        self::assertFalse($member->isFavourite());
+    }
+
+    public function testCreateAsFavourite(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Admin, isFavourite: true);
+
+        self::assertTrue($member->isFavourite());
+    }
+
+    public function testFavouriteAndUnfavourite(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+
+        $member->favourite();
+        self::assertTrue($member->isFavourite());
+
+        $member->unfavourite();
+        self::assertFalse($member->isFavourite());
+    }
+
+    public function testFavouriteRecordsNoDomainEvent(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $member->releaseEvents();
+
+        $member->favourite();
+        $member->unfavourite();
+
+        self::assertSame([], $member->releaseEvents());
+    }
 }

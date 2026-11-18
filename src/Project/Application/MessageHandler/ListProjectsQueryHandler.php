@@ -24,7 +24,7 @@ final class ListProjectsQueryHandler
     }
 
     /**
-     * @return list<array{project: Project, role: MemberRole}>
+     * @return list<array{project: Project, role: MemberRole, memberCount: int, isFavourite: ?bool}>
      */
     public function __invoke(ListProjectsQuery $query): array
     {
@@ -32,22 +32,54 @@ final class ListProjectsQueryHandler
 
         $user = $this->userRepository->findById($actorId);
         if ($user !== null && $user->isGlobalAdmin()) {
+            $projects = $this->projectRepository->findAll();
+            $counts = $this->countByProject($projects);
+            $favourites = [];
+            foreach ($this->projectMemberRepository->findByUser($actorId) as $member) {
+                $favourites[$member->projectId()->toString()] = $member->isFavourite();
+            }
+
             return array_map(
-                static fn (Project $project): array => ['project' => $project, 'role' => MemberRole::Admin],
-                $this->projectRepository->findAll(),
+                static fn(Project $project): array => [
+                    'project' => $project,
+                    'role' => MemberRole::Admin,
+                    'memberCount' => $counts[$project->id()->toString()] ?? 0,
+                    'isFavourite' => $favourites[$project->id()->toString()] ?? null,
+                ],
+                $projects,
             );
         }
 
+        $projects = $this->projectRepository->findByMember($actorId);
+        $counts = $this->countByProject($projects);
+
         $result = [];
-        foreach ($this->projectRepository->findByMember($actorId) as $project) {
+        foreach ($projects as $project) {
             $member = $this->projectMemberRepository->findByProjectAndUser($project->id(), $actorId);
             if ($member === null) {
                 throw new \LogicException('Membership must exist for every listed project');
             }
 
-            $result[] = ['project' => $project, 'role' => $member->role()];
+            $result[] = [
+                'project' => $project,
+                'role' => $member->role(),
+                'memberCount' => $counts[$project->id()->toString()] ?? 0,
+                'isFavourite' => $member->isFavourite(),
+            ];
         }
 
         return $result;
+    }
+
+    /**
+     * @param list<Project> $projects
+     *
+     * @return array<string, int>
+     */
+    private function countByProject(array $projects): array
+    {
+        return $this->projectMemberRepository->countByProjects(
+            array_map(static fn(Project $project): string => $project->id()->toString(), $projects),
+        );
     }
 }

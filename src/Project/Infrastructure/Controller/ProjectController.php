@@ -14,6 +14,7 @@ use App\Project\Application\Message\Command\HardDeleteProjectCommand;
 use App\Project\Application\Message\Command\RemoveProjectMemberCommand;
 use App\Project\Application\Message\Command\RenameProjectCommand;
 use App\Project\Application\Message\Command\RestoreProjectCommand;
+use App\Project\Application\Message\Command\SetProjectFavouriteCommand;
 use App\Project\Application\Message\Query\GetProjectQuery;
 use App\Project\Application\Message\Query\ListProjectsQuery;
 use App\Project\Domain\Entity\Project;
@@ -39,7 +40,12 @@ final class ProjectController extends AbstractController
 
         return $this->json(
             array_map(
-                fn(array $item): array => $this->projectPayload($item['project'], $item['role']),
+                fn(array $item): array => $this->projectPayload(
+                    $item['project'],
+                    $item['role'],
+                    $item['memberCount'],
+                    $item['isFavourite'],
+                ),
                 $this->queryBus->query($query),
             )
         );
@@ -50,7 +56,7 @@ final class ProjectController extends AbstractController
         $command->actorId = $this->actorId($security);
 
         return $this->json(
-            $this->projectPayload($this->commandBus->dispatch($command), MemberRole::Admin),
+            $this->projectPayload($this->commandBus->dispatch($command), MemberRole::Admin, 1, true),
             Response::HTTP_CREATED,
         );
     }
@@ -107,6 +113,14 @@ final class ProjectController extends AbstractController
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
+    public function setFavourite(SetProjectFavouriteCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
     public function addMember(AddProjectMemberCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);
@@ -143,10 +157,14 @@ final class ProjectController extends AbstractController
     }
 
     /**
-     * @return array{id: string, name: string, archived: bool, createdAt: string, role?: string}
+     * @return array{id: string, name: string, archived: bool, createdAt: string, role?: string, memberCount?: int, isFavourite?: bool}
      */
-    private function projectPayload(Project $project, ?MemberRole $role = null): array
-    {
+    private function projectPayload(
+        Project $project,
+        ?MemberRole $role = null,
+        ?int $memberCount = null,
+        ?bool $isFavourite = null,
+    ): array {
         $payload = [
             'id' => (string)$project->id(),
             'name' => $project->name(),
@@ -155,6 +173,12 @@ final class ProjectController extends AbstractController
         ];
         if ($role !== null) {
             $payload['role'] = $role->value;
+        }
+        if ($memberCount !== null) {
+            $payload['memberCount'] = $memberCount;
+        }
+        if ($isFavourite !== null) {
+            $payload['isFavourite'] = $isFavourite;
         }
 
         return $payload;
