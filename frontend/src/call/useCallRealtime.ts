@@ -25,7 +25,8 @@ export function useCallRealtime(userId: Ref<string | null>): void {
         let initial: CallTokenPayload
         try {
             initial = await getCallToken()
-        } catch {
+        } catch (e) {
+            console.warn('[call] could not get the call token, calls are unavailable', e)
             return
         }
         if (current !== generation) return
@@ -42,7 +43,19 @@ export function useCallRealtime(userId: Ref<string | null>): void {
             if (message !== null) store.handleMessage(message)
         })
         // Badges loaded after subscribing, so no room change falls in between.
-        subscription.on('subscribed', () => void store.init(id))
+        subscription.on('subscribed', () => {
+            store.setRealtimeReady(true)
+            void store.init(id)
+        })
+        subscription.on('subscribing', () => store.setRealtimeReady(false))
+        subscription.on('unsubscribed', (ctx) => {
+            store.setRealtimeReady(false)
+            console.warn(`[call] unsubscribed from ${ctx.channel}: ${ctx.code} ${ctx.reason}`)
+        })
+        subscription.on('error', (ctx) => {
+            console.warn(`[call] subscription error on ${ctx.channel} (${ctx.type})`, ctx.error)
+        })
+        instance.on('error', (ctx) => console.warn('[call] realtime connection error', ctx.error))
         client = instance
         subscription.subscribe()
         instance.connect()
@@ -53,7 +66,10 @@ export function useCallRealtime(userId: Ref<string | null>): void {
         (id) => {
             teardown()
             store.reset()
-            if (id !== null) void setup(id)
+            if (id !== null) {
+                store.setSelf(id)
+                void setup(id)
+            }
         },
         { immediate: true },
     )
