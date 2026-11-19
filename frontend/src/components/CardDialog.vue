@@ -483,17 +483,13 @@ async function restore(): Promise<void> {
     <Modal size="lg" @close="emit('close')">
         <template #title>{{ props.card.title }}</template>
         <div class="space-y-4">
-            <p
-                v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
-            >
+            <p v-if="error"
+               class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ error }}
             </p>
 
-            <div
-                v-if="props.card.archived"
-                class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-warn-text"
-            >
+            <div v-if="props.card.archived"
+                 class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-warn-text">
                 This card is archived.
             </div>
 

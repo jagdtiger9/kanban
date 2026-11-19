@@ -15,16 +15,11 @@ const visible = computed({
 </script>
 
 <template>
-    <Dialog
-        v-model:visible="visible"
-        modal
-        dismissable-mask
-        close-on-escape
-        :style="{
-            width: props.size === 'lg' ? '32rem' : '28rem',
+    <Dialog v-model:visible="visible" modal dismissable-mask close-on-escape
+            :style="{
+            width: props.size === 'lg' ? '64rem' : '56rem',
             maxWidth: 'calc(100vw - 2rem)',
-        }"
-    >
+        }">
         <template #header>
             <span class="p-dialog-title"><slot name="title"/></span>
         </template>
