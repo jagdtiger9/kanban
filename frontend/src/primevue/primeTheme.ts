@@ -71,4 +71,24 @@ export const themePreset = definePreset(Nora, {
             },
         },
     },
+    // Compact underline tabs instead of Nora's filled primary block: active tab is
+    // strong text plus a 2px brand underline, hover only shifts the text color.
+    components: {
+        tabs: {
+            tab: {
+                padding: '0.5rem 0.75rem',
+                fontWeight: '600',
+                hoverBackground: 'transparent',
+                activeBackground: 'transparent',
+                activeColor: '{text.color}',
+                borderWidth: '0 0 2px 0',
+                borderColor: 'transparent',
+                hoverBorderColor: 'transparent',
+                activeBorderColor: '{primary.color}',
+            },
+            tabpanel: {
+                padding: '0.75rem 0 0',
+            },
+        },
+    },
 })
