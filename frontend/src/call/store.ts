@@ -52,6 +52,8 @@ function mediaError(error: unknown): string {
  */
 export const useCallStore = defineStore('call', () => {
     const selfId = ref<string | null>(null)
+    // true while the personal call channel (call:<userId>) is subscribed
+    const realtimeReady = ref(false)
     const rooms = ref<Record<string, RoomParticipant[]>>({})
     const invite = ref<InviteMessage | null>(null)
     const notice = ref<string | null>(null)
@@ -95,6 +97,15 @@ export const useCallStore = defineStore('call', () => {
 
     // ---- bootstrapping -------------------------------------------------
 
+    /** Known as soon as the user is authenticated, before the call channel connects. */
+    function setSelf(userId: string): void {
+        selfId.value = userId
+    }
+
+    function setRealtimeReady(ready: boolean): void {
+        realtimeReady.value = ready
+    }
+
     async function init(userId: string): Promise<void> {
         selfId.value = userId
         try {
@@ -112,6 +123,7 @@ export const useCallStore = defineStore('call', () => {
         dismissInvite()
         rooms.value = {}
         selfId.value = null
+        realtimeReady.value = false
     }
 
     function showNotice(text: string): void {
@@ -269,6 +281,12 @@ export const useCallStore = defineStore('call', () => {
             await leave()
         }
 
+        // Without the call channel neither invites nor signals arrive.
+        if (!realtimeReady.value || selfId.value === null) {
+            error.value = 'Calls are unavailable: no connection to the realtime server'
+            return
+        }
+
         error.value = null
         status.value = 'picking'
         projectId.value = id
@@ -352,7 +370,7 @@ export const useCallStore = defineStore('call', () => {
         status.value = 'active'
 
         for (const p of joined.participants) {
-            if (p.userId === selfId.value) continue
+            if (p.userId === selfId.value || p.sessionId === sessionId) continue
             addTile(p)
             void mesh.connect(p.userId, p.sessionId).catch(() => updateTile(p.userId, { status: 'failed' }))
         }
@@ -511,6 +529,7 @@ export const useCallStore = defineStore('call', () => {
 
     return {
         selfId,
+        realtimeReady,
         rooms,
         invite,
         notice,
@@ -527,6 +546,8 @@ export const useCallStore = defineStore('call', () => {
         inCall,
         participantsOf,
         isInRoom,
+        setSelf,
+        setRealtimeReady,
         init,
         reset,
         handleMessage,
