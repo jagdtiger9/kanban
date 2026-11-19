@@ -161,13 +161,17 @@ final class ReadTools
     }
 
     /**
+     * Temporarily disabled (PR #1 review): the query joins the working tables and has no
+     * supporting indexes. It returns on top of an activity log table.
+     *
+     * #[McpTool(
+     *     name: 'whats_new',
+     *     description: 'What\'s new: card activity (created, edited, moved, assigned, labelled, archived, commented…) across the user\'s projects since a moment, newest first. Defaults to the last 24 hours; at most 200 entries.',
+     *     annotations: new ToolAnnotations(readOnlyHint: true),
+     * )]
+     *
      * @return array<string, mixed>
      */
-    #[McpTool(
-        name: 'whats_new',
-        description: 'What\'s new: card activity (created, edited, moved, assigned, labelled, archived, commented…) across the user\'s projects since a moment, newest first. Defaults to the last 24 hours; at most 200 entries.',
-        annotations: new ToolAnnotations(readOnlyHint: true),
-    )]
     public function whatsNew(
         #[Schema(description: 'ISO 8601 date-time to look back to, e.g. 2026-11-17T09:00:00+00:00. Omit for the last 24 hours.')]
         ?string $since = null,

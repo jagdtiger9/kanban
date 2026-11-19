@@ -18,6 +18,6 @@
 Форматы — по документации клиентов, при ошибке сверьте с актуальной документацией
 агента.
 
-Инструменты: `list_projects`, `get_board`, `get_card`, `whats_new`, `create_card`,
+Инструменты: `list_projects`, `get_board`, `get_card`, `create_card`,
 `rename_card`, `set_description`, `append_to_description`, `set_due_date`, `add_label`,
 `remove_label`, `assign`, `unassign`, `move_card`, `add_comment`.

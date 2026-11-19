@@ -25,8 +25,7 @@ return App::config([
                     "Close / finish / mark done" = move_card to the done column.
 
                     Reading: start with list_projects, then get_board for the ids of columns,
-                    labels and members. "What's new / what changed" → whats_new (default: last
-                    24 hours — say which period you report). Refer to things by name, not id.
+                    labels and members. Refer to things by name, not id.
 
                     Before changing anything, resolve every target; ask when unsure:
                     - Project, column, assignee or label not named → ask, proposing the most
