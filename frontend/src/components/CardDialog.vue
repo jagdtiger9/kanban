@@ -4,12 +4,8 @@ import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
-import Tab from 'primevue/tab'
-import TabList from 'primevue/tablist'
-import TabPanel from 'primevue/tabpanel'
-import TabPanels from 'primevue/tabpanels'
-import Tabs from 'primevue/tabs'
 import Textarea from 'primevue/textarea'
+import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
 import * as boardApi from '../api/board'
 import * as attachmentsApi from '../api/attachments'
@@ -20,11 +16,11 @@ import type {
     ColumnPayload,
     CommentPayload,
     LabelPayload,
+    TimelineItem,
 } from '../api/board'
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
-import { isCardTab, type CardTab } from '../utils/cardTabs'
 import { fromYmd, toYmd } from '../utils/dates'
 import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
 import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
@@ -38,14 +34,12 @@ const props = defineProps<{
     members: MemberPayload[]
     columns: ColumnPayload[]
     isAdmin: boolean
-    tab: CardTab
     realtimeTick?: number
 }>()
 
 const emit = defineEmits<{
     close: []
     updated: [patch: Partial<CardPayload>]
-    'tab-change': [tab: CardTab]
 }>()
 
 const auth = useAuthStore()
@@ -54,11 +48,6 @@ const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
 const canDeleteComment = (comment: CommentPayload): boolean =>
     auth.user?.id === comment.authorId || props.isAdmin
-
-const activeTab = computed<CardTab>({
-    get: () => props.tab,
-    set: (value: string | number) => emit('tab-change', isCardTab(value) ? value : 'content'),
-})
 
 const title = ref(props.card.title)
 const description = ref(props.card.description)
@@ -70,9 +59,8 @@ const dueDateModel = computed(() => fromYmd(dueDate.value))
 const error = ref<string | null>(null)
 const saving = ref(false)
 
-const comments = ref<CommentPayload[]>([])
+const timeline = ref<TimelineItem[]>([])
 const attachments = ref<AttachmentPayload[]>([])
-const activities = ref<ActivityPayload[]>([])
 const detailLoading = ref(true)
 const detailError = ref<string | null>(null)
 
@@ -106,8 +94,6 @@ const memberAvatars = computed(() => {
     }
     return versions
 })
-
-const activitiesNewest = computed(() => [...activities.value].reverse())
 
 function memberName(userId: string): string {
     return memberNames.value.get(userId) ?? 'Unknown member'
@@ -176,9 +162,8 @@ function activityText(activity: ActivityPayload): string {
 
 async function refreshDetail(): Promise<void> {
     const detail = await boardApi.getCard(props.card.id)
-    comments.value = detail.comments
+    timeline.value = detail.timeline
     attachments.value = detail.attachments
-    activities.value = detail.activities
 }
 
 async function loadDetail(): Promise<void> {
@@ -517,9 +502,9 @@ async function restore(): Promise<void> {
 </script>
 
 <template>
-    <Modal size="lg" @close="emit('close')">
+    <Modal size="xl" @close="emit('close')">
         <template #title>{{ props.card.title }}</template>
-        <div class="space-y-4">
+        <div>
             <p v-if="error"
                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ error }}
@@ -529,15 +514,6 @@ async function restore(): Promise<void> {
                  class="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-warn-text">
                 This card is archived.
             </div>
-
-            <div v-if="canManage">
-                <label for="card-title" class="mb-1 block font-medium text-body">Title</label>
-                <div class="flex gap-3">
-                    <InputText id="card-title" v-model="title" class="w-full"/>
-                    <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
-                </div>
-            </div>
-            <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
 
             <div
                 v-if="detailError"
@@ -551,154 +527,207 @@ async function restore(): Promise<void> {
                     class="shrink-0"
                     @click="loadDetail"/>
             </div>
+            <Divider class="my-0"/>
+            <div class="grid gap-1 lg:grid-cols-12">
+                <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 py-4">
+                    <div v-if="canManage">
+                        <label for="card-title" class="mb-1 block font-medium text-body">Title</label>
+                        <div class="flex gap-3">
+                            <InputText id="card-title" v-model="title" class="w-full"/>
+                            <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
+                        </div>
+                    </div>
+                    <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
 
-            <Tabs v-model:value="activeTab">
-                <TabList>
-                    <Tab value="content">Content</Tab>
-                    <Tab value="comments">Comments</Tab>
-                    <Tab value="log">Log</Tab>
-                </TabList>
-                <TabPanels>
-                    <TabPanel value="content">
-                        <div class="space-y-4">
-                            <div>
-                                <label for="card-description" class="mb-1 block font-medium text-body">Description</label>
-                                <template v-if="canManage && editingDescription">
-                                    <Textarea
-                                        id="card-description"
-                                        v-model="descriptionDraft"
-                                        rows="4"
-                                        class="w-full resize-none"
-                                        autofocus
-                                        placeholder="Markdown supported"/>
-                                    <div class="mt-2 flex justify-end gap-2">
-                                        <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
-                                        <Button severity="secondary" label="Cancel" @click="cancelEditDescription"/>
-                                    </div>
-                                </template>
-                                <template v-else>
-                                    <div
-                                        v-if="description !== ''"
-                                        :class="['rounded-lg px-3 py-2 bg-raised/50', { 'cursor-text hover:bg-raised': canManage }, MARKDOWN_CLASS]"
-                                        @click="canManage && startEditDescription($event)"
-                                        v-html="renderMarkdown(description)"/>
-                                    <div
-                                        v-else-if="canManage"
-                                        class="bg-raised/50 rounded-lg px-3 py-2 text-faint hover:bg-raised"
-                                        @click="startEditDescription">
-                                        Add a description… (markdown supported)
-                                    </div>
-                                </template>
+                    <div>
+                        <label for="card-description" class="mb-1 block font-medium text-body">Description</label>
+                        <template v-if="canManage && editingDescription">
+                            <Textarea
+                                id="card-description"
+                                v-model="descriptionDraft"
+                                rows="4"
+                                class="w-full resize-none"
+                                autofocus
+                                placeholder="Markdown supported"/>
+                            <div class="mt-2 flex justify-end gap-2">
+                                <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
+                                <Button severity="secondary" label="Cancel" @click="cancelEditDescription"/>
                             </div>
-
-                            <div>
-                                <div class="mb-1.5 flex items-center justify-between gap-2">
-                                    <div class="font-medium text-body">Attachments</div>
-                                    <div class="flex items-center gap-2">
-                                        <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
-                                        <input
-                                            ref="cardFileInput"
-                                            type="file"
-                                            multiple
-                                            class="hidden"
-                                            :accept="MEDIA_ACCEPT"
-                                            @change="onCardFilesSelected"
-                                        />
-                                        <Button
-                                            severity="secondary"
-                                            size="small"
-                                            label="Add files"
-                                            :disabled="attachmentBusy"
-                                            @click="cardFileInput?.click()"
-                                        />
-                                    </div>
-                                </div>
-                                <p
-                                    v-if="attachmentError"
-                                    class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
-                                    {{ attachmentError }}
-                                </p>
-                                <div v-if="attachments.length > 0" class="space-y-1.5">
-                                    <AttachmentChip
-                                        v-for="attachment in attachments"
-                                        :key="attachment.id"
-                                        :attachment="attachment"
-                                        :can-delete="true"
-                                        @remove="askRemoveCardAttachment(attachment)"
-                                    />
-                                </div>
-                                <p v-else class="text-xs text-faint">No attachments yet.</p>
+                        </template>
+                        <template v-else>
+                            <div
+                                v-if="description !== ''"
+                                :class="['rounded-lg px-3 py-2 bg-raised/50', { 'cursor-text hover:bg-raised': canManage }, MARKDOWN_CLASS]"
+                                @click="canManage && startEditDescription($event)"
+                                v-html="renderMarkdown(description)"/>
+                            <div
+                                v-else-if="canManage"
+                                class="bg-raised/50 rounded-lg px-3 py-2 text-faint hover:bg-raised"
+                                @click="startEditDescription">
+                                Add a description… (markdown supported)
                             </div>
+                        </template>
+                    </div>
 
-                            <div>
-                                <p class="mb-1.5 font-medium text-body">Labels</p>
-                                <div v-if="props.labels.length > 0" class="flex flex-wrap gap-1.5">
-                                    <button
-                                        v-for="label in props.labels"
-                                        :key="label.id"
-                                        type="button"
-                                        class="cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors"
-                                        :class="labelIds.includes(label.id) ? 'font-medium text-strong' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
-                                        :style="labelIds.includes(label.id) ? { borderColor: label.color, backgroundColor: `${label.color}26` } : undefined"
-                                        @click="toggleLabel(label.id)">
-                                        {{ label.name }}
-                                    </button>
-                                </div>
-                                <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
-                            </div>
-
-                            <div>
-                                <p class="mb-1.5 font-medium text-body">Assignees</p>
-                                <div v-if="props.members.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
-                                    <label
-                                        v-for="member in props.members"
-                                        :key="member.userId"
-                                        class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-body transition-colors hover:bg-raised">
-                                        <Checkbox
-                                            :model-value="assigneeIds.includes(member.userId)"
-                                            :binary="true"
-                                            @update:model-value="toggleAssignee(member.userId)"/>
-                                        <UserAvatar
-                                            :user-id="member.userId"
-                                            :name="member.displayName"
-                                            :avatar-version="member.avatarVersion"/>
-                                        {{ member.displayName }}
-                                    </label>
-                                </div>
-                                <p v-else class="text-xs text-faint">No members.</p>
-                            </div>
-
-                            <div>
-                                <p class="mb-1.5 font-medium text-body">Due date</p>
-                                <DatePicker
-                                    :model-value="dueDateModel"
-                                    date-format="yy-mm-dd"
-                                    show-icon
-                                    show-clear
-                                    @update:model-value="onDueChange"
+                    <div>
+                        <div class="mb-1.5 flex items-center justify-between gap-2">
+                            <div class="font-medium text-body">Attachments</div>
+                            <div class="flex items-center gap-2">
+                                <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
+                                <input
+                                    ref="cardFileInput"
+                                    type="file"
+                                    multiple
+                                    class="hidden"
+                                    :accept="MEDIA_ACCEPT"
+                                    @change="onCardFilesSelected"
+                                />
+                                <Button
+                                    severity="secondary"
+                                    size="small"
+                                    label="Add files"
+                                    :disabled="attachmentBusy"
+                                    @click="cardFileInput?.click()"
                                 />
                             </div>
                         </div>
-                    </TabPanel>
+                        <p
+                            v-if="attachmentError"
+                            class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
+                            {{ attachmentError }}
+                        </p>
+                        <div v-if="attachments.length > 0" class="space-y-1.5">
+                            <AttachmentChip
+                                v-for="attachment in attachments"
+                                :key="attachment.id"
+                                :attachment="attachment"
+                                :can-delete="true"
+                                @remove="askRemoveCardAttachment(attachment)"
+                            />
+                        </div>
+                        <p v-else class="text-xs text-faint">No attachments yet.</p>
+                    </div>
 
-                    <TabPanel value="comments">
-                        <div class="space-y-3">
-                            <div
-                                v-for="comment in comments"
-                                :key="comment.id"
-                                class="rounded-lg bg-raised/50 px-3 py-2">
+                    <div>
+                        <p class="mb-1.5 font-medium text-body">Labels</p>
+                        <div v-if="props.labels.length > 0" class="flex flex-wrap gap-1.5">
+                            <button
+                                v-for="label in props.labels"
+                                :key="label.id"
+                                type="button"
+                                class="cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors"
+                                :class="labelIds.includes(label.id) ? 'font-medium text-strong' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
+                                :style="labelIds.includes(label.id) ? { borderColor: label.color, backgroundColor: `${label.color}26` } : undefined"
+                                @click="toggleLabel(label.id)">
+                                {{ label.name }}
+                            </button>
+                        </div>
+                        <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
+                    </div>
+
+                    <div>
+                        <p class="mb-1.5 font-medium text-body">Assignees</p>
+                        <div v-if="props.members.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
+                            <label
+                                v-for="member in props.members"
+                                :key="member.userId"
+                                class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-body transition-colors hover:bg-raised">
+                                <Checkbox
+                                    :model-value="assigneeIds.includes(member.userId)"
+                                    :binary="true"
+                                    @update:model-value="toggleAssignee(member.userId)"/>
+                                <UserAvatar
+                                    :user-id="member.userId"
+                                    :name="member.displayName"
+                                    :avatar-version="member.avatarVersion"/>
+                                {{ member.displayName }}
+                            </label>
+                        </div>
+                        <p v-else class="text-xs text-faint">No members.</p>
+                    </div>
+
+                    <div>
+                        <p class="mb-1.5 font-medium text-body">Due date</p>
+                        <DatePicker
+                            :model-value="dueDateModel"
+                            date-format="yy-mm-dd"
+                            show-icon
+                            show-clear
+                            @update:model-value="onDueChange"
+                        />
+                    </div>
+                </div>
+
+                <Divider layout="vertical"/>
+
+                <aside class="min-w-0 space-y-3 lg:col-span-5 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 py-4">
+                    <p class="font-medium text-body">Comments &amp; activity</p>
+                    <div>
+                        <Textarea
+                            v-model="newComment"
+                            rows="3"
+                            class="w-full resize-none"
+                            placeholder="Write a comment… (markdown supported)"
+                        />
+                        <input
+                            ref="commentFileInput"
+                            type="file"
+                            multiple
+                            class="hidden"
+                            :accept="MEDIA_ACCEPT"
+                            @change="onCommentFilesSelected"
+                        />
+                        <div v-if="commentFiles.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
+                            <span
+                                v-for="(file, index) in commentFiles"
+                                :key="`${file.name}-${index}`"
+                                class="flex items-center gap-1 rounded-full bg-active px-2 py-0.5 text-xs text-body">
+                                {{ file.name }}
+                                <button
+                                    type="button"
+                                    class="cursor-pointer text-faint hover:text-strong"
+                                    :aria-label="`Remove ${file.name}`"
+                                    @click="removeCommentFile(index)">
+                                    ×
+                                </button>
+                            </span>
+                        </div>
+                        <div class="mt-1.5 flex items-center justify-end gap-2">
+                            <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                label="Attach files"
+                                :disabled="commentSaving"
+                                @click="commentFileInput?.click()"
+                            />
+                            <Button
+                                label="Add comment"
+                                :disabled="commentSaving || newComment.trim() === ''"
+                                @click="addComment"
+                            />
+                        </div>
+                    </div>
+
+                    <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
+                    <p v-else-if="timeline.length === 0 && !detailError" class="text-xs text-faint">No comments or activity yet.</p>
+                    <div v-else class="space-y-3">
+                        <template
+                            v-for="item in timeline"
+                            :key="item.kind === 'comment' ? `comment-${item.comment.id}` : `event-${item.event.id}`">
+                            <div v-if="item.kind === 'comment'" class="rounded-lg bg-raised/50 px-3 py-2">
                                 <div class="mb-1 flex items-center gap-2">
                                     <UserAvatar
-                                        :user-id="comment.authorId"
-                                        :name="memberName(comment.authorId)"
-                                        :avatar-version="memberAvatarVersion(comment.authorId)"/>
-                                    <span class="font-medium text-strong">{{ memberName(comment.authorId) }}</span>
-                                    <span v-if="comment.updatedAt !== comment.createdAt" class="text-xs text-faint">
+                                        :user-id="item.comment.authorId"
+                                        :name="memberName(item.comment.authorId)"
+                                        :avatar-version="memberAvatarVersion(item.comment.authorId)"/>
+                                    <span class="font-medium text-strong">{{ memberName(item.comment.authorId) }}</span>
+                                    <span v-if="item.comment.updatedAt !== item.comment.createdAt" class="text-xs text-faint">
                                         edited
                                     </span>
-                                    <span class="ml-auto shrink-0 text-xs text-faint">{{ formatTime(comment.createdAt) }}</span>
+                                    <span class="ml-auto shrink-0 text-xs text-faint">{{ formatTime(item.comment.createdAt) }}</span>
                                 </div>
-                                <div v-if="editingId === comment.id" class="pl-8">
+                                <div v-if="editingId === item.comment.id" class="pl-8">
                                     <Textarea v-model="editBody" rows="3" class="w-full resize-none" autofocus/>
                                     <div class="mt-1.5 flex justify-end gap-2">
                                         <Button
@@ -711,110 +740,55 @@ async function restore(): Promise<void> {
                                 <div
                                     v-else
                                     :class="['pl-8 text-body', MARKDOWN_CLASS]"
-                                    v-html="renderMarkdown(comment.body)"/>
+                                    v-html="renderMarkdown(item.comment.body)"/>
                                 <div
-                                    v-if="comment.attachments.length > 0"
+                                    v-if="item.comment.attachments.length > 0"
                                     class="mt-1.5 space-y-1.5 pl-8">
                                     <AttachmentChip
-                                        v-for="attachment in comment.attachments"
+                                        v-for="attachment in item.comment.attachments"
                                         :key="attachment.id"
                                         :attachment="attachment"
-                                        :can-delete="canDeleteComment(comment)"
-                                        @remove="askRemoveCommentAttachment(comment, attachment)"
+                                        :can-delete="canDeleteComment(item.comment)"
+                                        @remove="askRemoveCommentAttachment(item.comment, attachment)"
                                     />
                                 </div>
                                 <div
-                                    v-if="canDeleteComment(comment) && editingId !== comment.id"
+                                    v-if="canDeleteComment(item.comment) && editingId !== item.comment.id"
                                     class="mt-1 flex gap-3 pl-8">
                                     <Button
-                                        v-if="auth.user?.id === comment.authorId"
+                                        v-if="auth.user?.id === item.comment.authorId"
                                         severity="secondary"
                                         text
                                         size="small"
                                         label="Edit"
-                                        @click="startEdit(comment)"
+                                        @click="startEdit(item.comment)"
                                     />
                                     <Button
                                         severity="danger"
                                         text
                                         size="small"
                                         label="Delete"
-                                        @click="askDeleteComment(comment)"
+                                        @click="askDeleteComment(item.comment)"
                                     />
                                 </div>
                             </div>
-                            <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
-                            <p v-else-if="comments.length === 0 && !detailError" class="text-xs text-faint">No comments yet.</p>
-                        </div>
-                        <div class="mt-3">
-                            <Textarea
-                                v-model="newComment"
-                                rows="3"
-                                class="w-full resize-none"
-                                placeholder="Write a comment… (markdown supported)"
-                            />
-                            <input
-                                ref="commentFileInput"
-                                type="file"
-                                multiple
-                                class="hidden"
-                                :accept="MEDIA_ACCEPT"
-                                @change="onCommentFilesSelected"
-                            />
-                            <div v-if="commentFiles.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="(file, index) in commentFiles"
-                                    :key="`${file.name}-${index}`"
-                                    class="flex items-center gap-1 rounded-full bg-active px-2 py-0.5 text-xs text-body">
-                                    {{ file.name }}
-                                    <button
-                                        type="button"
-                                        class="cursor-pointer text-faint hover:text-strong"
-                                        :aria-label="`Remove ${file.name}`"
-                                        @click="removeCommentFile(index)">
-                                        ×
-                                    </button>
-                                </span>
-                            </div>
-                            <div class="mt-1.5 flex items-center justify-end gap-2">
-                                <Button
-                                    severity="secondary"
-                                    text
-                                    size="small"
-                                    label="Attach files"
-                                    :disabled="commentSaving"
-                                    @click="commentFileInput?.click()"
-                                />
-                                <Button
-                                    label="Add comment"
-                                    :disabled="commentSaving || newComment.trim() === ''"
-                                    @click="addComment"
-                                />
-                            </div>
-                        </div>
-                    </TabPanel>
-
-                    <TabPanel value="log">
-                        <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
-                        <p v-else-if="activitiesNewest.length === 0 && !detailError" class="text-xs text-faint">No activity yet.</p>
-                        <div v-else class="space-y-2.5">
-                            <div v-for="activity in activitiesNewest" :key="activity.id" class="flex items-start gap-2">
+                            <div v-else class="flex items-start gap-2 px-3">
                                 <UserAvatar
-                                    :user-id="activity.actorId ?? ''"
-                                    :name="activity.actorId ? memberName(activity.actorId) : null"
-                                    :avatar-version="activity.actorId ? memberAvatarVersion(activity.actorId) : null"
+                                    :user-id="item.event.actorId ?? ''"
+                                    :name="item.event.actorId ? memberName(item.event.actorId) : null"
+                                    :avatar-version="item.event.actorId ? memberAvatarVersion(item.event.actorId) : null"
                                     class="mt-0.5"
                                 />
                                 <p class="min-w-0 flex-1 text-body">
-                                    <span class="font-medium text-strong">{{ activity.actorId ? memberName(activity.actorId) : 'System' }}</span>
-                                    {{ activityText(activity) }}
-                                    <span class="ml-1 text-xs text-faint">{{ formatTime(activity.createdAt) }}</span>
+                                    <span class="font-medium text-strong">{{ item.event.actorId ? memberName(item.event.actorId) : 'System' }}</span>
+                                    {{ activityText(item.event) }}
+                                    <span class="ml-1 text-xs text-faint">{{ formatTime(item.event.createdAt) }}</span>
                                 </p>
                             </div>
-                        </div>
-                    </TabPanel>
-                </TabPanels>
-            </Tabs>
+                        </template>
+                    </div>
+                </aside>
+            </div>
 
             <div v-if="canManage" class="border-t border-line pt-3">
                 <Button

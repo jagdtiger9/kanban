@@ -154,11 +154,14 @@ export interface ActivityPayload {
     createdAt: string
 }
 
+export type TimelineItem =
+    | { kind: 'comment'; at: string; comment: CommentPayload }
+    | { kind: 'event'; at: string; event: ActivityPayload }
+
 export interface CardDetailPayload {
     card: CardPayload
     attachments: AttachmentPayload[]
-    comments: CommentPayload[]
-    activities: ActivityPayload[]
+    timeline: TimelineItem[]
 }
 
 export function getCard(cardId: string): Promise<CardDetailPayload> {

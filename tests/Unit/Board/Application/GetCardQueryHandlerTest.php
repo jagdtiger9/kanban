@@ -119,6 +119,46 @@ final class GetCardQueryHandlerTest extends TestCase
         self::assertSame($comments, $result['comments']);
         self::assertSame($attachments, $result['attachments']);
         self::assertSame($activities, $result['activities']);
+        self::assertCount(2, $result['timeline']);
+        self::assertTrue(in_array($comments[0], $result['timeline'], true));
+        self::assertTrue(in_array($activities[0], $result['timeline'], true));
+    }
+
+    public function testTimelineOrdersNewestFirstAndSkipsCommentEvents(): void
+    {
+        [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+
+        $firstComment = Comment::create(Uuid::uuid4(), $card->id(), $actorId, 'First');
+        usleep(2000);
+
+        $created = CardActivity::create(Uuid::uuid4(), $card->id(), $actorId, 'card_created', []);
+        usleep(2000);
+
+        $commentEvent = CardActivity::create(
+            Uuid::uuid4(),
+            $card->id(),
+            $actorId,
+            'comment_added',
+            ['commentId' => (string) $firstComment->id()],
+        );
+        usleep(2000);
+
+        $secondComment = Comment::create(Uuid::uuid4(), $card->id(), $actorId, 'Second');
+        usleep(2000);
+
+        $moved = CardActivity::create(Uuid::uuid4(), $card->id(), $actorId, 'card_moved', []);
+
+        $result = $this->handler(
+            $card,
+            $column,
+            $board,
+            $member,
+            [$firstComment, $secondComment],
+            [$created, $commentEvent, $moved],
+        )->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
+
+        self::assertSame([$moved, $secondComment, $created, $firstComment], $result['timeline']);
     }
 
     public function testThrowsWhenCardMissing(): void

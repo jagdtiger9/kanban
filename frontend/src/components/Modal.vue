@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import Dialog from 'primevue/dialog'
 
-const props = withDefaults(defineProps<{ size?: 'md' | 'lg' }>(), { size: 'md' })
+const props = withDefaults(defineProps<{ size?: 'md' | 'lg' | 'xl' }>(), { size: 'md' })
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -17,7 +17,7 @@ const visible = computed({
 <template>
     <Dialog v-model:visible="visible" modal dismissable-mask close-on-escape
             :style="{
-            width: props.size === 'lg' ? '64rem' : '56rem',
+            width: props.size === 'xl' ? '80rem' : props.size === 'lg' ? '64rem' : '56rem',
             maxWidth: 'calc(100vw - 2rem)',
         }">
         <template #header>

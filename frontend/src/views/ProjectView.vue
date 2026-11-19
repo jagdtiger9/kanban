@@ -19,7 +19,6 @@ import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
 import { useBoardRealtime } from '../composables/useBoardRealtime'
-import { isCardTab, type CardTab } from '../utils/cardTabs'
 
 const route = useRoute()
 const router = useRouter()
@@ -90,11 +89,6 @@ const showLabelsDialog = ref(false)
 const cardIdFromRoute = computed<string | null>(() => {
     const value = route.query.card
     return typeof value === 'string' && value !== '' ? value : null
-})
-
-const tabFromRoute = computed<CardTab>(() => {
-    const value = route.query.tab
-    return typeof value === 'string' && isCardTab(value) ? value : 'content'
 })
 
 const realtimeTick = ref(0)
@@ -381,7 +375,7 @@ watch(projectId, async () => {
     showArchived.value = false
     activeCard.value = null
     showLabelsDialog.value = false
-    if (cardIdFromRoute.value !== null || route.query.tab != null) {
+    if (cardIdFromRoute.value !== null) {
         await removeCardQuery()
     }
     await load()
@@ -397,7 +391,7 @@ watch(
 watch(
     () => route.query.tab,
     (value) => {
-        if (value == null || (typeof value === 'string' && isCardTab(value))) return
+        if (value == null) return
         const query = { ...route.query }
         delete query.tab
         void router.replace({ query })
@@ -411,12 +405,6 @@ function setActiveCard(card: CardPayload): void {
     const query: LocationQueryRaw = { ...route.query, card: card.id }
     delete query.tab
     void router.push({ query })
-}
-
-function onTabChange(tab: CardTab): void {
-    if (tabFromRoute.value === tab) return
-    if (cardIdFromRoute.value === null || cardIdFromRoute.value !== activeCard.value?.id) return
-    void router.replace({ query: { ...route.query, tab } })
 }
 
 function closeCard(): void {
@@ -604,11 +592,9 @@ function closeCard(): void {
             :members="detail?.members ?? []"
             :columns="columns"
             :is-admin="isAdmin"
-            :tab="tabFromRoute"
             :realtime-tick="realtimeTick"
             @close="closeCard"
             @updated="onCardUpdated"
-            @tab-change="onTabChange"
         />
         <LabelsDialog
             v-if="showLabelsDialog"

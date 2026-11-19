@@ -93,16 +93,22 @@ final class BoardController extends AbstractController
                 fn(Attachment $attachment): array => $this->attachmentPayload($attachment),
                 $cardAttachments,
             ),
-            'comments' => array_map(
-                fn(Comment $comment): array => $this->commentPayload(
-                    $comment,
-                    $commentAttachments[$comment->id()->toString()] ?? [],
-                ),
-                $result['comments'],
-            ),
-            'activities' => array_map(
-                fn(CardActivity $activity): array => $this->activityPayload($activity),
-                $result['activities'],
+            'timeline' => array_map(
+                fn(Comment|CardActivity $entry): array => $entry instanceof Comment
+                    ? [
+                        'kind' => 'comment',
+                        'at' => $entry->createdAt()->format(\DateTimeInterface::ATOM),
+                        'comment' => $this->commentPayload(
+                            $entry,
+                            $commentAttachments[$entry->id()->toString()] ?? [],
+                        ),
+                    ]
+                    : [
+                        'kind' => 'event',
+                        'at' => $entry->createdAt()->format(\DateTimeInterface::ATOM),
+                        'event' => $this->activityPayload($entry),
+                    ],
+                $result['timeline'],
             ),
         ]);
     }

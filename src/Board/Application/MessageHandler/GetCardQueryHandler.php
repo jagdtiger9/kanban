@@ -28,17 +28,52 @@ final class GetCardQueryHandler
     }
 
     /**
-     * @return array{card: Card, comments: list<Comment>, attachments: list<Attachment>, activities: list<CardActivity>}
+     * @return array{
+     *     card: Card,
+     *     comments: list<Comment>,
+     *     attachments: list<Attachment>,
+     *     activities: list<CardActivity>,
+     *     timeline: list<Comment|CardActivity>,
+     * }
      */
     public function __invoke(GetCardQuery $query): array
     {
         $card = $this->guard->requireCard(Uuid::fromString($query->cardId), Uuid::fromString($query->actorId));
+        $comments = $this->commentRepository->findByCard($card->id());
+        $activities = $this->activityRepository->findByCard($card->id());
 
         return [
             'card' => $card,
-            'comments' => $this->commentRepository->findByCard($card->id()),
+            'comments' => $comments,
             'attachments' => $this->attachmentRepository->findByCard($card->id()),
-            'activities' => $this->activityRepository->findByCard($card->id()),
+            'activities' => $activities,
+            'timeline' => $this->timeline($comments, $activities),
         ];
+    }
+
+    /**
+     * Comment events duplicate the comment itself, which is already a feed entry.
+     *
+     * @param list<Comment> $comments
+     * @param list<CardActivity> $activities
+     *
+     * @return list<Comment|CardActivity>
+     */
+    private function timeline(array $comments, array $activities): array
+    {
+        $entries = $comments;
+        foreach ($activities as $activity) {
+            if (!in_array($activity->type(), ['comment_added', 'comment_edited'], true)) {
+                $entries[] = $activity;
+            }
+        }
+
+        usort(
+            $entries,
+            static fn(Comment|CardActivity $a, Comment|CardActivity $b): int => ($b->createdAt() <=> $a->createdAt())
+                ?: strcmp($b->id()->toString(), $a->id()->toString()),
+        );
+
+        return $entries;
     }
 }
