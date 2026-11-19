@@ -75,6 +75,10 @@ const editingDescription = ref(false)
 const descriptionDraft = ref('')
 const descriptionSaving = ref(false)
 
+const editingTitle = ref(false)
+const titleDraft = ref('')
+const titleSaving = ref(false)
+
 const cardFileInput = ref<HTMLInputElement | null>(null)
 const attachmentBusy = ref(false)
 const attachmentError = ref<string | null>(null)
@@ -214,6 +218,13 @@ watch(
     () => props.card.description,
     (value) => {
         if (!editingDescription.value) description.value = value
+    },
+)
+
+watch(
+    () => props.card.title,
+    (value) => {
+        if (!editingTitle.value) title.value = value
     },
 )
 
@@ -395,6 +406,32 @@ function askDeleteComment(comment: CommentPayload): void {
     })
 }
 
+function startEditTitle(): void {
+    titleDraft.value = title.value
+    editingTitle.value = true
+}
+
+function cancelEditTitle(): void {
+    editingTitle.value = false
+}
+
+async function saveTitle(): Promise<void> {
+    const value = titleDraft.value.trim()
+    if (value === '' || titleSaving.value) return
+    titleSaving.value = true
+    error.value = null
+    try {
+        const updated = await boardApi.updateCard(props.card.id, value, description.value)
+        title.value = updated.title
+        emit('updated', { title: updated.title })
+        editingTitle.value = false
+    } catch (e) {
+        error.value = e instanceof ApiError ? e.message : 'Failed to save title'
+    } finally {
+        titleSaving.value = false
+    }
+}
+
 function startEditDescription(event?: MouseEvent): void {
     const target = event?.target
     if (target instanceof HTMLElement && target.closest('a') !== null) return
@@ -531,10 +568,24 @@ async function restore(): Promise<void> {
             <div class="grid lg:grid-cols-12">
                 <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pl-1 border-r border-r-line">
                     <div v-if="canManage">
-                        <label for="card-title" class="mb-1 block font-medium text-body">Title</label>
-                        <div class="flex gap-3">
-                            <InputText id="card-title" v-model="title" class="w-full"/>
-                            <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
+                        <template v-if="editingTitle">
+                            <InputText
+                                id="card-title"
+                                v-model="titleDraft"
+                                class="w-full"
+                                autofocus
+                                @keyup.enter="saveTitle"
+                                @keyup.esc="cancelEditTitle"/>
+                            <div class="mt-2 flex justify-end gap-2">
+                                <Button label="Save" :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
+                                <Button severity="secondary" label="Cancel" @click="cancelEditTitle"/>
+                            </div>
+                        </template>
+                        <div
+                            v-else
+                            class="cursor-text rounded-lg bg-raised/50 px-3 py-2 text-body hover:bg-raised"
+                            @click="startEditTitle">
+                            {{ title }}
                         </div>
                     </div>
                     <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
@@ -550,7 +601,7 @@ async function restore(): Promise<void> {
                                 autofocus
                                 placeholder="Markdown supported"/>
                             <div class="mt-2 flex justify-end gap-2">
-                                <Button label="Save" :disabled="descriptionSaving || title.trim() === ''" @click="saveDescription"/>
+                                <Button label="Save" :disabled="descriptionSaving" @click="saveDescription"/>
                                 <Button severity="secondary" label="Cancel" @click="cancelEditDescription"/>
                             </div>
                         </template>

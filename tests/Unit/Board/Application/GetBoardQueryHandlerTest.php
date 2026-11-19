@@ -10,10 +10,13 @@ use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Label;
+use App\Board\Domain\Entity\ProjectView;
 use App\Board\Domain\Repository\BoardRepository;
+use App\Board\Domain\Repository\CardActivityRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\LabelRepository;
+use App\Board\Domain\Repository\ProjectViewRepository;
 use App\Project\Application\Service\MembershipGuard;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Entity\ProjectMember;
@@ -34,6 +37,8 @@ final class GetBoardQueryHandlerTest extends TestCase
     private ColumnRepository $columnRepository;
     private CardRepository $cardRepository;
     private LabelRepository $labelRepository;
+    private ProjectViewRepository $projectViewRepository;
+    private CardActivityRepository $cardActivityRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
 
@@ -44,6 +49,8 @@ final class GetBoardQueryHandlerTest extends TestCase
         $this->columnRepository = $this->createMock(ColumnRepository::class);
         $this->cardRepository = $this->createMock(CardRepository::class);
         $this->labelRepository = $this->createMock(LabelRepository::class);
+        $this->projectViewRepository = $this->createMock(ProjectViewRepository::class);
+        $this->cardActivityRepository = $this->createMock(CardActivityRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
     }
@@ -60,15 +67,21 @@ final class GetBoardQueryHandlerTest extends TestCase
         array $columns,
         array $cardsByColumn,
         array $labels,
+        ?ProjectView $baseline = null,
+        ?\Closure $countUnseen = null,
     ): GetBoardQueryHandler {
         $this->projectRepository->method('findById')->willReturn($project);
         $this->boardRepository->method('findByProject')->willReturn($board);
         $this->memberRepository->method('findByProjectAndUser')->willReturn($actorMembership);
         $this->columnRepository->method('findByBoard')->willReturn($columns);
         $this->cardRepository->method('findByColumn')->willReturnCallback(
-            static fn (UuidInterface $columnId): array => $cardsByColumn[(string) $columnId] ?? [],
+            static fn(UuidInterface $columnId): array => $cardsByColumn[(string) $columnId] ?? [],
         );
         $this->labelRepository->method('findByBoard')->willReturn($labels);
+        $this->projectViewRepository->method('findByUserAndProject')->willReturn($baseline);
+        $this->cardActivityRepository->method('countUnseenByBoard')->willReturnCallback(
+            $countUnseen ?? static fn(): array => [],
+        );
 
         return new GetBoardQueryHandler(
             $this->projectRepository,
@@ -76,6 +89,8 @@ final class GetBoardQueryHandlerTest extends TestCase
             $this->columnRepository,
             $this->cardRepository,
             $this->labelRepository,
+            $this->projectViewRepository,
+            $this->cardActivityRepository,
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
     }
@@ -99,6 +114,74 @@ final class GetBoardQueryHandlerTest extends TestCase
         self::assertSame($columns, $result['columns']);
         self::assertSame([], $result['cards']);
         self::assertSame($labels, $result['labels']);
+        self::assertSame([], $result['unseenCounts']);
+    }
+
+    public function testCreatesBaselineAndReturnsUnseenCountsOnFirstLoad(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
+        $card = Card::create(Uuid::uuid4(), $column->id(), $actorId, 'A', '', 0);
+
+        $saved = null;
+        $this->projectViewRepository->expects($this->once())->method('save')
+            ->with($this->callback(static function (ProjectView $view) use (&$saved, $actorId, $project): bool {
+                $saved = $view;
+
+                return $view->userId()->equals($actorId) && $view->projectId()->equals($project->id());
+            }));
+
+        $baselineSeen = null;
+        $result = $this->handler(
+            $project,
+            $board,
+            $member,
+            [$column],
+            [(string) $column->id() => [$card]],
+            [],
+            null,
+            static function (UuidInterface $boardId, UuidInterface $userId, \DateTimeImmutable $baseline) use (&$baselineSeen, $card): array {
+                $baselineSeen = $baseline;
+
+                return [(string) $card->id() => 2];
+            },
+        )->__invoke(new GetBoardQuery((string) $project->id(), (string) $actorId));
+
+        self::assertInstanceOf(ProjectView::class, $saved);
+        self::assertSame($saved->firstSeenAt(), $baselineSeen);
+        self::assertSame([(string) $card->id() => 2], $result['unseenCounts']);
+    }
+
+    public function testReusesExistingBaselineWithoutSaving(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $baseline = ProjectView::create(Uuid::uuid4(), $actorId, $project->id());
+
+        $this->projectViewRepository->expects($this->never())->method('save');
+
+        $baselineSeen = null;
+        $this->handler(
+            $project,
+            $board,
+            $member,
+            [],
+            [],
+            [],
+            $baseline,
+            static function (UuidInterface $boardId, UuidInterface $userId, \DateTimeImmutable $seen) use (&$baselineSeen): array {
+                $baselineSeen = $seen;
+
+                return [];
+            },
+        )->__invoke(new GetBoardQuery((string) $project->id(), (string) $actorId));
+
+        self::assertSame($baseline->firstSeenAt(), $baselineSeen);
     }
 
     public function testExcludesArchivedCardsByDefault(): void

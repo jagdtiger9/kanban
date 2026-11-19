@@ -7,8 +7,9 @@ import Card from 'primevue/card'
 import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
 import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
-import type { CardPayload, ColumnPayload, LabelPayload } from '../api/board'
+import type { BoardCardPayload, CardPayload, ColumnPayload, LabelPayload } from '../api/board'
 import * as projectsApi from '../api/projects'
 import type { ProjectDetail } from '../api/projects'
 import { ApiError } from '../api/client'
@@ -18,16 +19,49 @@ import CardDialog from '../components/CardDialog.vue'
 import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
-import { useBoardRealtime } from '../composables/useBoardRealtime'
+import { useBoardRealtime, type RealtimeChange } from '../composables/useBoardRealtime'
+import { useAuthStore } from '../stores/auth'
+
+const CARD_EVENT_VERBS: Record<string, string> = {
+    'card.created': 'created',
+    'card.updated': 'updated',
+    'card.moved': 'moved',
+    'card.archived': 'archived',
+    'card.restored': 'restored',
+    'card.assigned': 'changed assignees on',
+    'card.unassigned': 'changed assignees on',
+    'card.label_added': 'added a label to',
+    'card.label_removed': 'removed a label from',
+    'comment.created': 'commented on',
+    'comment.updated': 'edited a comment on',
+    'comment.deleted': 'deleted a comment on',
+    'attachment.added': 'attached a file to',
+    'attachment.removed': 'removed an attachment from',
+}
+
+const BOARD_EVENT_VERBS: Record<string, string> = {
+    'column.created': 'created a column',
+    'column.renamed': 'renamed a column',
+    'column.deleted': 'deleted a column',
+    'column.reordered': 'reordered columns',
+    'label.created': 'created a label',
+    'label.updated': 'updated a label',
+    'label.deleted': 'deleted a label',
+    'project.archived': 'archived the project',
+    'project.restored': 'restored the project',
+    'project.member_role_changed': 'changed a member role',
+}
 
 const route = useRoute()
 const router = useRouter()
 const confirm = useConfirm()
+const toast = useToast()
+const auth = useAuthStore()
 const projectId = computed(() => route.params.id as string)
 
 const detail = ref<ProjectDetail | null>(null)
 const columns = ref<ColumnPayload[]>([])
-const cards = ref<CardPayload[]>([])
+const cards = ref<BoardCardPayload[]>([])
 const labels = ref<LabelPayload[]>([])
 const showArchived = ref(false)
 const error = ref<string | null>(null)
@@ -63,11 +97,42 @@ function labelColor(labelId: string): string | undefined {
     return labelColors.value.get(labelId)
 }
 
-function columnCards(columnId: string): CardPayload[] {
+function columnCards(columnId: string): BoardCardPayload[] {
     return cards.value
         .filter((card) => card.columnId === columnId)
         .sort((a, b) => a.position - b.position)
 }
+
+const unseenByColumn = computed(() => {
+    const counts = new Map<string, number>()
+    for (const card of cards.value) {
+        if (card.unseenCount === 0) continue
+        counts.set(card.columnId, (counts.get(card.columnId) ?? 0) + card.unseenCount)
+    }
+    return counts
+})
+
+function columnUnseen(columnId: string): number {
+    return unseenByColumn.value.get(columnId) ?? 0
+}
+
+function unseenLabel(count: number): string {
+    return count === 1 ? '1 new event' : `${count} new events`
+}
+
+const totalUnseen = computed(() => {
+    let total = 0
+    for (const count of unseenByColumn.value.values()) total += count
+    return total
+})
+
+watch(
+    totalUnseen,
+    (count) => {
+        document.title = count > 0 ? `(${count}) Kanban` : 'Kanban'
+    },
+    { immediate: true },
+)
 
 const boardEl = ref<HTMLElement | null>(null)
 let sortable: Sortable | null = null
@@ -96,9 +161,38 @@ let dragging = false
 
 useBoardRealtime(projectId, refreshFromRealtime, () => !dragging)
 
-async function refreshFromRealtime(): Promise<void> {
+async function refreshFromRealtime(change: RealtimeChange): Promise<void> {
     realtimeTick.value++
+    const openCard = activeCard.value
+    if (openCard !== null) await markSeen(openCard.id)
     await load()
+    notifyChange(change)
+}
+
+function notifyChange(change: RealtimeChange): void {
+    if (change.event === 'reconnect') return
+    if (change.actorId !== null && change.actorId === auth.user?.id) return
+
+    const actor = (change.actorId !== null ? memberNames.value.get(change.actorId) : undefined) ?? 'Someone'
+    const cardVerb = CARD_EVENT_VERBS[change.event]
+    if (cardVerb !== undefined) {
+        const card = cards.value.find((current) => current.id === change.cardId)
+        const target = card !== undefined ? `“${card.title}”` : 'a card'
+        toast.add({ severity: 'info', summary: `${actor} ${cardVerb} ${target}`, life: 4000 })
+        return
+    }
+
+    const boardVerb = BOARD_EVENT_VERBS[change.event]
+    if (boardVerb !== undefined) {
+        toast.add({ severity: 'info', summary: `${actor} ${boardVerb}`, life: 4000 })
+    }
+}
+
+function markSeen(cardId: string): Promise<void> {
+    const card = cards.value.find((c) => c.id === cardId)
+    if (card !== undefined) card.unseenCount = 0
+    // Best-effort: a failed call only delays the indicator clearing until the next load.
+    return boardApi.markCardSeen(cardId).catch(() => undefined)
 }
 
 async function load(): Promise<void> {
@@ -129,6 +223,7 @@ async function syncActiveCard(): Promise<void> {
 
     const card = cards.value.find((current) => current.id === id)
     if (card) {
+        if (activeCard.value?.id !== card.id) void markSeen(card.id)
         activeCard.value = card
         return
     }
@@ -136,6 +231,7 @@ async function syncActiveCard(): Promise<void> {
     try {
         const { card: fetchedCard } = await boardApi.getCard(id)
         if (cardIdFromRoute.value !== id) return
+        if (activeCard.value?.id !== fetchedCard.id) void markSeen(fetchedCard.id)
         activeCard.value = fetchedCard
     } catch {
         if (cardIdFromRoute.value !== id) return
@@ -323,7 +419,7 @@ async function addCard(columnId: string): Promise<void> {
     actionError.value = null
     try {
         const card = await boardApi.createCard(columnId, title)
-        cards.value.push(card)
+        cards.value.push({ ...card, unseenCount: 0 })
         cancelAddCard()
     } catch (e) {
         actionError.value = e instanceof ApiError ? e.message : 'Failed to add card'
@@ -360,6 +456,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    document.title = 'Kanban'
     document.removeEventListener('click', onDocumentClick)
     sortable?.destroy()
     for (const instance of cardSortables) instance.destroy()
@@ -399,8 +496,9 @@ watch(
     { immediate: true },
 )
 
-function setActiveCard(card: CardPayload): void {
+function setActiveCard(card: BoardCardPayload): void {
     activeCard.value = card
+    void markSeen(card.id)
     if (cardIdFromRoute.value === card.id) return
     const query: LocationQueryRaw = { ...route.query, card: card.id }
     delete query.tab
@@ -466,8 +564,12 @@ function closeCard(): void {
                     :key="column.id"
                     class="board-column relative w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line bg-panel/60 sm:w-72">
                     <div class="flex items-center border-b border-line">
-                        <div class="column-drag-handle min-w-0 flex-1 cursor-grab px-3 py-2 active:cursor-grabbing">
-                            <span class="block truncate font-semibold">{{ column.name }}</span>
+                        <div class="column-drag-handle flex min-w-0 flex-1 items-center gap-2 cursor-grab px-3 py-2 active:cursor-grabbing">
+                            <span class="min-w-0 truncate font-semibold">{{ column.name }}</span>
+                            <span
+                                v-if="columnUnseen(column.id) > 0"
+                                class="shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-medium text-brand-text"
+                                :aria-label="unseenLabel(columnUnseen(column.id))">{{ columnUnseen(column.id) }}</span>
                         </div>
                         <Button
                             aria-label="Column actions"
@@ -504,10 +606,16 @@ function closeCard(): void {
                                         class="h-2 w-6 rounded-sm"
                                         :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
                                     </div>
-                                    <button type="button"
-                                            class="block w-full cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
-                                        {{ card.title }}
-                                    </button>
+                                    <div class="flex items-start gap-2">
+                                        <button type="button"
+                                                class="min-w-0 flex-1 cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
+                                            {{ card.title }}</button>
+                                        <span
+                                            v-if="card.unseenCount > 0"
+                                            class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
+                                            :title="unseenLabel(card.unseenCount)"
+                                            :aria-label="unseenLabel(card.unseenCount)">{{ card.unseenCount }}</span>
+                                    </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                                         <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
                                         <span v-if="card.archived" class="rounded bg-active px-1.5 py-0.5 text-body">

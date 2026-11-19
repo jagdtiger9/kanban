@@ -23,6 +23,10 @@ export interface CardPayload {
     assigneeIds: string[]
 }
 
+export interface BoardCardPayload extends CardPayload {
+    unseenCount: number
+}
+
 export interface LabelPayload {
     id: string
     name: string
@@ -33,7 +37,7 @@ export interface LabelPayload {
 export interface BoardPayload {
     boardId: string
     columns: ColumnPayload[]
-    cards: CardPayload[]
+    cards: BoardCardPayload[]
     labels: LabelPayload[]
 }
 
@@ -87,6 +91,10 @@ export function archiveCard(cardId: string): Promise<void> {
 
 export function restoreCard(cardId: string): Promise<void> {
     return api<void>(`/cards/${cardId}/restore`, { method: 'POST' })
+}
+
+export function markCardSeen(cardId: string): Promise<void> {
+    return api<void>(`/cards/${cardId}/seen`, { method: 'POST' })
 }
 
 export function moveCard(cardId: string, targetColumnId: string, targetIndex: number): Promise<void> {

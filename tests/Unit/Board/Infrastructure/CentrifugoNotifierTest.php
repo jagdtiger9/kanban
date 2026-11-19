@@ -56,6 +56,32 @@ final class CentrifugoNotifierTest extends TestCase
         ], $body['data']);
     }
 
+    public function testIncludesCardIdForCardScopedEvents(): void
+    {
+        $actorId = Uuid::uuid4()->toString();
+        $cardId = Uuid::uuid4()->toString();
+        $body = null;
+
+        $this->httpClient->expects($this->once())->method('request')
+            ->with('POST', 'http://centrifugo:8000/api/publish', $this->callback(
+                static function (array $options) use (&$body): bool {
+                    $body = $options['json'];
+
+                    return true;
+                },
+            ))
+            ->willReturn($this->response(200));
+
+        $this->notifier()->notify('kanban:abc', 'comment.created', $actorId, $cardId);
+
+        self::assertSame([
+            'type' => 'board.changed',
+            'event' => 'comment.created',
+            'actorId' => $actorId,
+            'cardId' => $cardId,
+        ], $body['data']);
+    }
+
     public function testPublishesNullActorWhenThereIsNoActor(): void
     {
         $body = null;
@@ -80,7 +106,7 @@ final class CentrifugoNotifierTest extends TestCase
         $this->httpClient->method('request')->willThrowException(new \RuntimeException('connection refused'));
         $this->logger->expects($this->once())->method('warning')->with(
             'Centrifugo publish failed',
-            $this->callback(static fn (array $context): bool => $context['channel'] === 'kanban:abc'
+            $this->callback(static fn(array $context): bool => $context['channel'] === 'kanban:abc'
                 && $context['event'] === 'card.created'),
         );
 
@@ -92,7 +118,7 @@ final class CentrifugoNotifierTest extends TestCase
         $this->httpClient->method('request')->willReturn($this->response(500));
         $this->logger->expects($this->once())->method('warning')->with(
             'Centrifugo rejected a publish',
-            $this->callback(static fn (array $context): bool => $context['status'] === 500),
+            $this->callback(static fn(array $context): bool => $context['status'] === 500),
         );
 
         $this->notifier()->notify('kanban:abc', 'card.created', Uuid::uuid4()->toString());

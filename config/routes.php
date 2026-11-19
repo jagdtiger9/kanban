@@ -289,6 +289,11 @@ $config = Routes::config([
         'controller' => [BoardController::class, 'getCard'],
         'methods' => ['GET'],
     ],
+    'api_card_seen' => [
+        'path' => '/api/cards/{cardId}/seen',
+        'controller' => [BoardController::class, 'markCardSeen'],
+        'methods' => ['POST'],
+    ],
     'api_card_comment_create' => [
         'path' => '/api/cards/{cardId}/comments',
         'controller' => [BoardController::class, 'createComment'],

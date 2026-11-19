@@ -5,6 +5,7 @@ import { getRealtimeToken, type RealtimeTokenPayload } from '../api/realtime'
 export interface RealtimeChange {
     event: string
     actorId: string | null
+    cardId: string | null
 }
 
 const REFRESH_DELAY_MS = 300
@@ -17,6 +18,7 @@ function parseChange(data: unknown): RealtimeChange | null {
     return {
         event: record.event,
         actorId: typeof record.actorId === 'string' ? record.actorId : null,
+        cardId: typeof record.cardId === 'string' ? record.cardId : null,
     }
 }
 
@@ -79,6 +81,15 @@ export function useBoardRealtime(
         const subscription = instance.newSubscription(initial.channel, {
             token: initial.subscriptionToken,
             getToken: async () => (await fetchToken(id)).subscriptionToken,
+            recoverable: true,
+        })
+        let subscribedOnce = false
+        subscription.on('subscribed', () => {
+            if (subscribedOnce) {
+                schedule({ event: 'reconnect', actorId: null, cardId: null })
+                return
+            }
+            subscribedOnce = true
         })
         subscription.on('publication', (ctx: PublicationContext) => {
             const change = parseChange(ctx.data)

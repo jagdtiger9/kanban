@@ -14,6 +14,7 @@ use App\Board\Application\Message\Command\CreateLabelCommand;
 use App\Board\Application\Message\Command\DeleteColumnCommand;
 use App\Board\Application\Message\Command\DeleteCommentCommand;
 use App\Board\Application\Message\Command\DeleteLabelCommand;
+use App\Board\Application\Message\Command\MarkCardSeenCommand;
 use App\Board\Application\Message\Command\MoveCardCommand;
 use App\Board\Application\Message\Command\RenameColumnCommand;
 use App\Board\Application\Message\Command\ReorderColumnCommand;
@@ -52,6 +53,7 @@ final class BoardController extends AbstractController
         $query->actorId = $this->actorId($security);
 
         $result = $this->queryBus->query($query);
+        $unseenCounts = $result['unseenCounts'];
 
         return $this->json([
             'boardId' => (string)$result['boardId'],
@@ -60,7 +62,9 @@ final class BoardController extends AbstractController
                 $result['columns'],
             ),
             'cards' => array_map(
-                fn(Card $card): array => $this->cardPayload($card),
+                fn(Card $card): array => $this->cardPayload($card) + [
+                    'unseenCount' => $unseenCounts[(string)$card->id()] ?? 0,
+                ],
                 $result['cards'],
             ),
             'labels' => array_map(
@@ -172,6 +176,14 @@ final class BoardController extends AbstractController
     }
 
     public function restoreCard(RestoreCardCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    public function markCardSeen(MarkCardSeenCommand $command, Security $security): Response
     {
         $command->actorId = $this->actorId($security);
         $this->commandBus->dispatch($command);

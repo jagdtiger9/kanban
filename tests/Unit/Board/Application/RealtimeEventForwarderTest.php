@@ -73,7 +73,7 @@ final class RealtimeEventForwarderTest extends TestCase
         $actorId = $event->authorId ?? $event->actorId;
 
         $this->notifier->expects($this->once())->method('notify')
-            ->with('kanban:' . $projectId, $eventName, $actorId);
+            ->with('kanban:' . $projectId, $eventName, $actorId, $event->cardId);
 
         $this->forwarder()->{$method}($event);
     }

@@ -6,5 +6,10 @@ namespace App\Board\Application\Service;
 
 interface RealtimeNotifierInterface
 {
-    public function notify(string $channel, string $event, ?string $actorId = null): void;
+    public function notify(
+        string $channel,
+        string $event,
+        ?string $actorId = null,
+        ?string $cardId = null,
+    ): void;
 }

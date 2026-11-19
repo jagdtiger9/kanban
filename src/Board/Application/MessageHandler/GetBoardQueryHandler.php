@@ -8,10 +8,13 @@ use App\Board\Application\Message\Query\GetBoardQuery;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Label;
+use App\Board\Domain\Entity\ProjectView;
 use App\Board\Domain\Repository\BoardRepository;
+use App\Board\Domain\Repository\CardActivityRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\LabelRepository;
+use App\Board\Domain\Repository\ProjectViewRepository;
 use App\Project\Application\Service\MembershipGuard;
 use App\Project\Domain\Exception\ProjectNotFoundException;
 use App\Project\Domain\Repository\ProjectRepository;
@@ -28,12 +31,14 @@ final class GetBoardQueryHandler
         private ColumnRepository $columnRepository,
         private CardRepository $cardRepository,
         private LabelRepository $labelRepository,
+        private ProjectViewRepository $projectViewRepository,
+        private CardActivityRepository $cardActivityRepository,
         private MembershipGuard $guard,
     ) {
     }
 
     /**
-     * @return array{boardId: UuidInterface, columns: list<Column>, cards: list<Card>, labels: list<Label>}
+     * @return array{boardId: UuidInterface, columns: list<Column>, cards: list<Card>, labels: list<Label>, unseenCounts: array<string, int>}
      */
     public function __invoke(GetBoardQuery $query): array
     {
@@ -45,6 +50,14 @@ final class GetBoardQueryHandler
             throw new ProjectNotFoundException('Project not found');
         }
         $this->guard->requireMember($projectId, $actorId);
+
+        $baseline = $this->projectViewRepository->findByUserAndProject($actorId, $projectId);
+        if ($baseline === null) {
+            // The first board load pins the member's baseline; everything before it
+            // must not show up as unseen, and counts need it before they are computed.
+            $baseline = ProjectView::create(Uuid::uuid4(), $actorId, $projectId);
+            $this->projectViewRepository->save($baseline);
+        }
 
         $board = $this->boardRepository->findByProject($projectId);
         if ($board === null) {
@@ -67,6 +80,11 @@ final class GetBoardQueryHandler
             'columns' => $columns,
             'cards' => $cards,
             'labels' => $this->labelRepository->findByBoard($board->id()),
+            'unseenCounts' => $this->cardActivityRepository->countUnseenByBoard(
+                $board->id(),
+                $actorId,
+                $baseline->firstSeenAt(),
+            ),
         ];
     }
 }

@@ -6,7 +6,10 @@
         "namespaces": [
             {
                 "name": "kanban",
-                "allow_subscribe_for_client": false
+                "allow_subscribe_for_client": false,
+                "history_size": 100,
+                "history_ttl": "300s",
+                "force_recovery": true
             },
             {
                 "name": "call",

@@ -23,18 +23,27 @@ final class CentrifugoNotifier implements RealtimeNotifierInterface
     ) {
     }
 
-    public function notify(string $channel, string $event, ?string $actorId = null): void
-    {
+    public function notify(
+        string $channel,
+        string $event,
+        ?string $actorId = null,
+        ?string $cardId = null,
+    ): void {
+        $data = [
+            'type' => 'board.changed',
+            'event' => $event,
+            'actorId' => $actorId,
+        ];
+        if ($cardId !== null) {
+            $data['cardId'] = $cardId;
+        }
+
         try {
             $status = $this->httpClient->request('POST', $this->url . '/api/publish', [
                 'headers' => ['X-API-Key' => $this->apiKey],
                 'json' => [
                     'channel' => $channel,
-                    'data' => [
-                        'type' => 'board.changed',
-                        'event' => $event,
-                        'actorId' => $actorId,
-                    ],
+                    'data' => $data,
                 ],
                 'timeout' => 1,
             ])->getStatusCode();

@@ -188,7 +188,7 @@ final class RealtimeEventForwarder
     {
         $channel = $this->channels->forCard($cardId);
         if ($channel !== null) {
-            $this->notifier->notify($channel, $event, $actorId);
+            $this->notifier->notify($channel, $event, $actorId, $cardId);
         }
     }
 
