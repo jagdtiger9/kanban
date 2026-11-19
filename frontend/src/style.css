@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Semantic surface/text/border tokens. Dark values mirror the original zinc
    palette; light values are designed counterparts. The html element always
    carries exactly one of .dark / .light (set before mount in index.html). */

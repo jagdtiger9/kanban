@@ -528,8 +528,8 @@ async function restore(): Promise<void> {
                     @click="loadDetail"/>
             </div>
             <Divider class="my-0"/>
-            <div class="grid gap-1 lg:grid-cols-12">
-                <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 py-4">
+            <div class="grid lg:grid-cols-12">
+                <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pl-1 border-r border-r-line">
                     <div v-if="canManage">
                         <label for="card-title" class="mb-1 block font-medium text-body">Title</label>
                         <div class="flex gap-3">
@@ -658,9 +658,7 @@ async function restore(): Promise<void> {
                     </div>
                 </div>
 
-                <Divider layout="vertical"/>
-
-                <aside class="min-w-0 space-y-3 lg:col-span-5 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1 py-4">
+                <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pr-1">
                     <p class="font-medium text-body">Comments &amp; activity</p>
                     <div>
                         <Textarea
