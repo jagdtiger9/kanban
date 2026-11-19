@@ -78,13 +78,12 @@ final class MembershipGuardTest extends TestCase
         self::assertNull($this->guardWith(null)->effectiveRole(Uuid::uuid4(), Uuid::uuid4()));
     }
 
-    public function testRequireMemberReturnsMember(): void
+    public function testRequireMemberAllowsMember(): void
     {
         $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Admin);
 
-        $result = $this->guardWith($member)->requireMember($member->projectId(), $member->userId());
-
-        self::assertSame($member, $result);
+        $this->expectNotToPerformAssertions();
+        $this->guardWith($member)->requireMember($member->projectId(), $member->userId());
     }
 
     public function testRequireMemberThrowsWhenNotMember(): void
@@ -94,20 +93,35 @@ final class MembershipGuardTest extends TestCase
         $this->guardWith(null)->requireMember(Uuid::uuid4(), Uuid::uuid4());
     }
 
-    public function testRequireMemberReturnsNullForGlobalAdmin(): void
+    public function testRequireMemberAllowsGlobalAdminWithoutRow(): void
     {
-        self::assertNull(
-            $this->guardWith(null, $this->globalAdmin())->requireMember(Uuid::uuid4(), Uuid::uuid4()),
+        $this->expectNotToPerformAssertions();
+        $this->guardWith(null, $this->globalAdmin())->requireMember(Uuid::uuid4(), Uuid::uuid4());
+    }
+
+    public function testRequireMembershipReturnsRowForGlobalAdmin(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+
+        self::assertSame(
+            $member,
+            $this->guardWith($member, $this->globalAdmin())->requireMembership($member->projectId(), $member->userId()),
         );
     }
 
-    public function testRequireAdminReturnsAdmin(): void
+    public function testRequireMembershipThrowsForGlobalAdminWithoutRow(): void
+    {
+        $this->expectException(ProjectForbiddenException::class);
+
+        $this->guardWith(null, $this->globalAdmin())->requireMembership(Uuid::uuid4(), Uuid::uuid4());
+    }
+
+    public function testRequireAdminAllowsAdmin(): void
     {
         $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Admin);
 
-        $result = $this->guardWith($member)->requireAdmin($member->projectId(), $member->userId());
-
-        self::assertSame($member, $result);
+        $this->expectNotToPerformAssertions();
+        $this->guardWith($member)->requireAdmin($member->projectId(), $member->userId());
     }
 
     public function testRequireAdminThrowsWhenNotMember(): void
@@ -126,19 +140,17 @@ final class MembershipGuardTest extends TestCase
         $this->guardWith($member)->requireAdmin($member->projectId(), $member->userId());
     }
 
-    public function testRequireAdminReturnsNullForGlobalAdmin(): void
+    public function testRequireAdminAllowsGlobalAdminWithoutRow(): void
     {
-        self::assertNull(
-            $this->guardWith(null, $this->globalAdmin())->requireAdmin(Uuid::uuid4(), Uuid::uuid4()),
-        );
+        $this->expectNotToPerformAssertions();
+        $this->guardWith(null, $this->globalAdmin())->requireAdmin(Uuid::uuid4(), Uuid::uuid4());
     }
 
     public function testRequireAdminAllowsGlobalAdminWhoIsPlainMember(): void
     {
         $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
 
-        self::assertNull(
-            $this->guardWith($member, $this->globalAdmin())->requireAdmin($member->projectId(), $member->userId()),
-        );
+        $this->expectNotToPerformAssertions();
+        $this->guardWith($member, $this->globalAdmin())->requireAdmin($member->projectId(), $member->userId());
     }
 }

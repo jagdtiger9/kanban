@@ -36,6 +36,33 @@ final class DoctrineProjectMemberRepository extends ServiceEntityRepository impl
         return $this->findBy(['projectId' => $projectId], ['joinedAt' => 'ASC']);
     }
 
+    public function findByUser(UuidInterface $userId): array
+    {
+        return $this->findBy(['userId' => $userId]);
+    }
+
+    public function countByProjects(array $projectIds): array
+    {
+        if ($projectIds === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.projectId AS projectId, COUNT(m.id) AS memberCount')
+            ->where('m.projectId IN (:projectIds)')
+            ->setParameter('projectIds', $projectIds)
+            ->groupBy('m.projectId')
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(string)$row['projectId']] = (int)$row['memberCount'];
+        }
+
+        return $counts;
+    }
+
     public function remove(ProjectMember $member): void
     {
         $em = $this->getEntityManager();

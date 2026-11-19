@@ -75,14 +75,15 @@ final class CreateProjectCommandHandlerTest extends TestCase
         self::assertSame('My Project', $savedBoard->name());
         self::assertSame(
             ['To Do', 'In Progress', 'Done'],
-            array_map(static fn (Column $column): string => $column->name(), $savedColumns),
+            array_map(static fn(Column $column): string => $column->name(), $savedColumns),
         );
         self::assertSame(
             [0, 1, 2],
-            array_map(static fn (Column $column): int => $column->position(), $savedColumns),
+            array_map(static fn(Column $column): int => $column->position(), $savedColumns),
         );
         self::assertTrue($savedMember->projectId()->equals($result->id()));
         self::assertTrue($savedMember->userId()->equals($actorId));
         self::assertSame(MemberRole::Admin, $savedMember->role());
+        self::assertTrue($savedMember->isFavourite());
     }
 }

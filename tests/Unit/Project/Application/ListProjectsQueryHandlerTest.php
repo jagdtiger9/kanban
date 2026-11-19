@@ -26,6 +26,7 @@ final class ListProjectsQueryHandlerTest extends TestCase
         $actorId = Uuid::uuid4();
 
         $firstMembership = ProjectMember::create(Uuid::uuid4(), $first->id(), $actorId, MemberRole::Admin);
+        $firstMembership->favourite();
         $secondMembership = ProjectMember::create(Uuid::uuid4(), $second->id(), $actorId, MemberRole::Member);
 
         $projectRepository = $this->createMock(ProjectRepository::class);
@@ -33,11 +34,15 @@ final class ListProjectsQueryHandlerTest extends TestCase
 
         $memberRepository = $this->createMock(ProjectMemberRepository::class);
         $memberRepository->method('findByProjectAndUser')->willReturnCallback(
-            static fn (UuidInterface $projectId): ?ProjectMember => match (true) {
+            static fn(UuidInterface $projectId): ?ProjectMember => match (true) {
                 $projectId->equals($first->id()) => $firstMembership,
                 default => $secondMembership,
             },
         );
+        $memberRepository->method('countByProjects')->willReturn([
+            $first->id()->toString() => 2,
+            $second->id()->toString() => 5,
+        ]);
 
         $userRepository = $this->createMock(UserRepository::class);
 
@@ -47,8 +52,12 @@ final class ListProjectsQueryHandlerTest extends TestCase
         self::assertCount(2, $result);
         self::assertSame($first, $result[0]['project']);
         self::assertSame(MemberRole::Admin, $result[0]['role']);
+        self::assertSame(2, $result[0]['memberCount']);
+        self::assertTrue($result[0]['isFavourite']);
         self::assertSame($second, $result[1]['project']);
         self::assertSame(MemberRole::Member, $result[1]['role']);
+        self::assertSame(5, $result[1]['memberCount']);
+        self::assertFalse($result[1]['isFavourite']);
     }
 
     public function testGlobalAdminGetsAllProjectsWithAdminRole(): void
@@ -64,6 +73,13 @@ final class ListProjectsQueryHandlerTest extends TestCase
 
         $memberRepository = $this->createMock(ProjectMemberRepository::class);
         $memberRepository->expects($this->never())->method('findByProjectAndUser');
+        $memberRepository->method('countByProjects')->willReturn([
+            $first->id()->toString() => 2,
+            $second->id()->toString() => 3,
+        ]);
+        $memberRepository->method('findByUser')->willReturn([
+            ProjectMember::create(Uuid::uuid4(), $first->id(), $admin->id(), MemberRole::Admin, isFavourite: true),
+        ]);
 
         $userRepository = $this->createMock(UserRepository::class);
         $userRepository->method('findById')->willReturn($admin);
@@ -74,7 +90,11 @@ final class ListProjectsQueryHandlerTest extends TestCase
         self::assertCount(2, $result);
         self::assertSame($first, $result[0]['project']);
         self::assertSame(MemberRole::Admin, $result[0]['role']);
+        self::assertSame(2, $result[0]['memberCount']);
+        self::assertTrue($result[0]['isFavourite']);
         self::assertSame($second, $result[1]['project']);
         self::assertSame(MemberRole::Admin, $result[1]['role']);
+        self::assertSame(3, $result[1]['memberCount']);
+        self::assertNull($result[1]['isFavourite']);
     }
 }

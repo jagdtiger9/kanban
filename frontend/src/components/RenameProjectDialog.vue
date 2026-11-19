@@ -34,11 +34,11 @@ async function submit(): Promise<void> {
     <Modal @close="emit('close')">
         <template #title>Rename project</template>
         <form class="space-y-4" @submit.prevent="submit">
-            <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+            <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ error }}
             </p>
             <div>
-                <label for="rename-name" class="mb-1 block text-sm font-medium text-body">Name</label>
+                <label for="rename-name" class="mb-1 block font-medium text-body">Name</label>
                 <InputText id="rename-name" v-model="name" autofocus class="w-full"/>
             </div>
             <div class="flex justify-end gap-2">

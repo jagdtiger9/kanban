@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import Sortable from 'sortablejs'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
@@ -19,8 +19,10 @@ import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
 import { useBoardRealtime } from '../composables/useBoardRealtime'
+import { isCardTab, type CardTab } from '../utils/cardTabs'
 
 const route = useRoute()
+const router = useRouter()
 const confirm = useConfirm()
 const projectId = computed(() => route.params.id as string)
 
@@ -85,6 +87,16 @@ const deleting = ref(false)
 const activeCard = ref<CardPayload | null>(null)
 const showLabelsDialog = ref(false)
 
+const cardIdFromRoute = computed<string | null>(() => {
+    const value = route.query.card
+    return typeof value === 'string' && value !== '' ? value : null
+})
+
+const tabFromRoute = computed<CardTab>(() => {
+    const value = route.query.tab
+    return typeof value === 'string' && isCardTab(value) ? value : 'content'
+})
+
 const realtimeTick = ref(0)
 let dragging = false
 
@@ -106,14 +118,43 @@ async function load(): Promise<void> {
         columns.value = board.columns
         cards.value = board.cards
         labels.value = board.labels
-        if (activeCard.value) {
-            activeCard.value = cards.value.find((card) => card.id === activeCard.value?.id) ?? null
-        }
+        await syncActiveCard()
         await nextTick()
         initCardSortables()
     } catch (e) {
         error.value = e instanceof ApiError ? e.message : 'Failed to load board'
     }
+}
+
+async function syncActiveCard(): Promise<void> {
+    const id = cardIdFromRoute.value
+    if (id === null) {
+        activeCard.value = null
+        return
+    }
+
+    const card = cards.value.find((current) => current.id === id)
+    if (card) {
+        activeCard.value = card
+        return
+    }
+
+    try {
+        const { card: fetchedCard } = await boardApi.getCard(id)
+        if (cardIdFromRoute.value !== id) return
+        activeCard.value = fetchedCard
+    } catch {
+        if (cardIdFromRoute.value !== id) return
+        activeCard.value = null
+        await removeCardQuery()
+    }
+}
+
+async function removeCardQuery(): Promise<void> {
+    const query = { ...route.query }
+    delete query.card
+    delete query.tab
+    await router.replace({ query })
 }
 
 function initSortable(): void {
@@ -296,11 +337,12 @@ async function addCard(columnId: string): Promise<void> {
 }
 
 function onCardUpdated(patch: Partial<CardPayload>): void {
-    const card = cards.value.find((c) => c.id === activeCard.value?.id)
+    const card = activeCard.value
     if (!card) return
     Object.assign(card, patch)
     if (patch.archived && !showArchived.value) {
         cards.value = cards.value.filter((c) => c.id !== card.id)
+        closeCard()
     }
 }
 
@@ -330,7 +372,7 @@ onBeforeUnmount(() => {
     cardSortables.length = 0
 })
 
-watch(projectId, () => {
+watch(projectId, async () => {
     openMenuId.value = null
     addingColumn.value = false
     newColumnName.value = ''
@@ -339,8 +381,48 @@ watch(projectId, () => {
     showArchived.value = false
     activeCard.value = null
     showLabelsDialog.value = false
-    void load()
+    if (cardIdFromRoute.value !== null || route.query.tab != null) {
+        await removeCardQuery()
+    }
+    await load()
 })
+
+watch(
+    () => route.query.card,
+    () => {
+        void syncActiveCard()
+    },
+)
+
+watch(
+    () => route.query.tab,
+    (value) => {
+        if (value == null || (typeof value === 'string' && isCardTab(value))) return
+        const query = { ...route.query }
+        delete query.tab
+        void router.replace({ query })
+    },
+    { immediate: true },
+)
+
+function setActiveCard(card: CardPayload): void {
+    activeCard.value = card
+    if (cardIdFromRoute.value === card.id) return
+    const query: LocationQueryRaw = { ...route.query, card: card.id }
+    delete query.tab
+    void router.push({ query })
+}
+
+function onTabChange(tab: CardTab): void {
+    if (tabFromRoute.value === tab) return
+    if (cardIdFromRoute.value === null || cardIdFromRoute.value !== activeCard.value?.id) return
+    void router.replace({ query: { ...route.query, tab } })
+}
+
+function closeCard(): void {
+    activeCard.value = null
+    void removeCardQuery()
+}
 </script>
 
 <template>
@@ -348,12 +430,12 @@ watch(projectId, () => {
         <div class="border-b border-line px-4 py-3 sm:px-6 sm:py-4">
             <div
                 v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger-text">
+                class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-danger-text">
                 {{ error }}
             </div>
             <template v-else-if="detail">
                 <div class="mb-2 flex items-center gap-3">
-                    <h1 class="text-xl font-semibold text-strong sm:text-2xl">{{ detail.project.name }}</h1>
+                    <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
                     <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
                     <span
                         v-if="detail.project.archived"
@@ -371,34 +453,33 @@ watch(projectId, () => {
                     </span>
                 </div>
             </template>
-            <p v-else class="text-sm text-faint">Loading…</p>
+            <p v-else class="text-faint">Loading…</p>
         </div>
 
         <div class="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
             <p
                 v-if="actionError"
-                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ actionError }}
             </p>
             <div class="mb-3 flex items-center justify-between gap-3">
-                <label class="flex cursor-pointer select-none items-center gap-2 text-sm text-muted">
+                <label class="flex cursor-pointer select-none items-center gap-2 text-muted">
                     <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived"/>
                     Show archived cards
                 </label>
                 <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
             </div>
             <div ref="boardEl" class="flex items-start gap-3">
-                <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-sm text-faint">
+                <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-faint">
                     This board has no columns yet. Use “+ Add column” to start organizing cards.
                 </p>
                 <div
                     v-for="column in columns"
                     :key="column.id"
-                    class="board-column relative w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line bg-panel/60 sm:w-72"
-                >
+                    class="board-column relative w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line bg-panel/60 sm:w-72">
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle min-w-0 flex-1 cursor-grab px-3 py-2 active:cursor-grabbing">
-                            <span class="block truncate text-sm font-semibold text-strong">{{ column.name }}</span>
+                            <span class="block truncate font-semibold">{{ column.name }}</span>
                         </div>
                         <Button
                             aria-label="Column actions"
@@ -406,29 +487,17 @@ watch(projectId, () => {
                             text
                             size="small"
                             label="⋯"
-                            @click.stop="openMenuId = openMenuId === column.id ? null : column.id"
-                        />
+                            @click.stop="openMenuId = openMenuId === column.id ? null : column.id"/>
                         <div
                             v-if="openMenuId === column.id"
-                            class="absolute right-2 top-10 z-10 w-32 rounded-lg border border-line-strong bg-raised py-1 shadow-xl"
-                        >
+                            class="absolute right-2 top-10 z-10 w-32 rounded-lg border border-line-strong bg-raised py-1 shadow-xl">
                             <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Rename"
-                                @click="renameTarget = column"
-                            />
+                                severity="secondary" text size="small" class="w-full justify-start" label="Rename"
+                                @click="renameTarget = column"/>
                             <Button
                                 v-if="isAdmin"
-                                severity="danger"
-                                text
-                                size="small"
-                                class="w-full justify-start"
-                                label="Delete"
-                                @click="askDelete(column)"
-                            />
+                                severity="danger" text size="small" class="w-full justify-start" label="Delete"
+                                @click="askDelete(column)"/>
                         </div>
                     </div>
                     <div class="flex flex-col gap-1 p-2">
@@ -439,31 +508,23 @@ watch(projectId, () => {
                                 class="board-card block w-full cursor-pointer rounded-lg border border-line bg-raised/70 transition-colors hover:border-line-emphasis"
                                 :class="{ 'opacity-50': card.archived }"
                                 :data-card-id="card.id"
-                                @click="activeCard = card"
-                            >
+                                @click="setActiveCard(card)">
                                 <template #content>
                                     <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
                                     <span
-                                        v-for="labelId in card.labelIds"
-                                        :key="labelId"
+                                        v-for="labelId in card.labelIds" :key="labelId"
                                         class="h-2 w-6 rounded-sm"
-                                        :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"
-                                    />
+                                        :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
                                     </div>
-                                    <button
-                                        type="button"
-                                        class="block w-full cursor-pointer rounded-sm text-left text-sm break-words text-strong focus-visible:outline-2 focus-visible:outline-brand"
-                                    >
+                                    <button type="button"
+                                            class="block w-full cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
                                         {{ card.title }}
                                     </button>
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                                         <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
-                                        <span
-                                            v-if="card.archived"
-                                            class="rounded bg-active px-1.5 py-0.5 text-body"
-                                        >
-                                        Archived
-                                    </span>
+                                        <span v-if="card.archived" class="rounded bg-active px-1.5 py-0.5 text-body">
+                                            Archived
+                                        </span>
                                         <CardPeople
                                             :card-title="card.title"
                                             :creator-id="card.creatorId"
@@ -474,10 +535,7 @@ watch(projectId, () => {
                                     </div>
                                 </template>
                             </Card>
-                            <p
-                                v-if="columnCards(column.id).length === 0"
-                                class="px-2 py-1 text-xs text-faint"
-                            >
+                            <p v-if="columnCards(column.id).length === 0" class="px-2 py-1 text-xs text-faint">
                                 No cards yet
                             </p>
                         </div>
@@ -525,9 +583,8 @@ watch(projectId, () => {
                 <button
                     v-else
                     type="button"
-                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-sm text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
-                    @click="addingColumn = true"
-                >
+                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
+                    @click="addingColumn = true">
                     + Add column
                 </button>
             </div>
@@ -547,9 +604,11 @@ watch(projectId, () => {
             :members="detail?.members ?? []"
             :columns="columns"
             :is-admin="isAdmin"
+            :tab="tabFromRoute"
             :realtime-tick="realtimeTick"
-            @close="activeCard = null"
+            @close="closeCard"
             @updated="onCardUpdated"
+            @tab-change="onTabChange"
         />
         <LabelsDialog
             v-if="showLabelsDialog"

@@ -16,5 +16,15 @@ interface ProjectMemberRepository
     /** @return list<ProjectMember> ordered by join time */
     public function findByProject(UuidInterface $projectId): array;
 
+    /** @return list<ProjectMember> */
+    public function findByUser(UuidInterface $userId): array;
+
+    /**
+     * @param list<UuidInterface> $projectIds
+     *
+     * @return array<string, int> member count keyed by project id
+     */
+    public function countByProjects(array $projectIds): array;
+
     public function remove(ProjectMember $member): void;
 }

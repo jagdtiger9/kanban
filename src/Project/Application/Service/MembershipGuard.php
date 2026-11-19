@@ -33,11 +33,38 @@ final class MembershipGuard
         return $this->projectMemberRepository->findByProjectAndUser($projectId, $actorId)?->role();
     }
 
+    public function requireMember(UuidInterface $projectId, UuidInterface $actorId): void
+    {
+        $this->memberOrAdmin($projectId, $actorId);
+    }
+
+    /**
+     * The actor's actual membership row. A global admin does not bypass this
+     * check: per-user state has nowhere to be stored without a row.
+     */
+    public function requireMembership(UuidInterface $projectId, UuidInterface $actorId): ProjectMember
+    {
+        $member = $this->projectMemberRepository->findByProjectAndUser($projectId, $actorId);
+        if ($member === null) {
+            throw new ProjectForbiddenException('Only project members can perform this action');
+        }
+
+        return $member;
+    }
+
+    public function requireAdmin(UuidInterface $projectId, UuidInterface $actorId): void
+    {
+        $member = $this->memberOrAdmin($projectId, $actorId);
+        if ($member !== null && !$member->isAdmin()) {
+            throw new ProjectForbiddenException('Only project admins can perform this action');
+        }
+    }
+
     /**
      * @return ProjectMember|null the membership row, or null when the actor
      *                             bypasses membership as a global admin
      */
-    public function requireMember(UuidInterface $projectId, UuidInterface $actorId): ?ProjectMember
+    private function memberOrAdmin(UuidInterface $projectId, UuidInterface $actorId): ?ProjectMember
     {
         if ($this->isGlobalAdmin($actorId)) {
             return null;
@@ -45,20 +72,6 @@ final class MembershipGuard
         $member = $this->projectMemberRepository->findByProjectAndUser($projectId, $actorId);
         if ($member === null) {
             throw new ProjectForbiddenException('Only project members can access this project');
-        }
-
-        return $member;
-    }
-
-    /**
-     * @return ProjectMember|null the membership row, or null when the actor
-     *                             bypasses membership as a global admin
-     */
-    public function requireAdmin(UuidInterface $projectId, UuidInterface $actorId): ?ProjectMember
-    {
-        $member = $this->requireMember($projectId, $actorId);
-        if ($member !== null && !$member->isAdmin()) {
-            throw new ProjectForbiddenException('Only project admins can perform this action');
         }
 
         return $member;

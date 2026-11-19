@@ -53,6 +53,7 @@ substitute a host command.
   changes only through actions.
 - Tailwind uses scale units (`h-16` = 4rem); arbitrary `h-[Xrem]` only for values that
   are not multiples of 0.25rem.
+- Do not place the closing html/component tag character on a new line 
 - Every new Domain and Application class gets unit tests. Repositories and the ACL matrix
   get integration tests against the real PostgreSQL. Run the project's test suite.
 - No new dependency, major upgrade, or architectural deviation without an explicit

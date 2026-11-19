@@ -8,6 +8,8 @@ export interface ProjectPayload {
     archived: boolean
     createdAt: string
     role?: MemberRole
+    memberCount?: number
+    isFavourite?: boolean
 }
 
 export interface MemberPayload {
@@ -59,6 +61,13 @@ export function archiveProject(id: string): Promise<ProjectPayload> {
 
 export function restoreProject(id: string): Promise<ProjectPayload> {
     return api<ProjectPayload>(`/projects/${id}/restore`, { method: 'POST' })
+}
+
+export function setProjectFavourite(id: string, isFavourite: boolean): Promise<void> {
+    return api<void>(`/projects/${id}/favourite`, {
+        method: 'PUT',
+        body: JSON.stringify({ isFavourite }),
+    })
 }
 
 export function deleteProject(id: string): Promise<void> {

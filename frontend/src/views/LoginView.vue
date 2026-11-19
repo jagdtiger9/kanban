@@ -39,19 +39,19 @@ async function submit(): Promise<void> {
                     C
                 </div>
                 <h1 class="text-2xl font-semibold">Kanban</h1>
-                <p class="mt-1 text-sm text-muted">A small Kanban board for your projects</p>
+                <p class="mt-1 text-muted">A small Kanban board for your projects</p>
             </div>
 
             <form class="space-y-4" @submit.prevent="submit">
-                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text">
+                <p v-if="error" class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                     {{ error }}
                 </p>
                 <div>
-                    <label for="email" class="mb-1 block text-sm font-medium text-body">Email</label>
+                    <label for="email" class="mb-1 block font-medium text-body">Email</label>
                     <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" class="w-full"/>
                 </div>
                 <div>
-                    <label for="password" class="mb-1 block text-sm font-medium text-body">Password</label>
+                    <label for="password" class="mb-1 block font-medium text-body">Password</label>
                     <Password
                         v-model="password"
                         input-id="password"
@@ -62,12 +62,12 @@ async function submit(): Promise<void> {
                         fluid
                     />
                 </div>
-                <label for="remember-me" class="flex cursor-pointer items-center gap-2 text-sm text-body">
+                <label for="remember-me" class="flex cursor-pointer items-center gap-2 text-body">
                     <Checkbox v-model="rememberMe" :binary="true" input-id="remember-me"/>
                     Remember me
                 </label>
                 <Button type="submit" label="Sign in" class="w-full" :disabled="submitting"/>
-                <p class="text-center text-sm text-muted">
+                <p class="text-center text-muted">
                     No account yet?
                     <RouterLink to="/register" class="text-brand-text hover:text-brand-text-hover">Create one</RouterLink>
                 </p>

@@ -32,6 +32,9 @@ final class ProjectMember implements DomainEventAwareInterface
     #[ORM\Column(type: Types::STRING, length: 20, enumType: MemberRole::class)]
     private MemberRole $role;
 
+    #[ORM\Column(type: Types::BOOLEAN)]
+    private bool $isFavourite;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $joinedAt;
 
@@ -40,12 +43,14 @@ final class ProjectMember implements DomainEventAwareInterface
         UuidInterface $projectId,
         UuidInterface $userId,
         MemberRole $role,
+        bool $isFavourite,
         \DateTimeImmutable $joinedAt,
     ) {
         $this->id = $id;
         $this->projectId = $projectId;
         $this->userId = $userId;
         $this->role = $role;
+        $this->isFavourite = $isFavourite;
         $this->joinedAt = $joinedAt;
     }
 
@@ -54,8 +59,9 @@ final class ProjectMember implements DomainEventAwareInterface
         UuidInterface $projectId,
         UuidInterface $userId,
         MemberRole $role,
+        bool $isFavourite = false,
     ): self {
-        return new self($id, $projectId, $userId, $role, new \DateTimeImmutable());
+        return new self($id, $projectId, $userId, $role, $isFavourite, new \DateTimeImmutable());
     }
 
     public function id(): UuidInterface
@@ -81,6 +87,21 @@ final class ProjectMember implements DomainEventAwareInterface
     public function isAdmin(): bool
     {
         return $this->role === MemberRole::Admin;
+    }
+
+    public function isFavourite(): bool
+    {
+        return $this->isFavourite;
+    }
+
+    public function favourite(): void
+    {
+        $this->isFavourite = true;
+    }
+
+    public function unfavourite(): void
+    {
+        $this->isFavourite = false;
     }
 
     public function joinedAt(): \DateTimeImmutable

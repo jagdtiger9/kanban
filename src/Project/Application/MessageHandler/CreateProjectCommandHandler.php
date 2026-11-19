@@ -43,7 +43,13 @@ final class CreateProjectCommandHandler
         }
 
         $this->projectMemberRepository->save(
-            ProjectMember::create(Uuid::uuid4(), $project->id(), Uuid::fromString($command->actorId), MemberRole::Admin),
+            ProjectMember::create(
+                id: Uuid::uuid4(),
+                projectId: $project->id(),
+                userId: Uuid::fromString($command->actorId),
+                role: MemberRole::Admin,
+                isFavourite: true
+            ),
         );
 
         return $project;

@@ -104,7 +104,7 @@ async function confirmDelete(target: LabelPayload): Promise<void> {
         <div class="space-y-4">
             <p
                 v-if="error"
-                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger-text"
+                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text"
             >
                 {{ error }}
             </p>
@@ -138,7 +138,7 @@ async function confirmDelete(target: LabelPayload): Promise<void> {
                         />
                     </template>
                     <template v-else>
-                        <span class="min-w-0 flex-1 truncate text-sm text-strong">{{ label.name }}</span>
+                        <span class="min-w-0 flex-1 truncate text-strong">{{ label.name }}</span>
                         <Button
                             severity="secondary"
                             text
@@ -157,10 +157,10 @@ async function confirmDelete(target: LabelPayload): Promise<void> {
                     </template>
                 </li>
             </ul>
-            <p v-else class="text-sm text-faint">No labels yet.</p>
+            <p v-else class="text-faint">No labels yet.</p>
 
             <div class="border-t border-line pt-3">
-                <p class="mb-2 text-sm font-medium text-body">New label</p>
+                <p class="mb-2 font-medium text-body">New label</p>
                 <div class="flex items-center gap-2">
                     <ColorPicker
                         :model-value="newColor"
