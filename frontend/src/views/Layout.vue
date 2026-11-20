@@ -304,21 +304,17 @@ const openSettings = (event: Event) => {
                         aria-label="Close menu" severity="secondary" text size="small" label="✕"/>
                 </div>
 
-                <div class="mb-4 flex items-center gap-2 border-b border-line pb-3 lg:hidden">
+                <div class="mb-4 flex items-center gap-3 border-b border-line pb-3 lg:hidden">
                     <UserAvatar
                         :user-id="auth.user?.id ?? ''"
                         :name="auth.user?.displayName ?? null"
                         :avatar-version="auth.user?.avatarVersion ?? null"
                         size="md"/>
-                    <div class="min-w-0">
-                        <p class="truncate font-medium">{{ auth.user?.displayName }}</p>
-                        <span class="flex items-center gap-1.5 text-xs text-muted">
-                            <span
-                                class="size-2 rounded-full"
-                                :class="apiState === 'ok' ? 'bg-emerald-500' : apiState === 'down' ? 'bg-danger' : 'bg-warn'"/>
-                                {{ apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…' }}
-                            </span>
-                    </div>
+                    <div class="truncate font-medium">{{ auth.user?.displayName }}</div>
+                    <div
+                        class="size-2 rounded-full"
+                        :class="apiState === 'ok' ? 'bg-emerald-500' : apiState === 'down' ? 'bg-danger' : 'bg-warn'"
+                        :title="apiState === 'ok' ? 'api ok' : apiState === 'down' ? 'api down' : 'checking api…'"/>
                 </div>
 
                 <ul v-if="projects.favouriteProjects.length > 0" class="mb-3 space-y-0.5">
