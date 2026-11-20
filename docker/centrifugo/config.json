@@ -1,6 +1,10 @@
 {
     "client": {
-        "allowed_origins": ["https://kanban.local", "https://kanban.domain", "https://kanban.sportelement.ru"]
+        "allowed_origins": [
+            "https://kanban.local",
+            "https://kanban.domain",
+            "https://kanban.sportelement.ru"
+        ]
     },
     "channel": {
         "namespaces": [
@@ -14,6 +18,9 @@
             {
                 "name": "call",
                 "allow_subscribe_for_client": false
+            },
+            {
+                "name": "user"
             }
         ]
     }

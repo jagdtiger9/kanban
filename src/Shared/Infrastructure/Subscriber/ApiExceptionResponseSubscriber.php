@@ -32,6 +32,7 @@ use App\User\Domain\Exception\PasswordsDoNotMatchException;
 use App\User\Domain\Exception\UserAlreadyConfirmedException;
 use App\User\Domain\Exception\UserAlreadyRegisteredException;
 use App\User\Domain\Exception\UserNotFoundException;
+use App\UserEvent\Domain\Exception\InvalidUserEventCursorException;
 use Doctrine\DBAL\Exception\ConnectionException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
@@ -109,6 +110,9 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof ConfirmationTokenInvalidException
             || $throwable instanceof ConfirmationTokenExpiredException
         ) {
+            return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
+        }
+        if ($throwable instanceof InvalidUserEventCursorException) {
             return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
         }
         if ($throwable instanceof ProjectNotFoundException

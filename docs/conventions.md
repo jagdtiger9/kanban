@@ -363,6 +363,19 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 3. Confirm the module's event namespace is covered by the async routing pattern.
 4. The frontend needs no payload handling — `useBoardRealtime` refetches on invalidation.
 
+### Add a user event
+
+1. Record a domain event from the entity method that changes state, carrying the actor
+   id and the ids of the users it addresses.
+2. Add a `UserEvent/Domain/Service/Rule` class implementing `RecipientRule`
+   (`supports`, `type`, `recipients`) and a case in `UserEventType`; the rule is
+   autoconfigured by the `user_event.recipient_rule` tag.
+3. Add one `#[AsMessageHandler]` method per event to `UserEventFanOutHandler`; extend
+   `UserEventContextProvider` only if the payload needs a new display lookup.
+4. Map the new type to a verb in `Layout.vue` (`USER_EVENT_VERBS`); the resolver drops
+   the actor — never filter it in the rule.
+5. Add unit tests for the rule and the handler. No migration is needed for a new type.
+
 ### Add a module
 
 1. Create `Domain`, `Application`, and `Infrastructure` directories.

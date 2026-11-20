@@ -12,6 +12,8 @@ use App\News\Infrastructure\Controller\NewsController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
 use App\User\Infrastructure\Controller\UserAvatarController;
+use App\UserEvent\Infrastructure\Controller\UserEventController;
+use App\UserEvent\Infrastructure\Controller\UserRealtimeController;
 use App\User\Infrastructure\Controller\UserController;
 
 // Explicit API routes live here (routing stays in config, not in controllers).
@@ -183,6 +185,26 @@ $config = Routes::config([
         'path' => '/api/realtime/token',
         'controller' => [RealtimeController::class, 'token'],
         'methods' => ['GET'],
+    ],
+    'api_user_realtime_token' => [
+        'path' => '/api/realtime/user-token',
+        'controller' => [UserRealtimeController::class, 'token'],
+        'methods' => ['GET'],
+    ],
+    'api_user_events_list' => [
+        'path' => '/api/user-events',
+        'controller' => [UserEventController::class, 'index'],
+        'methods' => ['GET'],
+    ],
+    'api_user_events_unread_count' => [
+        'path' => '/api/user-events/unread-count',
+        'controller' => [UserEventController::class, 'unreadCount'],
+        'methods' => ['GET'],
+    ],
+    'api_user_events_seen' => [
+        'path' => '/api/user-events/seen',
+        'controller' => [UserEventController::class, 'seen'],
+        'methods' => ['POST'],
     ],
     'api_call_token' => [
         'path' => '/api/call/token',

@@ -148,6 +148,10 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_user_avatar_get' => self::userRoute(200),
             'api_call_token' => self::userRoute(200),
             'api_call_rooms' => self::userRoute(200),
+            'api_user_realtime_token' => self::userRoute(200),
+            'api_user_events_list' => self::userRoute(200),
+            'api_user_events_unread_count' => self::userRoute(200),
+            'api_user_events_seen' => self::userRoute(204),
 
             // Public
             'api_ping' => self::publicRoute(200),
@@ -438,6 +442,10 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_mcp_token' => ['POST', '/api/mcp/token', []],
             'api_call_token' => ['GET', '/api/call/token', null],
             'api_call_rooms' => ['GET', '/api/call/rooms', null],
+            'api_user_realtime_token' => ['GET', '/api/realtime/user-token', null],
+            'api_user_events_list' => ['GET', '/api/user-events', null],
+            'api_user_events_unread_count' => ['GET', '/api/user-events/unread-count', null],
+            'api_user_events_seen' => ['POST', '/api/user-events/seen', null],
             'api_auth_password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
             'api_user_avatar_update' => ['POST', '/api/users/me/avatar', null, ['file' => $this->uploadedImageFile()]],
             'api_user_avatar_delete' => ['DELETE', '/api/users/me/avatar', null],
