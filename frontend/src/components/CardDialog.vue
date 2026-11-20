@@ -25,6 +25,7 @@ import { fromYmd, toYmd } from '../utils/dates'
 import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
 import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
 import AttachmentChip from './AttachmentChip.vue'
+import ClipboardPasteDialog from './ClipboardPasteDialog.vue'
 import Modal from './Modal.vue'
 import UserAvatar from './UserAvatar.vue'
 
@@ -301,6 +302,24 @@ function onCommentFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement
     const files = [...(input.files ?? [])]
     input.value = ''
+    addCommentFiles(files)
+}
+
+// Where the clipboard dialog was opened from: a new comment or the card's attachments.
+const clipboardTarget = ref<'comment' | 'card' | null>(null)
+
+function onClipboardImage(file: File): void {
+    const target = clipboardTarget.value
+    clipboardTarget.value = null
+    if (target === 'card') {
+        void uploadCardFiles([file])
+    } else {
+        addCommentFiles([file])
+    }
+}
+
+/** One path for picked and pasted files, so the per-comment limits apply to both. */
+function addCommentFiles(files: File[]): void {
     detailError.value = null
 
     const selected = [...commentFiles.value]
@@ -640,6 +659,13 @@ async function restore(): Promise<void> {
                                     :disabled="attachmentBusy"
                                     @click="cardFileInput?.click()"
                                 />
+                                <Button
+                                    severity="secondary"
+                                    size="small"
+                                    label="Clipboard"
+                                    :disabled="attachmentBusy"
+                                    @click="clipboardTarget = 'card'"
+                                />
                             </div>
                         </div>
                         <p
@@ -751,6 +777,14 @@ async function restore(): Promise<void> {
                                 @click="commentFileInput?.click()"
                             />
                             <Button
+                                severity="secondary"
+                                text
+                                size="small"
+                                label="Clipboard"
+                                :disabled="commentSaving"
+                                @click="clipboardTarget = 'comment'"
+                            />
+                            <Button
                                 label="Add comment"
                                 :disabled="commentSaving || newComment.trim() === ''"
                                 @click="addComment"
@@ -856,5 +890,9 @@ async function restore(): Promise<void> {
                 />
             </div>
         </div>
+        <ClipboardPasteDialog
+            v-if="clipboardTarget !== null"
+            @cancel="clipboardTarget = null"
+            @done="onClipboardImage"/>
     </Modal>
 </template>
