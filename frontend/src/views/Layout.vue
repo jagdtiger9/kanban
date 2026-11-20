@@ -199,11 +199,8 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                 >
                     Users
                 </RouterLink>
-                <RouterLink
-                    to="/settings"
-                    class="rounded-lg border border-line-strong px-3 py-1.5 text-body transition-colors hover:border-line-emphasis hover:text-strong"
-                >
-                    Settings
+                <RouterLink to="/settings">
+                    <i class="fa-solid fa-gear fa-lg text-white/70 hover:text-white" title="Settings"></i>
                 </RouterLink>
                 <Button severity="secondary" size="small" label="Log out" @click="logout"/>
             </div>
