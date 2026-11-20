@@ -266,9 +266,9 @@ const openSettings = (event: Event) => {
                         v-if="events.unreadCount"
                         :value="events.unreadCount > 9 ? '9+' : events.unreadCount"
                         size="small" severity="warn">
-                        <i class="fa-regular fa-bell fa-lg"></i>
+                        <i class="fa-regular fa-bell fa-lg text-body"></i>
                     </OverlayBadge>
-                    <i v-else class="fa-regular fa-bell fa-lg"></i>
+                    <i v-else class="fa-regular fa-bell fa-lg text-body"></i>
                 </button>
                 <Button
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
