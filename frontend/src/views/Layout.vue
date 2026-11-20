@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Badge from 'primevue/badge'
-import { OverlayBadge } from 'primevue'
+import { Divider, OverlayBadge, Popover } from 'primevue'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
-import { Divider } from 'primevue'
-import { Popover } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
 import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
@@ -243,12 +240,13 @@ const openSettings = (event: Event) => {
                     :aria-label="events.unreadCount > 0 ? `Notifications (${events.unreadCount} unread)` : 'Notifications'"
                     title="Notifications"
                     @click="openNotifications">
-                    <i class="fa-regular fa-bell fa-lg"></i>
-                    <Badge
-                        v-if="events.unreadCount > 0"
+                    <OverlayBadge
+                        v-if="events.unreadCount"
                         :value="events.unreadCount > 9 ? '9+' : events.unreadCount"
-                        severity="danger"
-                        class="absolute -right-1 -top-1"/>
+                        size="small" severity="warn">
+                        <i class="fa-regular fa-bell fa-lg"></i>
+                    </OverlayBadge>
+                    <i v-else class="fa-regular fa-bell fa-lg"></i>
                 </button>
             </div>
             <div class="hidden lg:flex items-center gap-3">
@@ -265,10 +263,12 @@ const openSettings = (event: Event) => {
                     title="Notifications"
                     @click="openNotifications">
                     <OverlayBadge
+                        v-if="events.unreadCount"
                         :value="events.unreadCount > 9 ? '9+' : events.unreadCount"
                         size="small" severity="warn">
-                    <i class="fa-regular fa-bell fa-lg"></i>
+                        <i class="fa-regular fa-bell fa-lg"></i>
                     </OverlayBadge>
+                    <i v-else class="fa-regular fa-bell fa-lg"></i>
                 </button>
                 <Button
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
