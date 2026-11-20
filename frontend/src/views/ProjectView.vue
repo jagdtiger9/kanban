@@ -120,20 +120,6 @@ function unseenLabel(count: number): string {
     return count === 1 ? '1 new event' : `${count} new events`
 }
 
-const totalUnseen = computed(() => {
-    let total = 0
-    for (const count of unseenByColumn.value.values()) total += count
-    return total
-})
-
-watch(
-    totalUnseen,
-    (count) => {
-        document.title = count > 0 ? `(${count}) Kanban` : 'Kanban'
-    },
-    { immediate: true },
-)
-
 const boardEl = ref<HTMLElement | null>(null)
 let sortable: Sortable | null = null
 const cardSortables: Sortable[] = []
@@ -456,7 +442,6 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-    document.title = 'Kanban'
     document.removeEventListener('click', onDocumentClick)
     sortable?.destroy()
     for (const instance of cardSortables) instance.destroy()

@@ -12,6 +12,8 @@ the status — a card moves between columns and carries no separate status field
 - Email-confirmed accounts, self-service password change, and profile photos
 - Dark/light theme, dark by default
 - Realtime board invalidation over Centrifugo
+- Per-user notification feed: bell with unread badge, drawer, live updates on a personal
+  Centrifugo channel
 
 ## Stack
 
@@ -26,7 +28,7 @@ realtime; RabbitMQ worker for async side effects.
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | Coding-agent contract and project principles |
 | [docs/conventions.md](docs/conventions.md) | Project conventions, package usage, cookbook |
-| [docs/plans/](docs/plans/) | Implementation decision records (outbox, realtime, attachments) |
+| [docs/plans/](docs/plans/) | Implementation decision records (outbox, realtime, attachments, notifications) |
 
 ## Media storage
 

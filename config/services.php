@@ -8,11 +8,14 @@ use App\Shared\Application\Storage\FileStorage;
 use App\Shared\Infrastructure\Doctrine\DoctrineEventRepository;
 use App\Shared\Infrastructure\Media\GdImageProcessor;
 use App\Shared\Infrastructure\Storage\LocalFileStorage;
+use App\UserEvent\Domain\Service\RecipientResolver;
+use App\UserEvent\Domain\Service\RecipientRule;
 use Redis;
 use Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\env;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\tagged_iterator;
 
 # This file is the entry point to configure your own services.
 # Files in the packages/ subdirectory configure your dependencies.
@@ -37,6 +40,13 @@ return App::config([
         // makes classes in src/ available to be used as services
         // this creates a service per class whose id is the fully-qualified class name
         'App\\' => ['resource' => '../src/'],
+
+        '_instanceof' => [
+            RecipientRule::class => ['tags' => ['user_event.recipient_rule']],
+        ],
+        RecipientResolver::class => [
+            'arguments' => [tagged_iterator('user_event.recipient_rule')],
+        ],
 
         Redis::class => [
             'class' => Redis::class,

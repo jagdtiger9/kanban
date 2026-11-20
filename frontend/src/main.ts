@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import { preset } from './primevue/preset'
 import { themePreset } from './primevue/primeTheme'
+import '@fortawesome/fontawesome-free/css/all.min.css'
 import './style.css'
 
 const app = createApp(App)

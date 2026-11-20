@@ -43,6 +43,12 @@ return App::config([
                     'prefix' => 'App\\Board\\Domain\\Entity',
                     'is_bundle' => false,
                 ],
+                'App\\UserEvent' => [
+                    'type' => 'attribute',
+                    'dir' => '%kernel.project_dir%/src/UserEvent/Domain/Entity',
+                    'prefix' => 'App\\UserEvent\\Domain\\Entity',
+                    'is_bundle' => false,
+                ],
                 'App\\News' => [
                     'type' => 'attribute',
                     'dir' => '%kernel.project_dir%/src/News/Domain/Entity',

@@ -17,6 +17,7 @@
 ###> frontend ###
 /frontend/node_modules/
 /public/build/
+/frontend/tsconfig.tsbuildinfo
 ###< frontend ###
 
 ###> IDE ###
