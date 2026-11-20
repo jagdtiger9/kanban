@@ -187,7 +187,7 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     severity="secondary"
-                    outlined
+                    text
                     size="small"
                     :label="isDark ? '☀' : '☾'"
                     @click="toggleTheme"
@@ -268,15 +268,16 @@ async function onFavourite(project: ProjectPayload, isFavourite: boolean): Promi
                 <div class="mb-3 flex items-center justify-between">
                     <button
                         type="button"
-                        class="flex cursor-pointer items-center gap-1 text-xs font-semibold uppercase tracking-wider text-faint transition-colors hover:text-body"
+                        class="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-muted transition-colors hover:text-body"
                         :aria-expanded="!projectsCollapsed"
                         aria-controls="other-projects"
                         @click="projectsCollapsed = !projectsCollapsed">
-                        <span class="text-[10px]">{{ projectsCollapsed ? '▸' : '▾' }}</span>
+                        <span class="w-4 text-base leading-none">{{ projectsCollapsed ? '▸' : '▾' }}</span>
                         Projects
                     </button>
                     <Button
                         aria-label="New project"
+                        severity="secondary"
                         text
                         size="small"
                         label="+ New"

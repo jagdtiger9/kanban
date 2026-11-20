@@ -390,7 +390,7 @@ function askArchive(): void {
     confirm.require({
         header: 'Archive card',
         message: 'Archive this card? It will disappear from the board until “Show archived cards” is enabled.',
-        acceptProps: { label: 'Archive', severity: 'danger' },
+        acceptProps: { label: 'Archive', severity: 'secondary' },
         rejectProps: { label: 'Cancel', severity: 'secondary' },
         accept: archive,
     })
@@ -842,8 +842,7 @@ async function restore(): Promise<void> {
             <div v-if="canManage" class="border-t border-line pt-3">
                 <Button
                     v-if="!props.card.archived"
-                    severity="danger"
-                    outlined
+                    severity="secondary"
                     size="small"
                     label="Archive"
                     @click="askArchive"

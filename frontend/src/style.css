@@ -7,17 +7,20 @@
    carries exactly one of .dark / .light (set before mount in index.html). */
 .dark {
     color-scheme: dark;
-    --app-page: #09090b;
-    --app-panel: #18181b;
-    --app-raised: #27272a;
+    /* page < column < card: each layer clearly lighter than the one below */
+    --app-page: #0f1013;
+    --app-panel: #1c1e23;
+    --app-raised: #2c2f36;
     --app-active: #3f3f46;
-    --app-line: #27272a;
+    --app-line: #33363e;
     --app-line-strong: #3f3f46;
     --app-line-emphasis: #71717a;
     --app-strong: #f4f4f5;
     --app-body: #d4d4d8;
     --app-muted: #a1a1aa;
-    --app-faint: #71717a;
+    /* ≥ 4.5:1 on page and panel */
+    --app-faint: #8e8e98;
+    --app-card-shadow: 0 1px 0 rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.35);
     --app-brand: #0284c7;
     --app-brand-hover: #0ea5e9;
     --app-brand-text: #38bdf8;
@@ -42,7 +45,9 @@
     --app-strong: #18181b;
     --app-body: #3f3f46;
     --app-muted: #52525b;
-    --app-faint: #71717a;
+    /* ≥ 4.5:1 on page (#f4f4f5) */
+    --app-faint: #6a6a73;
+    --app-card-shadow: 0 1px 0 rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.12);
     --app-brand: #0284c7;
     --app-brand-hover: #0ea5e9;
     --app-brand-text: #0369a1;
@@ -77,8 +82,18 @@
     --color-danger-text-hover: var(--app-danger-text-hover);
     --color-warn: var(--app-warn);
     --color-warn-text: var(--app-warn-text);
+    --shadow-card: var(--app-card-shadow);
 }
 
 body {
     @apply bg-page text-strong antialiased;
+}
+
+/* Browser autofill paints inputs light blue; keep them on the theme surface. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--app-strong);
+    box-shadow: 0 0 0 1000px var(--app-raised) inset;
+    caret-color: var(--app-strong);
 }

@@ -53,8 +53,7 @@ function openDelete(): void {
 <template>
     <li class="relative">
         <div
-            class="group flex items-center rounded-lg transition-colors"
-            :class="project.isFavourite ? 'bg-warn/10' : 'hover:bg-raised'">
+            class="group flex items-center rounded-lg transition-colors hover:bg-raised">
             <button
                 v-if="project.isFavourite !== undefined"
                 type="button"

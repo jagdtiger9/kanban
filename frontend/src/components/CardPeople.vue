@@ -26,12 +26,12 @@ function roleSummary(person: CardPerson): string {
 </script>
 
 <template>
-    <div class="flex items-center gap-1">
+    <div class="flex items-center -space-x-1.5">
         <button
             v-for="person in visiblePeople"
             :key="person.id"
             type="button"
-            class="people-badge cursor-pointer rounded-full transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
+            class="people-badge cursor-pointer rounded-full ring-2 ring-raised transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
             :aria-label="`${person.name ?? 'Unknown member'}: ${roleSummary(person)}`"
             :title="`${person.name ?? 'Unknown member'} — ${roleSummary(person)}`"
             @click.stop="showModal = true"
@@ -45,7 +45,7 @@ function roleSummary(person: CardPerson): string {
         <button
             v-if="hiddenCount > 0"
             type="button"
-            class="people-badge flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-active text-[10px] font-semibold text-strong transition-colors hover:bg-line-emphasis focus-visible:outline-2 focus-visible:outline-brand"
+            class="people-badge flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-active ring-2 ring-raised text-[10px] font-semibold text-strong transition-colors hover:bg-line-emphasis focus-visible:outline-2 focus-visible:outline-brand"
             :aria-label="`Show ${hiddenCount} more ${hiddenCount === 1 ? 'person' : 'people'} on this card`"
             :title="`+${hiddenCount} more`"
             @click.stop="showModal = true"

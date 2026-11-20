@@ -63,6 +63,10 @@ export const themePreset = definePreset(Nora, {
                 content: {
                     borderColor: '{surface.600}',
                 },
+                // denser modal backdrop: the board behind a dialog must recede
+                mask: {
+                    background: 'rgba(0,0,0,0.6)',
+                },
                 formField: {
                     borderColor: '{surface.500}',
                     hoverBorderColor: '{primary.color}',

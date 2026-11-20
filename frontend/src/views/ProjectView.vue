@@ -534,7 +534,7 @@ function closeCard(): void {
                         :key="member.userId"
                         class="rounded-full bg-raised px-2.5 py-1 text-xs text-body">
                         {{ member.displayName }}
-                    <span v-if="member.role === 'admin'" class="text-brand-text">· admin</span>
+                    <span v-if="member.role === 'admin'" class="text-muted">· admin</span>
                     <CallBadge :project-id="projectId" :user-id="member.userId"/>
                     </span>
                 </div>
@@ -542,7 +542,7 @@ function closeCard(): void {
             <p v-else class="text-faint">Loading…</p>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
+        <div class="flex min-h-0 flex-1 flex-col p-3 sm:p-6">
             <p
                 v-if="actionError"
                 class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
@@ -555,14 +555,16 @@ function closeCard(): void {
                 </label>
                 <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
             </div>
-            <div ref="boardEl" class="flex items-start gap-3">
+            <div
+                ref="boardEl"
+                class="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto pb-2 max-sm:snap-x max-sm:snap-mandatory">
                 <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-faint">
                     This board has no columns yet. Use “+ Add column” to start organizing cards.
                 </p>
                 <div
                     v-for="column in columns"
                     :key="column.id"
-                    class="board-column relative w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line bg-panel/60 sm:w-72">
+                    class="board-column relative flex max-h-full w-[calc(100vw-3rem)] max-w-72 shrink-0 snap-start flex-col rounded-xl bg-panel sm:w-72">
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle flex min-w-0 flex-1 items-center gap-2 cursor-grab px-3 py-2 active:cursor-grabbing">
                             <span class="min-w-0 truncate font-semibold">{{ column.name }}</span>
@@ -590,12 +592,14 @@ function closeCard(): void {
                                 @click="askDelete(column)"/>
                         </div>
                     </div>
-                    <div class="flex flex-col gap-1 p-2">
-                        <div :data-column-id="column.id" class="card-list flex min-h-10 flex-col gap-1.5">
+                    <div class="flex min-h-0 flex-col gap-1 p-2">
+                        <div
+                            :data-column-id="column.id"
+                            class="card-list -mx-1 flex min-h-10 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
                             <Card
                                 v-for="card in columnCards(column.id)"
                                 :key="card.id"
-                                class="board-card block w-full cursor-pointer rounded-lg border border-line bg-raised/70 transition-colors hover:border-line-emphasis"
+                                class="board-card block w-full shrink-0 cursor-pointer rounded-lg border border-line bg-raised shadow-card transition-colors hover:border-line-emphasis"
                                 :class="{ 'opacity-50': card.archived }"
                                 :data-card-id="card.id"
                                 @click="setActiveCard(card)">
@@ -655,7 +659,7 @@ function closeCard(): void {
                             severity="secondary"
                             text
                             size="small"
-                            class="mt-1 w-full justify-start"
+                            class="mt-1 w-full justify-start text-body hover:bg-raised"
                             label="+ Add card"
                             @click="startAddCard(column.id)"
                         />
@@ -679,7 +683,7 @@ function closeCard(): void {
                 <button
                     v-else
                     type="button"
-                    class="w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer rounded-xl border border-dashed border-line-strong px-3 py-2 text-left text-faint transition-colors hover:border-line-emphasis hover:text-body sm:w-72"
+                    class="mr-6 w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer snap-start rounded-xl bg-panel/50 px-3 py-2 text-left text-body transition-colors hover:bg-panel hover:text-strong sm:w-72"
                     @click="addingColumn = true">
                     + Add column
                 </button>
