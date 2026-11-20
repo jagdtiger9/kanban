@@ -18,11 +18,14 @@ use App\Project\Application\Message\Query\ListProjectsQuery;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Enum\MemberRole;
 use App\User\Domain\Repository\UserRepository;
+use App\UserEvent\Application\Dto\UserEventPage;
+use App\UserEvent\Application\Message\Query\ListUserEventsQuery;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Schema\ToolAnnotations;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class ReadTools
 {
@@ -33,7 +36,22 @@ final class ReadTools
         private McpToolRunner $runner,
         private UserRepository $userRepository,
         private CardContext $context,
+        #[Autowire('%mcp.version%')]
+        private string $version,
     ) {
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    #[McpTool(
+        name: 'mcp_version',
+        description: 'Version of this kanban MCP server: a plain build number (2, 3, 4…) that grows with every release. Use it to tell which build is deployed.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
+    )]
+    public function mcpVersion(): array
+    {
+        return ['server' => 'kanban', 'version' => $this->version];
     }
 
     /**
@@ -157,6 +175,44 @@ final class ReadTools
                 'payload' => $activity->payload(),
                 'at' => $activity->createdAt()->format(\DateTimeInterface::ATOM),
             ], $result['activities']),
+        ];
+    }
+
+    /**
+     * The user's own notifications (UserEvent module): one indexed table, names stored at
+     * write time, cursor pages — no joins over the working tables. Never marks anything
+     * seen: the user still sees them unread on the site.
+     *
+     * @return array<string, mixed>
+     */
+    #[McpTool(
+        name: 'my_notifications',
+        description: 'What\'s new for the user: their notifications, newest first — assigned to / removed from a card, new comments on cards they created or are assigned to, role changes, project archived or restored. Read-only; does not mark anything as seen. Pass nextCursor to get older ones.',
+        annotations: new ToolAnnotations(readOnlyHint: true),
+    )]
+    public function myNotifications(
+        #[Schema(description: 'nextCursor from the previous call; omit for the newest page')]
+        ?string $cursor = null,
+        #[Schema(description: 'Page size, 1–50', minimum: 1, maximum: 50)]
+        int $limit = 20,
+    ): array {
+        /** @var UserEventPage $page */
+        $page = $this->runner->query(new ListUserEventsQuery($cursor, $limit, $this->runner->actorId()));
+
+        return [
+            'notifications' => array_map(fn(array $item): array => [
+                'at' => $item['occurredOn'],
+                'type' => $item['type'],
+                'unread' => $item['seenAt'] === null,
+                'actor' => $item['actorName'],
+                'project' => $item['projectName'],
+                'projectId' => $item['projectId'],
+                'card' => $item['cardTitle'],
+                'cardId' => $item['cardId'],
+                'role' => $item['role'],
+                'url' => is_string($item['projectId']) ? $this->runner->projectUrl($item['projectId']) : null,
+            ], $page->items),
+            'nextCursor' => $page->nextCursor,
         ];
     }
 

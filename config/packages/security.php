@@ -34,9 +34,10 @@ return App::config([
                 'pattern' => '^/(_(profiler|wdt)|css|images|js)/',
                 'security' => false,
             ],
-            // MCP server: stateless Bearer-token auth + rate limits (src/Mcp)
+            // MCP server: stateless Bearer-token auth + rate limits (src/Mcp).
+            // Exactly /api/mcp: /api/mcp/token is a session route of the `main` firewall.
             'mcp' => [
-                'pattern' => '^/mcp',
+                'pattern' => '^/api/mcp$',
                 'stateless' => true,
                 'provider' => 'app_user_provider',
                 'entry_point' => McpTokenAuthenticator::class,
@@ -78,7 +79,6 @@ return App::config([
             ['path' => '^/api/auth/login', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/login_check', 'roles' => ['PUBLIC_ACCESS']],
             ['path' => '^/api/.+$', 'roles' => [UserRole::ROLE_USER->name]],
-            ['path' => '^/mcp', 'roles' => [UserRole::ROLE_USER->name]],
         ],
     ],
     // By default, password hashers are resource intensive and take time. This is

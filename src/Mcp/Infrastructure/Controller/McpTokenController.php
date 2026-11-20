@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Mcp\Infrastructure\Controller;
 
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
+use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
 use App\Mcp\Application\Message\Command\IssueMcpTokenCommand;
+use App\Mcp\Application\Message\Query\GetMcpInfoQuery;
 use App\Mcp\Application\Service\IssuedMcpToken;
 use App\Shared\Infrastructure\Security\SecurityUser;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,7 +19,13 @@ final class McpTokenController extends AbstractController
 {
     public function __construct(
         private CommandBus $commandBus,
+        private QueryBus $queryBus,
     ) {
+    }
+
+    public function info(GetMcpInfoQuery $query): JsonResponse
+    {
+        return $this->json($this->queryBus->query($query));
     }
 
     public function issue(IssueMcpTokenCommand $command, Security $security): JsonResponse
