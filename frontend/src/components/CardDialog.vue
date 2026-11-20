@@ -7,6 +7,7 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
 import * as attachmentsApi from '../api/attachments'
 import type { AttachmentPayload } from '../api/attachments'
@@ -21,6 +22,7 @@ import type {
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { text2Clipboard } from '../utils/clipboard'
 import { fromYmd, toYmd } from '../utils/dates'
 import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
 import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
@@ -44,6 +46,7 @@ const emit = defineEmits<{
 
 const auth = useAuthStore()
 const confirm = useConfirm()
+const toast = useToast()
 const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
 const canDeleteComment = (comment: CommentPayload): boolean =>
@@ -536,11 +539,34 @@ async function restore(): Promise<void> {
         saving.value = false
     }
 }
+
+function copyCardLink(): void {
+    text2Clipboard({
+        text: window.location.href,
+        callbackSuccess: () => toast.add({
+            severity: 'info',
+            summary: 'Card link copied to clipboard',
+            life: 3000,
+        }),
+        callbackError: () => toast.add({
+            severity: 'error',
+            summary: 'Could not copy the link',
+            life: 3000,
+        }),
+    })
+}
 </script>
 
 <template>
     <Modal size="xl" @close="emit('close')">
-        <template #title>{{ props.card.title }}</template>
+        <template #title>
+            {{ props.card.title }}
+        </template>
+        <template #attributes>
+            <i class="fa-solid fa-share-nodes cursor-pointer text-muted hover:text-strong"
+                title="Copy card link"
+                @click="copyCardLink"></i>
+        </template>
         <div>
             <p v-if="error"
                class="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
