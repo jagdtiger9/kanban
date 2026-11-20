@@ -12,4 +12,6 @@ interface CardParticipantsProvider
     public function assigneeIds(UuidInterface $cardId): array;
 
     public function creatorId(UuidInterface $cardId): ?UuidInterface;
+
+    public function projectId(UuidInterface $cardId): ?UuidInterface;
 }

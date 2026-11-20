@@ -9,10 +9,10 @@ const call = useCallStore()
 
 <template>
     <Button
-        size="small"
-        severity="secondary"
-        label="Call"
-        :disabled="call.status === 'joining'"
-        @click="call.open(props.projectId)"
-    />
+        :severity="call.status === 'joining' ? 'secondary' : 'success'"
+        text size="small" title="Call" class="fa-lg"
+        :disabled="call.status === 'joining'" @click="call.open(props.projectId)">
+        <i class="fa-solid fa-phone"></i>
+    </Button>
+
 </template>

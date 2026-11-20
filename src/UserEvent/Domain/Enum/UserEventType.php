@@ -6,6 +6,7 @@ namespace App\UserEvent\Domain\Enum;
 
 enum UserEventType: string
 {
+    case CardCreated = 'card.created';
     case CardAssigned = 'card.assigned';
     case CardUnassigned = 'card.unassigned';
     case CommentCreated = 'comment.created';

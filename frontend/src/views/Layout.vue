@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Badge from 'primevue/badge'
+import { OverlayBadge } from 'primevue'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
 import { Divider } from 'primevue'
@@ -53,6 +54,7 @@ watch(notificationsOpen, async (open) => {
 })
 
 const USER_EVENT_VERBS: Record<string, (item: UserEventItem) => string> = {
+    'card.created': (item) => `created “${item.cardTitle ?? 'a card'}”`,
     'card.assigned': (item) => `assigned you to “${item.cardTitle ?? 'a card'}”`,
     'card.unassigned': (item) => `unassigned you from “${item.cardTitle ?? 'a card'}”`,
     'comment.created': (item) => `commented on “${item.cardTitle ?? 'a card'}”`,
@@ -112,7 +114,7 @@ watch(membersTarget, (target) => {
 
 onMounted(async () => {
     document.addEventListener('keydown', onKeydown)
-    projects.fetchProjects()
+    await projects.fetchProjects()
     void events.load()
     try {
         await ping()
@@ -130,7 +132,7 @@ onBeforeUnmount(() => {
 async function logout(): Promise<void> {
     events.reset()
     await auth.logout()
-    router.push({ name: 'login' })
+    await router.push({ name: 'login' })
 }
 
 function onCreated(id: string): void {
@@ -234,6 +236,21 @@ const openSettings = (event: Event) => {
                     Kanban
                 </RouterLink>
             </div>
+            <div class="lg:hidden">
+                <button
+                    type="button"
+                    class="cursor-pointer text-white/70 hover:text-white"
+                    :aria-label="events.unreadCount > 0 ? `Notifications (${events.unreadCount} unread)` : 'Notifications'"
+                    title="Notifications"
+                    @click="openNotifications">
+                    <i class="fa-regular fa-bell fa-lg"></i>
+                    <Badge
+                        v-if="events.unreadCount > 0"
+                        :value="events.unreadCount > 9 ? '9+' : events.unreadCount"
+                        severity="danger"
+                        class="absolute -right-1 -top-1"/>
+                </button>
+            </div>
             <div class="hidden lg:flex items-center gap-3">
                 <div class="flex items-center gap-1.5 text-xs text-muted">
                     <span
@@ -247,12 +264,11 @@ const openSettings = (event: Event) => {
                     :aria-label="events.unreadCount > 0 ? `Notifications (${events.unreadCount} unread)` : 'Notifications'"
                     title="Notifications"
                     @click="openNotifications">
-                    <i class="fa-regular fa-bell fa-lg"></i>
-                    <Badge
-                        v-if="events.unreadCount > 0"
+                    <OverlayBadge
                         :value="events.unreadCount > 9 ? '9+' : events.unreadCount"
-                        severity="danger"
-                        class="absolute -right-1 -top-1"/>
+                        size="small" severity="warn">
+                    <i class="fa-regular fa-bell fa-lg"></i>
+                    </OverlayBadge>
                 </button>
                 <Button
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
@@ -275,19 +291,17 @@ const openSettings = (event: Event) => {
         </header>
 
         <div class="flex flex-1 overflow-hidden">
-            <div
-                v-if="drawerOpen"
-                class="fixed inset-0 z-30 bg-black/60 lg:hidden"
-                @click="drawerOpen = false"
-            />
+            <div v-if="drawerOpen" @click="drawerOpen = false"
+                 class="fixed inset-0 z-30 bg-black/60 lg:hidden"/>
             <aside
                 id="app-drawer"
                 class="fixed inset-y-0 left-0 z-40 flex w-72 max-w-[calc(100vw-3rem)] shrink-0 flex-col overflow-y-auto border-r border-line bg-panel p-4 transition-transform duration-200 lg:static lg:z-auto lg:w-60 lg:max-w-none lg:translate-x-0 lg:bg-panel/40"
                 :class="drawerOpen ? 'translate-x-0' : '-translate-x-full'">
                 <div class="mb-4 flex items-center justify-between lg:hidden">
                     <h2 class="text-xs font-semibold uppercase tracking-wider text-faint">Menu</h2>
-                    <Button @click="drawerOpen = false"
-                            aria-label="Close menu" severity="secondary" text size="small" label="✕"/>
+                    <Button
+                        @click="drawerOpen = false"
+                        aria-label="Close menu" severity="secondary" text size="small" label="✕"/>
                 </div>
 
                 <div class="mb-4 flex items-center gap-2 border-b border-line pb-3 lg:hidden">

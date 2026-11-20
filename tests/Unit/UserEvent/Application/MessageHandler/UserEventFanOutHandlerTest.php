@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\UserEvent\Application\MessageHandler;
 
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardUnassigned;
 use App\Board\Domain\Event\CommentCreated;
 use App\Project\Domain\Enum\MemberRole;
@@ -22,6 +23,7 @@ use App\UserEvent\Domain\Port\ProjectMembersProvider;
 use App\UserEvent\Domain\Repository\UserEventRepository;
 use App\UserEvent\Domain\Service\RecipientResolver;
 use App\UserEvent\Domain\Service\Rule\CardAssignedRule;
+use App\UserEvent\Domain\Service\Rule\CardCreatedRule;
 use App\UserEvent\Domain\Service\Rule\CardUnassignedRule;
 use App\UserEvent\Domain\Service\Rule\CommentCreatedRule;
 use App\UserEvent\Domain\Service\Rule\ProjectArchivedRule;
@@ -85,6 +87,35 @@ final class UserEventFanOutHandlerTest extends TestCase
             ['actorName' => 'Alice', 'projectName' => 'Kanban', 'cardTitle' => 'Fix it'],
             $event->payload(),
         );
+    }
+
+    public function testCardCreatedNotifiesAllProjectMembersExceptActor(): void
+    {
+        $cardId = Uuid::uuid4();
+        $projectId = Uuid::uuid4();
+        $actor = Uuid::uuid4();
+        $member = Uuid::uuid4();
+        $this->participants->method('projectId')->willReturn($projectId);
+        $this->members->method('memberIds')->willReturn([$actor, $member]);
+        $this->contexts->method('card')->willReturn(new CardEventContext($projectId, 'Kanban', 'New card'));
+        $this->contexts->method('userName')->willReturn('Alice');
+        $this->captureSaves(1);
+        $this->captureNotify(1);
+
+        $this->handler()->onCardCreated(new CardCreated((string) $cardId, (string) $actor));
+
+        $event = $this->saved[0];
+        self::assertTrue($member->equals($event->userId()));
+        self::assertSame(UserEventType::CardCreated, $event->type());
+        self::assertTrue($cardId->equals($event->aggregateRootId()));
+        self::assertTrue($projectId->equals($event->projectId()));
+        self::assertTrue($cardId->equals($event->cardId()));
+        self::assertSame(
+            ['actorName' => 'Alice', 'projectName' => 'Kanban', 'cardTitle' => 'New card'],
+            $event->payload(),
+        );
+        self::assertSame('card.created', $this->notified[0]['item']['type']);
+        self::assertTrue($member->equals($this->notified[0]['userId']));
     }
 
     public function testSelfAssignmentIsSilent(): void
@@ -226,6 +257,7 @@ final class UserEventFanOutHandlerTest extends TestCase
     {
         return new UserEventFanOutHandler(
             new RecipientResolver([
+                new CardCreatedRule($this->participants, $this->members),
                 new CardAssignedRule(),
                 new CardUnassignedRule(),
                 new CommentCreatedRule($this->participants),
