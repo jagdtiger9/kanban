@@ -276,7 +276,7 @@ const openSettings = (event: Event) => {
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     @click="toggleTheme">
-                    <i class="fa-solid fa-lg" :class="isDark ? 'fa-sun' : 'fa-moon'"></i>
+                    <i class="fa-regular fa-lg" :class="isDark ? 'fa-sun text-yellow-500' : 'fa-moon text-mist-600'"></i>
                 </button>
                 <RouterLink
                     v-if="isAdmin"
@@ -429,8 +429,9 @@ const openSettings = (event: Event) => {
                         size="small"
                         class="w-full justify-start"
                         :label="isDark ? 'Light theme' : 'Dark theme'"
-                        :icon="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"
-                        @click="toggleTheme"/>
+                        @click="toggleTheme">
+                        <i class="fa-regular fa-lg" :class="isDark ? 'fa-sun text-yellow-500' : 'fa-moon text-mist-600'"></i>
+                    </Button>
                     <Button
                         severity="secondary"
                         text
@@ -494,7 +495,7 @@ const openSettings = (event: Event) => {
                 <span class="text-body">{{ auth.user?.displayName }}</span>
                 <Divider/>
                 <RouterLink to="/settings">
-                    <i class="fa-solid fa-gear fa-lg text-white/70 hover:text-white" title="Settings"></i>
+                    <i class="fa-solid fa-gear fa-lg text-body hover:text-strong" title="Settings"></i>
                     Settings
                 </RouterLink>
                 <Button text @click="logout" class="p-1 justify-start">Log out</Button>

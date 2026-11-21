@@ -505,28 +505,30 @@ function closeCard(): void {
                 {{ error }}
             </div>
             <template v-else-if="detail">
-                <div class="mb-2 flex items-center gap-3">
+                <div class="mb-2 flex items-center gap-10">
                     <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
-                    <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
-                    <Button
-                        :severity="showArchived ? 'info' : 'secondary'"
-                        text size="small" class="fa-lg"
-                        :title="showArchived ? 'Hide archived cards' : 'Show archived cards'"
-                        :aria-label="showArchived ? 'Hide archived cards' : 'Show archived cards'"
-                        :aria-pressed="showArchived"
-                        @click="toggleArchived">
-                        <i class="fa-solid fa-box-archive"></i>
-                    </Button>
-                    <Button
-                        severity="secondary" text size="small" class="fa-lg"
-                        title="Labels" aria-label="Labels"
-                        @click="showLabelsDialog = true">
-                        <i class="fa-solid fa-tags"></i>
-                    </Button>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
                         Archived</span>
+                    <div>
+                        <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
+                        <Button
+                            severity="secondary" text size="small" class="fa-lg"
+                            title="Labels" aria-label="Labels"
+                            @click="showLabelsDialog = true">
+                            <i class="fa-solid fa-tags"></i>
+                        </Button>
+                        <Button
+                            :severity="showArchived ? 'info' : 'secondary'"
+                            text size="small" class="fa-lg"
+                            :title="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                            :aria-label="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                            :aria-pressed="showArchived"
+                            @click="toggleArchived">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </Button>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <span
@@ -606,7 +608,8 @@ function closeCard(): void {
                                     <div class="flex items-start gap-2">
                                         <button type="button"
                                                 class="min-w-0 flex-1 cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
-                                            {{ card.title }}</button>
+                                            {{ card.title }}
+                                        </button>
                                         <span
                                             v-if="card.unseenCount > 0"
                                             class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
