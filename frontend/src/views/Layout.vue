@@ -54,6 +54,8 @@ const USER_EVENT_VERBS: Record<string, (item: UserEventItem) => string> = {
     'card.created': (item) => `created “${item.cardTitle ?? 'a card'}”`,
     'card.assigned': (item) => `assigned you to “${item.cardTitle ?? 'a card'}”`,
     'card.unassigned': (item) => `unassigned you from “${item.cardTitle ?? 'a card'}”`,
+    'card.executor_assigned': (item) => `made you the executor of “${item.cardTitle ?? 'a card'}”`,
+    'card.executor_unassigned': (item) => `removed you as executor of “${item.cardTitle ?? 'a card'}”`,
     'comment.created': (item) => `commented on “${item.cardTitle ?? 'a card'}”`,
     'project.member_role_changed': (item) =>
         item.role !== null

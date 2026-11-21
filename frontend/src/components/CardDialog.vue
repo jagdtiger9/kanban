@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
+import MultiSelect from 'primevue/multiselect'
+import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
@@ -57,6 +58,7 @@ const title = ref(props.card.title)
 const description = ref(props.card.description)
 const labelIds = ref<string[]>([...props.card.labelIds])
 const assigneeIds = ref<string[]>([...props.card.assigneeIds])
+const executorId = ref<string | null>(props.card.executorId)
 const dueDate = ref<string | null>(props.card.dueDate)
 const dueDateModel = computed(() => fromYmd(dueDate.value))
 
@@ -110,6 +112,21 @@ const memberColors = computed(() => {
     }
     return colors
 })
+
+const assigneeOptions = computed(() =>
+    props.members.map((member) => ({
+        userId: member.userId,
+        displayName: member.displayName,
+        avatarVersion: member.avatarVersion,
+        avatarColor: member.avatarColor,
+    })),
+)
+
+const selectedAssignees = computed(() =>
+    assigneeIds.value
+        .map((id) => props.members.find((member) => member.userId === id))
+        .filter((member): member is MemberPayload => member !== undefined),
+)
 
 function memberName(userId: string): string {
     return memberNames.value.get(userId) ?? 'Unknown member'
@@ -171,6 +188,10 @@ function activityText(activity: ActivityPayload): string {
             return `assigned ${payloadString(p.userName)}`
         case 'member_unassigned':
             return `unassigned ${payloadString(p.userName)}`
+        case 'executor_assigned':
+            return `made ${payloadString(p.userName)} the executor`
+        case 'executor_unassigned':
+            return `removed ${payloadString(p.userName)} as executor`
         case 'attachment_added':
             return `attached ${payloadString(p.fileName)}`
         case 'attachment_removed':
@@ -220,6 +241,13 @@ watch(
     () => props.card.assigneeIds,
     (ids) => {
         assigneeIds.value = [...ids]
+    },
+)
+
+watch(
+    () => props.card.executorId,
+    (value) => {
+        executorId.value = value
     },
 )
 
@@ -508,19 +536,39 @@ async function toggleLabel(labelId: string): Promise<void> {
     }
 }
 
-async function toggleAssignee(userId: string): Promise<void> {
-    const next = assigneeIds.value.includes(userId)
-        ? assigneeIds.value.filter((id) => id !== userId)
-        : [...assigneeIds.value, userId]
-    assigneeIds.value = next
+async function changeAssignees(next: string[] | null): Promise<void> {
+    const userIds = next ?? []
+    assigneeIds.value = userIds
     error.value = null
     try {
-        await boardApi.setCardAssignees(props.card.id, next)
-        emit('updated', { assigneeIds: next })
+        await boardApi.setCardAssignees(props.card.id, userIds)
+        emit('updated', { assigneeIds: userIds })
     } catch (e) {
         assigneeIds.value = [...props.card.assigneeIds]
         error.value = e instanceof ApiError ? e.message : 'Failed to update assignees'
     }
+}
+
+function removeAssignee(userId: string): void {
+    void changeAssignees(assigneeIds.value.filter((id) => id !== userId))
+}
+
+async function changeExecutor(userId: string | null): Promise<void> {
+    executorId.value = userId
+    error.value = null
+    try {
+        await boardApi.setCardExecutor(props.card.id, userId)
+        emit('updated', { executorId: userId })
+    } catch (e) {
+        executorId.value = props.card.executorId
+        error.value = e instanceof ApiError ? e.message : 'Failed to set executor'
+    }
+}
+
+function assignExecutorToMe(): void {
+    const userId = auth.user?.id
+    if (userId === undefined) return
+    void changeExecutor(userId)
 }
 
 async function changeDue(value: string | null): Promise<void> {
@@ -690,22 +738,19 @@ function copyCardLink(): void {
                                     multiple
                                     class="hidden"
                                     :accept="MEDIA_ACCEPT"
-                                    @change="onCardFilesSelected"
-                                />
+                                    @change="onCardFilesSelected"/>
                                 <Button
                                     severity="secondary"
                                     size="small"
                                     label="Add files"
                                     :disabled="attachmentBusy"
-                                    @click="cardFileInput?.click()"
-                                />
+                                    @click="cardFileInput?.click()"/>
                                 <Button
                                     severity="secondary"
                                     size="small"
                                     label="Clipboard"
                                     :disabled="attachmentBusy"
-                                    @click="clipboardTarget = 'card'"
-                                />
+                                    @click="clipboardTarget = 'card'"/>
                             </div>
                         </div>
                         <p
@@ -742,26 +787,85 @@ function copyCardLink(): void {
                         <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
                     </div>
 
-                    <div>
-                        <p class="mb-1.5 font-medium text-body">Assignees</p>
-                        <div v-if="props.members.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
-                            <label
-                                v-for="member in props.members"
-                                :key="member.userId"
-                                class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-body transition-colors hover:bg-raised">
-                                <Checkbox
-                                    :model-value="assigneeIds.includes(member.userId)"
-                                    :binary="true"
-                                    @update:model-value="toggleAssignee(member.userId)"/>
-                                <UserAvatar
-                                    :user-id="member.userId"
-                                    :name="member.displayName"
-                                    :avatar-version="member.avatarVersion"
-                                    :color="member.avatarColor"/>
-                                {{ member.displayName }}
-                            </label>
+                    <div class="grid grid-cols-2 gap-5">
+                        <div>
+                            <p class="mb-1.5 font-medium text-body">Assignees</p>
+                            <MultiSelect
+                                v-if="props.members.length > 0"
+                                v-model="assigneeIds"
+                                :options="assigneeOptions"
+                                option-label="displayName"
+                                option-value="userId"
+                                filter
+                                placeholder="No assignees"
+                                @update:model-value="changeAssignees">
+                                <template #option="{ option }">
+                                    <div class="flex items-center gap-2">
+                                        <UserAvatar
+                                            :user-id="option.userId"
+                                            :name="option.displayName"
+                                            :avatar-version="option.avatarVersion"
+                                            :color="option.avatarColor"/>
+                                        <span>{{ option.displayName }}</span>
+                                    </div>
+                                </template>
+                            </MultiSelect>
+                            <p v-else class="text-xs text-faint">No members.</p>
+                            <ul
+                                v-if="selectedAssignees.length > 0"
+                                class="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
+                                <li
+                                    v-for="member in selectedAssignees"
+                                    :key="member.userId"
+                                    class="flex items-center gap-2 rounded-lg px-2 py-1 text-body">
+                                    <Button
+                                        class="pl-0"
+                                        severity="secondary" text size="small" label="✕"
+                                        :title="`Unassign ${member.displayName}`"
+                                        @click="removeAssignee(member.userId)">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </Button>
+                                    <UserAvatar
+                                        :user-id="member.userId"
+                                        :name="member.displayName"
+                                        :avatar-version="member.avatarVersion"
+                                        :color="member.avatarColor"/>
+                                    <span class="min-w-0">{{ member.displayName }}</span>
+                                </li>
+                            </ul>
                         </div>
-                        <p v-else class="text-xs text-faint">No members.</p>
+                        <div>
+                            <p class="mb-1.5 font-medium text-body">Executor</p>
+                            <div v-if="props.members.length > 0" class="flex items-center gap-2">
+                                <Select
+                                    :model-value="executorId"
+                                    :options="assigneeOptions"
+                                    option-label="displayName"
+                                    option-value="userId"
+                                    placeholder="No executor"
+                                    show-clear
+                                    class="min-w-0 flex-1"
+                                    @update:model-value="(value: string | null) => changeExecutor(value)">
+                                    <template #option="{ option }">
+                                        <div class="flex items-center gap-2">
+                                            <UserAvatar
+                                                :user-id="option.userId"
+                                                :name="option.displayName"
+                                                :avatar-version="option.avatarVersion"
+                                                :color="option.avatarColor"/>
+                                            <span>{{ option.displayName }}</span>
+                                        </div>
+                                    </template>
+                                </Select>
+                                <Button
+                                    severity="secondary"
+                                    size="small"
+                                    label="Assign to me"
+                                    :disabled="auth.user?.id === executorId"
+                                    @click="assignExecutorToMe"/>
+                            </div>
+                            <p v-else class="text-xs text-faint">No members.</p>
+                        </div>
                     </div>
 
                     <div>
@@ -771,8 +875,7 @@ function copyCardLink(): void {
                             date-format="yy-mm-dd"
                             show-icon
                             show-clear
-                            @update:model-value="onDueChange"
-                        />
+                            @update:model-value="onDueChange"/>
                     </div>
                 </div>
 
@@ -858,30 +961,18 @@ function copyCardLink(): void {
                                     class="mt-1.5 space-y-1.5 pl-8">
                                     <AttachmentChip
                                         v-for="attachment in item.comment.attachments"
-                                        :key="attachment.id"
-                                        :attachment="attachment"
+                                        :key="attachment.id" :attachment="attachment"
                                         :can-delete="canDeleteComment(item.comment)"
-                                        @remove="askRemoveCommentAttachment(item.comment, attachment)"
-                                    />
+                                        @remove="askRemoveCommentAttachment(item.comment, attachment)"/>
                                 </div>
                                 <div
                                     v-if="canDeleteComment(item.comment) && editingId !== item.comment.id"
                                     class="mt-1 flex gap-3 pl-8">
                                     <Button
-                                        v-if="auth.user?.id === item.comment.authorId"
-                                        severity="secondary"
-                                        text
-                                        size="small"
-                                        label="Edit"
-                                        @click="startEdit(item.comment)"
-                                    />
-                                    <Button
-                                        severity="danger"
-                                        text
-                                        size="small"
-                                        label="Delete"
-                                        @click="askDeleteComment(item.comment)"
-                                    />
+                                        v-if="auth.user?.id === item.comment.authorId" @click="startEdit(item.comment)"
+                                        severity="secondary" text size="small" label="Edit"/>
+                                    <Button severity="danger" text size="small" label="Delete"
+                                            @click="askDeleteComment(item.comment)"/>
                                 </div>
                             </div>
                             <div v-else class="flex items-start gap-2 px-3">
@@ -890,10 +981,11 @@ function copyCardLink(): void {
                                     :name="item.event.actorId ? memberName(item.event.actorId) : null"
                                     :avatar-version="item.event.actorId ? memberAvatarVersion(item.event.actorId) : null"
                                     :color="item.event.actorId ? memberColor(item.event.actorId) : null"
-                                    class="mt-0.5"
-                                />
+                                    class="mt-0.5"/>
                                 <p class="min-w-0 flex-1 text-body">
-                                    <span class="font-medium text-strong">{{ item.event.actorId ? memberName(item.event.actorId) : 'System' }}</span>
+                                    <span class="font-medium text-strong">
+                                        {{ item.event.actorId ? memberName(item.event.actorId) : 'System' }}
+                                    </span>
                                     {{ activityText(item.event) }}
                                     <span class="ml-1 text-xs text-faint">{{ formatTime(item.event.createdAt) }}</span>
                                 </p>

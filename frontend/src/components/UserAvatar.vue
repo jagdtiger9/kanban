@@ -21,7 +21,7 @@ const sizeClass = computed(() => {
         case 'md':
             return 'h-9 w-9 text-xs'
         case 'card':
-            return 'h-8 w-8 text-xs'
+            return 'h-7 w-7 text-xs'
         default:
             return 'h-6 w-6 text-[10px]'
     }
@@ -36,8 +36,7 @@ const src = computed(() => avatarUrl(props.userId, props.avatarVersion))
         aria-hidden="true"
         class="flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
         :class="sizeClass"
-        :style="src === null ? { backgroundColor: color } : undefined"
-    >
+        :style="src === null ? { backgroundColor: color } : undefined">
         <img v-if="src !== null" :src="src" alt="" class="h-full w-full object-cover"/>
         <template v-else>{{ label }}</template>
     </span>

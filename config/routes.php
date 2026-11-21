@@ -312,6 +312,11 @@ $config = Routes::config([
         'controller' => [BoardController::class, 'setCardAssignees'],
         'methods' => ['PUT'],
     ],
+    'api_card_executor' => [
+        'path' => '/api/cards/{cardId}/executor',
+        'controller' => [BoardController::class, 'setCardExecutor'],
+        'methods' => ['PUT'],
+    ],
     'api_card_due_date' => [
         'path' => '/api/cards/{cardId}/due-date',
         'controller' => [BoardController::class, 'setCardDueDate'],

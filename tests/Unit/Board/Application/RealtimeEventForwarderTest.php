@@ -15,6 +15,8 @@ use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -157,6 +159,8 @@ final class RealtimeEventForwarderTest extends TestCase
         yield 'card restored' => [new CardRestored($cardId, $actorId), 'onCardRestored', 'card.restored'];
         yield 'card assigned' => [new CardAssigned($cardId, $userId, 'Alice', $actorId), 'onCardAssigned', 'card.assigned'];
         yield 'card unassigned' => [new CardUnassigned($cardId, $userId, 'Alice', $actorId), 'onCardUnassigned', 'card.unassigned'];
+        yield 'card executor assigned' => [new CardExecutorAssigned($cardId, $userId, 'Alice', $actorId), 'onCardExecutorAssigned', 'card.executor_assigned'];
+        yield 'card executor unassigned' => [new CardExecutorUnassigned($cardId, $userId, 'Alice', $actorId), 'onCardExecutorUnassigned', 'card.executor_unassigned'];
         yield 'card label added' => [new CardLabelAdded($cardId, $labelId, 'Bug', $actorId), 'onCardLabelAdded', 'card.label_added'];
         yield 'card label removed' => [new CardLabelRemoved($cardId, $labelId, 'Bug', $actorId), 'onCardLabelRemoved', 'card.label_removed'];
         yield 'comment created' => [new CommentCreated($cardId, $commentId, $userId), 'onCommentCreated', 'comment.created'];
