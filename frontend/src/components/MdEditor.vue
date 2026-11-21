@@ -8,6 +8,10 @@ import { useTheme } from '../composables/useTheme'
 
 const content = defineModel<string>({ required: true })
 
+// The default keeps the compact inline editor (news feed); the full editor
+// dialog takes more height.
+const props = withDefaults(defineProps<{ height?: string }>(), { height: '12rem' })
+
 const { isDark } = useTheme()
 const theme = computed(() => (isDark.value ? 'dark' : 'light'))
 
@@ -59,7 +63,7 @@ function sanitize(html: string): string {
         :scroll-auto="true"
         :show-code-row-number="true"
         input-box-width="100%"
-        style="height: 12rem"
+        :style="{ height: props.height }"
     >
         <template #defToolbars>
             <div class="flex items-center gap-2 pr-1">

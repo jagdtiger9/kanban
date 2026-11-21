@@ -22,7 +22,7 @@ const visible = computed({
         }">
         <template #header>
             <div class="flex w-full justify-between mr-5">
-                <div class="p-dialog-title">
+                <div class="p-dialog-title min-w-0 flex-1">
                     <slot name="title"/>
                 </div>
                 <div>

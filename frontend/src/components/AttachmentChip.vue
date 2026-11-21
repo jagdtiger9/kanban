@@ -91,9 +91,11 @@ async function togglePreview(): Promise<void> {
                 severity="danger"
                 text
                 size="small"
-                label="Remove"
-                @click="emit('remove')"
-            />
+                title="Remove attachment"
+                aria-label="Remove attachment"
+                @click="emit('remove')">
+                <i class="fa-solid fa-trash-can"></i>
+            </Button>
         </div>
         <div v-if="previewOpen" class="border-t border-line px-3 py-2">
             <p v-if="previewLoading" class="text-xs text-faint">Loading…</p>

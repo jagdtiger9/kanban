@@ -89,6 +89,12 @@ body {
     @apply bg-page text-strong antialiased;
 }
 
+/* Section caption in dialogs (Description, Attachments, …): quiet, so the content and
+   the blue action icons stand out. */
+@utility section-heading {
+    @apply text-xs font-semibold uppercase tracking-wide text-faint;
+}
+
 /* Browser autofill paints inputs light blue; keep them on the theme surface. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
