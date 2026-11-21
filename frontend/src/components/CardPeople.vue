@@ -58,7 +58,7 @@ function personColor(personId: string): string {
                 v-for="person in visibleRight"
                 :key="person.id"
                 type="button"
-                class="people-badge cursor-pointer rounded-full ring-3 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
+                class="people-badge cursor-pointer rounded-full ring-2 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
                 :style="{ '--tw-ring-color': personColor(person.id) }"
                 :aria-label="`${person.name ?? 'Unknown member'}: ${roleSummary(person)}`"
                 :title="`${person.name ?? 'Unknown member'} — ${roleSummary(person)}`"
@@ -83,7 +83,7 @@ function personColor(personId: string): string {
             <button
                 v-if="executorPerson !== null"
                 type="button"
-                class="people-badge shrink-0 cursor-pointer rounded-full ring-3 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
+                class="people-badge shrink-0 cursor-pointer rounded-full ring-4 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
                 :style="{ '--tw-ring-color': personColor(executorPerson.id) }"
                 :aria-label="`${executorPerson.name ?? 'Unknown member'}: ${roleSummary(executorPerson)}`"
                 :title="`${executorPerson.name ?? 'Unknown member'} — ${roleSummary(executorPerson)}`"
