@@ -56,6 +56,11 @@ $config = Routes::config([
         'controller' => [AuthController::class, 'me'],
         'methods' => ['GET'],
     ],
+    'api_mcp_info' => [
+        'path' => '/api/mcp/info',
+        'controller' => [McpTokenController::class, 'info'],
+        'methods' => ['GET'],
+    ],
     'api_mcp_token' => [
         'path' => '/api/mcp/token',
         'controller' => [McpTokenController::class, 'issue'],

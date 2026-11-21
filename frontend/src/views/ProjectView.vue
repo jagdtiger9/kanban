@@ -4,7 +4,6 @@ import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import Sortable from 'sortablejs'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -423,6 +422,7 @@ function onCardUpdated(patch: Partial<CardPayload>): void {
 }
 
 async function toggleArchived(): Promise<void> {
+    showArchived.value = !showArchived.value
     await load()
 }
 
@@ -508,6 +508,21 @@ function closeCard(): void {
                 <div class="mb-2 flex items-center gap-3">
                     <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
                     <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
+                    <Button
+                        :severity="showArchived ? 'info' : 'secondary'"
+                        text size="small" class="fa-lg"
+                        :title="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                        :aria-label="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                        :aria-pressed="showArchived"
+                        @click="toggleArchived">
+                        <i class="fa-solid fa-box-archive"></i>
+                    </Button>
+                    <Button
+                        severity="secondary" text size="small" class="fa-lg"
+                        title="Labels" aria-label="Labels"
+                        @click="showLabelsDialog = true">
+                        <i class="fa-solid fa-tags"></i>
+                    </Button>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
@@ -533,13 +548,6 @@ function closeCard(): void {
                 class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ actionError }}
             </p>
-            <div class="mb-3 flex items-center justify-between gap-3">
-                <label class="flex cursor-pointer select-none items-center gap-2 text-muted">
-                    <Checkbox v-model="showArchived" :binary="true" @update:model-value="toggleArchived"/>
-                    Show archived cards
-                </label>
-                <Button severity="secondary" size="small" label="Labels" @click="showLabelsDialog = true"/>
-            </div>
             <div
                 ref="boardEl"
                 class="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto pb-2 max-sm:snap-x max-sm:snap-mandatory">

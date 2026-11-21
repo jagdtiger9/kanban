@@ -270,11 +270,14 @@ const openSettings = (event: Event) => {
                     </OverlayBadge>
                     <i v-else class="fa-regular fa-bell fa-lg text-body"></i>
                 </button>
-                <Button
+                <button
+                    type="button"
+                    class="cursor-pointer text-body hover:text-strong"
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
-                    text :label="isDark ? '☀' : '☾'" class="px-1"
-                    @click="toggleTheme"/>
+                    @click="toggleTheme">
+                    <i class="fa-solid fa-lg" :class="isDark ? 'fa-sun' : 'fa-moon'"></i>
+                </button>
                 <RouterLink
                     v-if="isAdmin"
                     to="/admin/users"
@@ -425,7 +428,8 @@ const openSettings = (event: Event) => {
                         text
                         size="small"
                         class="w-full justify-start"
-                        :label="isDark ? '☀ Light theme' : '☾ Dark theme'"
+                        :label="isDark ? 'Light theme' : 'Dark theme'"
+                        :icon="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"
                         @click="toggleTheme"/>
                     <Button
                         severity="secondary"

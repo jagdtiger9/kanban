@@ -16,7 +16,8 @@ const others = computed(() => call.members.filter((m) => m.userId !== call.selfI
 
 function title(): string {
     if (call.status === 'joining') return 'Joining…'
-    if (call.status === 'picking') return call.projectName ? `Call · ${call.projectName}` : 'Loading…'
+    // "(v2)": temporary marker to tell which call build is deployed
+    if (call.status === 'picking') return call.projectName ? `Call(v2) · ${call.projectName}` : 'Loading…'
     return call.projectName
 }
 

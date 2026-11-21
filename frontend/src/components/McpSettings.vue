@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import Button from 'primevue/button'
-import { issueMcpToken, type McpTokenResponse } from '../api/mcp'
+import { getMcpInfo, issueMcpToken, type McpTokenResponse } from '../api/mcp'
 import { ApiError } from '../api/client'
 
-const serverUrl = `${window.location.origin}/mcp`
+const serverUrl = `${window.location.origin}/api/mcp`
+
+// null until loaded; a failed load just hides the line
+const version = ref<string | null>(null)
+
+onMounted(async () => {
+    try {
+        version.value = (await getMcpInfo()).version
+    } catch {
+        version.value = null
+    }
+})
 
 const issued = ref<McpTokenResponse | null>(null)
 const error = ref<string | null>(null)
@@ -45,6 +56,7 @@ function formatDate(iso: string): string {
         <div class="mb-6 text-center">
             <h2 class="text-2xl font-semibold">MCP</h2>
             <p class="mt-1 text-sm text-muted">Connect a CLI agent (Claude Code, Codex, Gemini…) to your boards</p>
+            <p v-if="version !== null" class="mt-1 text-xs text-faint">Server version {{ version }}</p>
         </div>
 
         <div class="space-y-4">

@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 import { AVATAR_ACCEPT, MAX_AVATAR_BYTES } from '../utils/attachments'
 import UserAvatar from '../components/UserAvatar.vue'
+import AvatarCropper from '../components/AvatarCropper.vue'
 
 const auth = useAuthStore()
 
@@ -22,8 +23,10 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const avatarBusy = ref(false)
 const avatarError = ref<string | null>(null)
 const avatarSuccess = ref<string | null>(null)
+// the chosen photo waiting in the crop dialog; the upload happens after "Save"
+const cropFile = ref<File | null>(null)
 
-async function onAvatarSelected(event: Event): Promise<void> {
+function onAvatarSelected(event: Event): void {
     const input = event.target as HTMLInputElement
     const file = input.files?.[0]
     input.value = ''
@@ -40,6 +43,11 @@ async function onAvatarSelected(event: Event): Promise<void> {
         return
     }
 
+    cropFile.value = file
+}
+
+async function onAvatarCropped(file: File): Promise<void> {
+    cropFile.value = null
     avatarBusy.value = true
     try {
         await auth.updateAvatar(file)
@@ -118,6 +126,12 @@ async function submit(): Promise<void> {
                     class="hidden"
                     :accept="AVATAR_ACCEPT"
                     @change="onAvatarSelected"
+                />
+                <AvatarCropper
+                    v-if="cropFile !== null"
+                    :file="cropFile"
+                    @cancel="cropFile = null"
+                    @done="onAvatarCropped"
                 />
                 <div class="flex items-center gap-2">
                     <Button

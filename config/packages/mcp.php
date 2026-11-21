@@ -7,6 +7,8 @@ return App::config([
     'parameters' => [
         // one JSON file per user with the token hash (FileMcpTokenRepository)
         'mcp.token_directory' => '%kernel.project_dir%/var/mcp-tokens',
+        // MCP build number, plain sequence 2, 3, 4…: bump on every MCP change that ships
+        'mcp.version' => '2',
     ],
     'when@test' => [
         'parameters' => [
@@ -17,6 +19,8 @@ return App::config([
         'servers' => [
             'default' => [
                 'name' => 'kanban',
+                // shown to clients on connect (serverInfo) and by the mcp_version tool
+                'version' => '%mcp.version%',
                 'instructions' => <<<'TXT'
                     Kanban boards of the authenticated user; you act with exactly their rights.
 
@@ -26,7 +30,10 @@ return App::config([
 
                     Reading: start with list_projects, then get_board for the ids of columns,
                     labels and members. "What's new / what changed" → whats_new (default: last
-                    24 hours — say which period you report). Refer to things by name, not id.
+                    24 hours — say which period you report). "Anything for me / my
+                    notifications" → my_notifications (only what concerns the user: assigned,
+                    comments on their cards, role and project changes). Refer to things by
+                    name, not id.
 
                     Before changing anything, resolve every target; ask when unsure:
                     - Project, column, assignee or label not named → ask, proposing the most
@@ -62,7 +69,8 @@ return App::config([
                 // only the tools of the Mcp module, not services of third-party bundles
                 'registry' => 'App\\Mcp\\',
                 'http' => [
-                    'path' => '/mcp',
+                    // under /api so web servers that already pass /api to PHP need no extra rule
+                    'path' => '/api/mcp',
                     // DNS-rebinding protection only allows localhost; the server is public
                     // and every request is authenticated by the `mcp` firewall instead.
                     'allowed_hosts' => false,
