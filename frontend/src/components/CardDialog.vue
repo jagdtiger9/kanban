@@ -595,8 +595,8 @@ function copyCardLink(): void {
         </template>
         <template #attributes>
             <i class="fa-solid fa-share-nodes cursor-pointer text-muted hover:text-strong"
-                title="Copy card link"
-                @click="copyCardLink"></i>
+               title="Copy card link"
+               @click="copyCardLink"></i>
         </template>
         <div>
             <p v-if="error"
@@ -634,8 +634,10 @@ function copyCardLink(): void {
                                 @keyup.enter="saveTitle"
                                 @keyup.esc="cancelEditTitle"/>
                             <div class="mt-2 flex justify-end gap-2">
-                                <Button label="Save" :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
-                                <Button severity="secondary" label="Cancel" @click="cancelEditTitle"/>
+                                <Button
+                                    label="Save" size="small" outlined
+                                    :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
+                                <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
                             </div>
                         </template>
                         <div
@@ -658,8 +660,8 @@ function copyCardLink(): void {
                                 autofocus
                                 placeholder="Markdown supported"/>
                             <div class="mt-2 flex justify-end gap-2">
-                                <Button label="Save" :disabled="descriptionSaving" @click="saveDescription"/>
-                                <Button severity="secondary" label="Cancel" @click="cancelEditDescription"/>
+                                <Button label="Save" size="small" outlined :disabled="descriptionSaving" @click="saveDescription"/>
+                                <Button severity="secondary" label="Cancel" size="small" @click="cancelEditDescription"/>
                             </div>
                         </template>
                         <template v-else>
@@ -808,26 +810,14 @@ function copyCardLink(): void {
                         </div>
                         <div class="mt-1.5 flex items-center justify-end gap-2">
                             <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                label="Attach files"
-                                :disabled="commentSaving"
-                                @click="commentFileInput?.click()"
-                            />
+                                severity="secondary" text size="small" label="Attach files"
+                                :disabled="commentSaving" @click="commentFileInput?.click()"/>
                             <Button
-                                severity="secondary"
-                                text
-                                size="small"
-                                label="Clipboard"
-                                :disabled="commentSaving"
-                                @click="clipboardTarget = 'comment'"
-                            />
+                                severity="secondary" text size="small" label="Clipboard"
+                                :disabled="commentSaving" @click="clipboardTarget = 'comment'"/>
                             <Button
-                                label="Add comment"
-                                :disabled="commentSaving || newComment.trim() === ''"
-                                @click="addComment"
-                            />
+                                label="Add comment" outlined size="small"
+                                @click="addComment" :disabled="commentSaving || newComment.trim() === ''"/>
                         </div>
                     </div>
 
@@ -854,10 +844,9 @@ function copyCardLink(): void {
                                     <Textarea v-model="editBody" rows="3" class="w-full resize-none" autofocus/>
                                     <div class="mt-1.5 flex justify-end gap-2">
                                         <Button
-                                            label="Save"
-                                            :disabled="commentSaving || editBody.trim() === ''"
-                                            @click="saveEdit"/>
-                                        <Button severity="secondary" label="Cancel" @click="cancelEdit"/>
+                                            label="Save" size="small" outlined
+                                            @click="saveEdit" :disabled="commentSaving || editBody.trim() === ''"/>
+                                        <Button severity="secondary" label="Cancel" size="small" @click="cancelEdit"/>
                                     </div>
                                 </div>
                                 <div
