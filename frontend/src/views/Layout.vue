@@ -288,7 +288,8 @@ const openSettings = (event: Event) => {
                     <UserAvatar
                         :user-id="auth.user?.id ?? ''"
                         :name="auth.user?.displayName ?? null"
-                        :avatar-version="auth.user?.avatarVersion ?? null" size="md"/>
+                        :avatar-version="auth.user?.avatarVersion ?? null"
+                        :color="auth.user?.avatarColor ?? null" size="md"/>
                 </div>
             </div>
         </header>
@@ -312,6 +313,7 @@ const openSettings = (event: Event) => {
                         :user-id="auth.user?.id ?? ''"
                         :name="auth.user?.displayName ?? null"
                         :avatar-version="auth.user?.avatarVersion ?? null"
+                        :color="auth.user?.avatarColor ?? null"
                         size="md"/>
                     <div class="truncate font-medium">{{ auth.user?.displayName }}</div>
                     <div

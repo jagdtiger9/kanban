@@ -12,6 +12,7 @@ use App\News\Infrastructure\Controller\NewsController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
 use App\User\Infrastructure\Controller\UserAvatarController;
+use App\User\Infrastructure\Controller\UserColorController;
 use App\UserEvent\Infrastructure\Controller\UserEventController;
 use App\UserEvent\Infrastructure\Controller\UserRealtimeController;
 use App\User\Infrastructure\Controller\UserController;
@@ -180,6 +181,11 @@ $config = Routes::config([
         'path' => '/api/users/{userId}/avatar',
         'controller' => [UserAvatarController::class, 'get'],
         'methods' => ['GET'],
+    ],
+    'api_user_color_update' => [
+        'path' => '/api/users/me/color',
+        'controller' => [UserColorController::class, 'update'],
+        'methods' => ['PUT'],
     ],
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',

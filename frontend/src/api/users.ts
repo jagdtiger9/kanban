@@ -5,6 +5,7 @@ export interface UserSuggestion {
     email: string
     displayName: string
     avatarVersion: string | null
+    avatarColor: string | null
 }
 
 export function searchUsers(term: string): Promise<UserSuggestion[]> {
@@ -20,6 +21,7 @@ export interface AdminUserPayload {
     confirmed: boolean
     createdAt: string
     avatarVersion: string | null
+    avatarColor: string | null
 }
 
 export function listUsers(): Promise<AdminUserPayload[]> {
@@ -50,6 +52,17 @@ export function uploadAvatar(file: File): Promise<AvatarPayload> {
 
 export function removeAvatar(): Promise<void> {
     return api<void>('/users/me/avatar', { method: 'DELETE' })
+}
+
+export interface AvatarColorPayload {
+    avatarColor: string | null
+}
+
+export function updateAvatarColor(color: string | null): Promise<AvatarColorPayload> {
+    return api<AvatarColorPayload>('/users/me/color', {
+        method: 'PUT',
+        body: JSON.stringify({ color }),
+    })
 }
 
 export function avatarUrl(userId: string, avatarVersion: string | null): string | null {

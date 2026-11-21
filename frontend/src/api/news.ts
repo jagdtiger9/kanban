@@ -5,6 +5,7 @@ export interface NewsPostPayload {
     authorId: string
     authorName: string
     authorAvatarVersion: string | null
+    authorAvatarColor: string | null
     body: string
     createdAt: string
     updatedAt: string

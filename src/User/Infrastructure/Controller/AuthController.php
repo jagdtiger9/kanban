@@ -78,7 +78,7 @@ final class AuthController extends AbstractController
     }
 
     /**
-     * @return array{user: array{id: string, email: string, displayName: string, roles: list<string>, avatarVersion: ?string}, isAuth: true}
+     * @return array{user: array{id: string, email: string, displayName: string, roles: list<string>, avatarVersion: ?string, avatarColor: ?string}, isAuth: true}
      */
     private function userPayload(User $user): array
     {
@@ -89,6 +89,7 @@ final class AuthController extends AbstractController
                 'displayName' => $user->displayName(),
                 'roles' => $user->roles(),
                 'avatarVersion' => $user->avatarVersion(),
+                'avatarColor' => $user->avatarColor(),
             ],
             'isAuth' => true,
         ];

@@ -92,6 +92,7 @@ async function addMember(): Promise<void> {
             email: user.email,
             displayName: user.displayName,
             avatarVersion: user.avatarVersion,
+            avatarColor: user.avatarColor,
         })
         searchTerm.value = ''
         suggestions.value = []

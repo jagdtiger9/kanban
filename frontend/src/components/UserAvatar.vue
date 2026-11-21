@@ -8,9 +8,10 @@ const props = withDefaults(
         userId: string
         name: string | null
         avatarVersion?: string | null
-        size?: 'sm' | 'md' | 'lg'
+        color?: string | null
+        size?: 'sm' | 'md' | 'lg' | 'card'
     }>(),
-    { avatarVersion: null, size: 'sm' },
+    { avatarVersion: null, color: null, size: 'sm' },
 )
 
 const sizeClass = computed(() => {
@@ -19,12 +20,14 @@ const sizeClass = computed(() => {
             return 'h-24 w-24 text-2xl'
         case 'md':
             return 'h-9 w-9 text-xs'
+        case 'card':
+            return 'h-8 w-8 text-xs'
         default:
             return 'h-6 w-6 text-[10px]'
     }
 })
 const label = computed(() => initials(props.name))
-const color = computed(() => avatarColor(props.userId))
+const color = computed(() => props.color ?? avatarColor(props.userId))
 const src = computed(() => avatarUrl(props.userId, props.avatarVersion))
 </script>
 

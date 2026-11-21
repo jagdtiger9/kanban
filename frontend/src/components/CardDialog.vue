@@ -103,12 +103,24 @@ const memberAvatars = computed(() => {
     return versions
 })
 
+const memberColors = computed(() => {
+    const colors = new Map<string, string | null>()
+    for (const member of props.members) {
+        colors.set(member.userId, member.avatarColor)
+    }
+    return colors
+})
+
 function memberName(userId: string): string {
     return memberNames.value.get(userId) ?? 'Unknown member'
 }
 
 function memberAvatarVersion(userId: string): string | null {
     return memberAvatars.value.get(userId) ?? null
+}
+
+function memberColor(userId: string): string | null {
+    return memberColors.value.get(userId) ?? null
 }
 
 function formatTime(iso: string): string {
@@ -742,7 +754,8 @@ function copyCardLink(): void {
                                 <UserAvatar
                                     :user-id="member.userId"
                                     :name="member.displayName"
-                                    :avatar-version="member.avatarVersion"/>
+                                    :avatar-version="member.avatarVersion"
+                                    :color="member.avatarColor"/>
                                 {{ member.displayName }}
                             </label>
                         </div>
@@ -829,7 +842,8 @@ function copyCardLink(): void {
                                     <UserAvatar
                                         :user-id="item.comment.authorId"
                                         :name="memberName(item.comment.authorId)"
-                                        :avatar-version="memberAvatarVersion(item.comment.authorId)"/>
+                                        :avatar-version="memberAvatarVersion(item.comment.authorId)"
+                                        :color="memberColor(item.comment.authorId)"/>
                                     <span class="font-medium text-strong">{{ memberName(item.comment.authorId) }}</span>
                                     <span v-if="item.comment.updatedAt !== item.comment.createdAt" class="text-xs text-faint">
                                         edited
@@ -886,6 +900,7 @@ function copyCardLink(): void {
                                     :user-id="item.event.actorId ?? ''"
                                     :name="item.event.actorId ? memberName(item.event.actorId) : null"
                                     :avatar-version="item.event.actorId ? memberAvatarVersion(item.event.actorId) : null"
+                                    :color="item.event.actorId ? memberColor(item.event.actorId) : null"
                                     class="mt-0.5"
                                 />
                                 <p class="min-w-0 flex-1 text-body">

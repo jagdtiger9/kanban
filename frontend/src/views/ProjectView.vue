@@ -84,12 +84,28 @@ const memberAvatars = computed(() => {
     return versions
 })
 
+const memberColors = computed(() => {
+    const colors = new Map<string, string | null>()
+    for (const member of detail.value?.members ?? []) {
+        colors.set(member.userId, member.avatarColor)
+    }
+    return colors
+})
+
 const labelColors = computed(() => {
     const colors = new Map<string, string>()
     for (const label of labels.value) {
         colors.set(label.id, label.color)
     }
     return colors
+})
+
+const labelNames = computed(() => {
+    const names = new Map<string, string>()
+    for (const label of labels.value) {
+        names.set(label.id, label.name)
+    }
+    return names
 })
 
 function labelColor(labelId: string): string | undefined {
@@ -601,6 +617,7 @@ function closeCard(): void {
                                     <span
                                         v-for="labelId in card.labelIds" :key="labelId"
                                         class="h-2 w-6 rounded-sm"
+                                        :title="labelNames.get(labelId)"
                                         :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
                                     </div>
                                     <div class="flex items-start gap-2">
@@ -624,6 +641,7 @@ function closeCard(): void {
                                             :assignee-ids="card.assigneeIds"
                                             :member-names="memberNames"
                                             :member-avatars="memberAvatars"
+                                            :member-colors="memberColors"
                                         />
                                     </div>
                                 </template>

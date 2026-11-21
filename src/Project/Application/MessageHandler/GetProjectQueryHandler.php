@@ -40,6 +40,7 @@ final class GetProjectQueryHandler
      *         email: string,
      *         displayName: string,
      *         avatarVersion: ?string,
+     *         avatarColor: ?string,
      *         joinedAt: \DateTimeImmutable
      *     }>
      * }
@@ -74,6 +75,7 @@ final class GetProjectQueryHandler
                 'email' => $user->email(),
                 'displayName' => $user->displayName(),
                 'avatarVersion' => $user->avatarVersion(),
+                'avatarColor' => $user->avatarColor(),
                 'joinedAt' => $member->joinedAt(),
             ];
         }
