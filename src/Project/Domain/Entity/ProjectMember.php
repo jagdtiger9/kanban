@@ -15,6 +15,7 @@ use Ramsey\Uuid\UuidInterface;
 #[ORM\Entity]
 #[ORM\Table(name: 'project_members')]
 #[ORM\UniqueConstraint(name: 'uniq_project_member', columns: ['project_id', 'user_id'])]
+#[ORM\Index(name: 'idx_project_members_user_id', columns: ['user_id'])]
 final class ProjectMember implements DomainEventAwareInterface
 {
     use EventStoreTrait;

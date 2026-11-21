@@ -24,6 +24,7 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'cards')]
+#[ORM\Index(name: 'idx_cards_column_position', columns: ['column_id', 'position'])]
 final class Card implements DomainEventAwareInterface
 {
     use EventStoreTrait;

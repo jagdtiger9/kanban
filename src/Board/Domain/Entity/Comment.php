@@ -15,6 +15,7 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'comments')]
+#[ORM\Index(name: 'idx_comments_card_created', columns: ['card_id', 'created_at', 'id'])]
 final class Comment implements DomainEventAwareInterface
 {
     use EventStoreTrait;

@@ -10,6 +10,8 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'card_activities')]
+#[ORM\Index(name: 'idx_card_activities_created_at', columns: ['created_at', 'id'])]
+#[ORM\Index(name: 'idx_card_activities_card_created', columns: ['card_id', 'created_at', 'id'])]
 final class CardActivity
 {
     #[ORM\Id]

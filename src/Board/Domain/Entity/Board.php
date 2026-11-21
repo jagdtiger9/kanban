@@ -10,6 +10,7 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'boards')]
+#[ORM\Index(name: 'idx_boards_project_id', columns: ['project_id'])]
 final class Board
 {
     #[ORM\Id]

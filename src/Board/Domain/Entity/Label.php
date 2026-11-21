@@ -15,6 +15,7 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'labels')]
+#[ORM\Index(name: 'idx_labels_board_created', columns: ['board_id', 'created_at'])]
 final class Label implements DomainEventAwareInterface
 {
     use EventStoreTrait;

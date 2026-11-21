@@ -16,6 +16,7 @@ use Ramsey\Uuid\UuidInterface;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'columns')]
+#[ORM\Index(name: 'idx_columns_board_position', columns: ['board_id', 'position'])]
 final class Column implements DomainEventAwareInterface
 {
     use EventStoreTrait;
