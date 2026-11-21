@@ -67,7 +67,8 @@ function personColor(personId: string): string {
                     :user-id="person.id"
                     :name="person.name"
                     :avatar-version="memberAvatars.get(person.id) ?? null"
-                    :color="memberColors.get(person.id) ?? null"/>
+                    :color="memberColors.get(person.id) ?? null"
+                    size="card-sm"/>
             </button>
             <button
                 v-if="hiddenCount > 0"

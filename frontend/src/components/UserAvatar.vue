@@ -9,7 +9,7 @@ const props = withDefaults(
         name: string | null
         avatarVersion?: string | null
         color?: string | null
-        size?: 'sm' | 'md' | 'lg' | 'card'
+        size?: 'sm' | 'md' | 'lg' | 'card' | 'card-sm'
     }>(),
     { avatarVersion: null, color: null, size: 'sm' },
 )
@@ -22,6 +22,8 @@ const sizeClass = computed(() => {
             return 'h-9 w-9 text-xs'
         case 'card':
             return 'h-7 w-7 text-xs'
+        case 'card-sm':
+            return 'h-5 w-5 text-xs'
         default:
             return 'h-6 w-6 text-[10px]'
     }
