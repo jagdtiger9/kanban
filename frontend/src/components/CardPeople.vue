@@ -53,24 +53,7 @@ function personColor(personId: string): string {
 
 <template>
     <div class="flex items-center justify-between w-full">
-        <div>
-            <button
-                v-if="executorPerson !== null"
-                type="button"
-                class="people-badge shrink-0 cursor-pointer rounded-full ring-3 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
-                :style="{ '--tw-ring-color': personColor(executorPerson.id) }"
-                :aria-label="`${executorPerson.name ?? 'Unknown member'}: ${roleSummary(executorPerson)}`"
-                :title="`${executorPerson.name ?? 'Unknown member'} — ${roleSummary(executorPerson)}`"
-                @click.stop="showModal = true">
-                <UserAvatar
-                    :user-id="executorPerson.id"
-                    :name="executorPerson.name"
-                    :avatar-version="memberAvatars.get(executorPerson.id) ?? null"
-                    :color="memberColors.get(executorPerson.id) ?? null"
-                    size="card"/>
-            </button>
-        </div>
-        <div v-if="rightPeople.length > 0" class="flex items-center -space-x-1.5">
+        <div v-if="rightPeople.length > 0" class="flex items-center">
             <button
                 v-for="person in visibleRight"
                 :key="person.id"
@@ -94,6 +77,23 @@ function personColor(personId: string): string {
                 :title="`+${hiddenCount} more`"
                 @click.stop="showModal = true">
                 +{{ hiddenCount }}
+            </button>
+        </div>
+        <div>
+            <button
+                v-if="executorPerson !== null"
+                type="button"
+                class="people-badge shrink-0 cursor-pointer rounded-full ring-3 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand"
+                :style="{ '--tw-ring-color': personColor(executorPerson.id) }"
+                :aria-label="`${executorPerson.name ?? 'Unknown member'}: ${roleSummary(executorPerson)}`"
+                :title="`${executorPerson.name ?? 'Unknown member'} — ${roleSummary(executorPerson)}`"
+                @click.stop="showModal = true">
+                <UserAvatar
+                    :user-id="executorPerson.id"
+                    :name="executorPerson.name"
+                    :avatar-version="memberAvatars.get(executorPerson.id) ?? null"
+                    :color="memberColors.get(executorPerson.id) ?? null"
+                    size="card"/>
             </button>
         </div>
     </div>
