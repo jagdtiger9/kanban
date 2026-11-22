@@ -12,8 +12,11 @@ use App\Call\Application\Message\Command\InviteToCallCommand;
 use App\Call\Application\Message\Command\JoinCallCommand;
 use App\Call\Application\Message\Command\LeaveCallCommand;
 use App\Call\Application\Message\Command\SendCallSignalCommand;
+use App\Call\Application\Message\Query\CheckCallsQuery;
 use App\Call\Application\Message\Query\GetCallTokenQuery;
 use App\Call\Application\Message\Query\ListActiveCallsQuery;
+use App\Call\Application\Service\CallCheck;
+use App\Call\Application\Service\CallsCheckReport;
 use App\Call\Domain\Exception\NotInRoomException;
 use App\Call\Domain\Exception\RoomFullException;
 use App\Shared\Infrastructure\Security\SecurityUser;
@@ -47,6 +50,22 @@ final class CallController extends AbstractController
             'token' => $token->token,
             'subscriptionToken' => $token->subscriptionToken,
             'expiresAt' => $token->expiresAt,
+        ]);
+    }
+
+    /**
+     * Calls diagnostics for the check page: server-side checks plus the ICE servers
+     * the browser uses for its own STUN/TURN test.
+     */
+    public function check(CheckCallsQuery $query, Security $security): JsonResponse
+    {
+        $query->actorId = $this->actorId($security);
+        /** @var CallsCheckReport $report */
+        $report = $this->queryBus->query($query);
+
+        return $this->json([
+            'checks' => array_map(static fn(CallCheck $check): array => $check->toArray(), $report->checks),
+            'iceServers' => $report->iceServers,
         ]);
     }
 
