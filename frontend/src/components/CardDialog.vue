@@ -639,7 +639,24 @@ function copyCardLink(): void {
 <template>
     <Modal size="xl" @close="emit('close')">
         <template #title>
-            {{ props.card.title }}
+            <div v-if="canManage">
+                <div v-if="editingTitle" class="flex gap-3">
+                    <InputText
+                        v-model="titleDraft"
+                        class="field-sizing-content min-w-12 max-w-full"
+                        id="card-title" autofocus
+                        @keyup.enter="saveTitle" @keyup.esc="cancelEditTitle"/>
+                    <Button label="Save" size="small" outlined
+                            :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
+                    <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
+                </div>
+                <div v-else
+                     class="cursor-text rounded-lg bg-raised/50 px-3 py-2 text-body hover:bg-raised w-fit"
+                     @click="startEditTitle">
+                    {{ title }}
+                </div>
+            </div>
+            <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
         </template>
         <template #attributes>
             <i class="fa-solid fa-share-nodes cursor-pointer text-muted hover:text-strong"
@@ -657,48 +674,16 @@ function copyCardLink(): void {
                 This card is archived.
             </div>
 
-            <div
-                v-if="detailError"
-                class="flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
+            <div v-if="detailError"
+                 class="flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 <span>{{ detailError }}</span>
-                <Button
-                    severity="secondary"
-                    text
-                    size="small"
-                    label="Retry"
-                    class="shrink-0"
-                    @click="loadDetail"/>
+                <Button severity="secondary" text size="small" label="Retry" class="shrink-0" @click="loadDetail"/>
             </div>
             <Divider class="my-0"/>
             <div class="grid lg:grid-cols-12">
                 <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pl-1 border-r border-r-line">
-                    <div v-if="canManage">
-                        <template v-if="editingTitle">
-                            <InputText
-                                id="card-title"
-                                v-model="titleDraft"
-                                class="w-full"
-                                autofocus
-                                @keyup.enter="saveTitle"
-                                @keyup.esc="cancelEditTitle"/>
-                            <div class="mt-2 flex justify-end gap-2">
-                                <Button
-                                    label="Save" size="small" outlined
-                                    :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
-                                <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
-                            </div>
-                        </template>
-                        <div
-                            v-else
-                            class="cursor-text rounded-lg bg-raised/50 px-3 py-2 text-body hover:bg-raised"
-                            @click="startEditTitle">
-                            {{ title }}
-                        </div>
-                    </div>
-                    <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
-
                     <div>
-                        <label for="card-description" class="mb-1 block font-medium text-body">Description</label>
+                        <!--                        <label for="card-description" class="mb-1 block font-medium text-body">Description</label>-->
                         <template v-if="canManage && editingDescription">
                             <Textarea
                                 id="card-description"
@@ -727,35 +712,22 @@ function copyCardLink(): void {
                         </template>
                     </div>
 
-                    <div>
-                        <div class="mb-1.5 flex items-center justify-between gap-2">
-                            <div class="font-medium text-body">Attachments</div>
-                            <div class="flex items-center gap-2">
-                                <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
-                                <input
-                                    ref="cardFileInput"
-                                    type="file"
-                                    multiple
-                                    class="hidden"
-                                    :accept="MEDIA_ACCEPT"
-                                    @change="onCardFilesSelected"/>
-                                <Button
-                                    severity="secondary"
-                                    size="small"
-                                    label="Add files"
-                                    :disabled="attachmentBusy"
-                                    @click="cardFileInput?.click()"/>
-                                <Button
-                                    severity="secondary"
-                                    size="small"
-                                    label="Clipboard"
-                                    :disabled="attachmentBusy"
-                                    @click="clipboardTarget = 'card'"/>
-                            </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="font-medium text-body">Attachments</div>
+                        <div class="flex items-center gap-2">
+                            <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
+                            <input
+                                ref="cardFileInput" type="file" multiple class="hidden"
+                                :accept="MEDIA_ACCEPT" @change="onCardFilesSelected"/>
+                            <Button
+                                severity="primary" text size="small" label="Add files" class="p-1 pl-0"
+                                :disabled="attachmentBusy" @click="cardFileInput?.click()"/>
+                            <Button
+                                severity="primary" text size="small" label="Clipboard" class="p-1"
+                                :disabled="attachmentBusy" @click="clipboardTarget = 'card'"/>
                         </div>
-                        <p
-                            v-if="attachmentError"
-                            class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
+                        <p v-if="attachmentError"
+                           class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                             {{ attachmentError }}
                         </p>
                         <div v-if="attachments.length > 0" class="space-y-1.5">
@@ -787,6 +759,7 @@ function copyCardLink(): void {
                         <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
                     </div>
 
+                    <Divider class="my-4"/>
                     <div class="grid grid-cols-2 gap-5">
                         <div>
                             <p class="mb-1.5 font-medium text-body">Assignees</p>
@@ -880,7 +853,6 @@ function copyCardLink(): void {
                 </div>
 
                 <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pr-1">
-                    <p class="font-medium text-body">Comments &amp; activity</p>
                     <div>
                         <Textarea
                             v-model="newComment"
@@ -913,13 +885,13 @@ function copyCardLink(): void {
                         </div>
                         <div class="mt-1.5 flex items-center justify-end gap-2">
                             <Button
-                                severity="secondary" text size="small" label="Attach files"
+                                severity="secondary" text size="small" label="Add files"
                                 :disabled="commentSaving" @click="commentFileInput?.click()"/>
                             <Button
                                 severity="secondary" text size="small" label="Clipboard"
                                 :disabled="commentSaving" @click="clipboardTarget = 'comment'"/>
                             <Button
-                                label="Add comment" outlined size="small"
+                                label="Save" outlined size="small"
                                 @click="addComment" :disabled="commentSaving || newComment.trim() === ''"/>
                         </div>
                     </div>
@@ -965,14 +937,14 @@ function copyCardLink(): void {
                                         :can-delete="canDeleteComment(item.comment)"
                                         @remove="askRemoveCommentAttachment(item.comment, attachment)"/>
                                 </div>
-                                <div
-                                    v-if="canDeleteComment(item.comment) && editingId !== item.comment.id"
-                                    class="mt-1 flex gap-3 pl-8">
+                                <div v-if="canDeleteComment(item.comment) && editingId !== item.comment.id"
+                                     class="flex justify-end gap-3">
                                     <Button
                                         v-if="auth.user?.id === item.comment.authorId" @click="startEdit(item.comment)"
                                         severity="secondary" text size="small" label="Edit"/>
-                                    <Button severity="danger" text size="small" label="Delete"
-                                            @click="askDeleteComment(item.comment)"/>
+                                    <Button severity="danger" text size="small" @click="askDeleteComment(item.comment)">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </Button>
                                 </div>
                             </div>
                             <div v-else class="flex items-start gap-2 px-3">
