@@ -222,6 +222,11 @@ $config = Routes::config([
         'controller' => [CallController::class, 'token'],
         'methods' => ['GET'],
     ],
+    'api_call_check' => [
+        'path' => '/api/call/check',
+        'controller' => [CallController::class, 'check'],
+        'methods' => ['GET'],
+    ],
     'api_call_rooms' => [
         'path' => '/api/call/rooms',
         'controller' => [CallController::class, 'rooms'],

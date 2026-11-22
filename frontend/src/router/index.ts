@@ -11,6 +11,8 @@ const router = createRouter({
             children: [
                 { path: '', name: 'board', component: () => import('../views/BoardHomeView.vue') },
                 { path: 'settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
+                // Calls diagnostics for any signed-in user (not linked from the menu).
+                { path: 'calls-check', name: 'calls-check', component: () => import('../views/CallsCheckView.vue') },
                 {
                     path: 'admin/users',
                     name: 'adminUsers',

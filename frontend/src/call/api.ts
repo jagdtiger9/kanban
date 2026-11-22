@@ -30,6 +30,26 @@ export function getCallToken(): Promise<CallTokenPayload> {
     return api<CallTokenPayload>('/call/token')
 }
 
+export type CallCheckStatus = 'ok' | 'warn' | 'fail'
+
+export interface CallCheckPayload {
+    key: string
+    label: string
+    status: CallCheckStatus
+    detail: string
+    hint: string | null
+}
+
+export interface CallsCheckPayload {
+    checks: CallCheckPayload[]
+    iceServers: RTCIceServer[]
+}
+
+/** Server-side diagnostics of the calls setup (Centrifugo, STUN/TURN) for the check page. */
+export function checkCalls(): Promise<CallsCheckPayload> {
+    return api<CallsCheckPayload>('/call/check')
+}
+
 export async function listActiveCalls(): Promise<ActiveCall[]> {
     return (await api<{ calls: ActiveCall[] }>('/call/rooms')).calls
 }
