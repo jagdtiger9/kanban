@@ -640,7 +640,7 @@ function copyCardLink(): void {
     <Modal size="xl" @close="emit('close')">
         <template #title>
             <div v-if="canManage">
-                <div v-if="editingTitle" class="flex gap-3">
+                <div v-if="editingTitle" class="flex flex-wrap gap-1 md:gap-3">
                     <InputText
                         v-model="titleDraft"
                         class="field-sizing-content min-w-12 max-w-full"
