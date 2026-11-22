@@ -9,6 +9,8 @@ use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -224,5 +226,62 @@ final class CardTest extends TestCase
 
         $card->unassign($user);
         self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testExecutorAssignAndUnassign(): void
+    {
+        $card = $this->createCard();
+        $alice = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $bob = User::create(Uuid::uuid4(), 'bob@example.com', 'hash', 'Bob');
+
+        self::assertNull($card->executorId());
+
+        $card->assignExecutor($alice);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardExecutorAssigned::class, $events[0]);
+        self::assertSame('Alice', $events[0]->userName);
+        self::assertTrue($card->executorId()?->equals($alice->id()));
+
+        $card->assignExecutor($alice);
+        self::assertSame([], $card->releaseEvents());
+
+        $card->assignExecutor($bob);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardExecutorAssigned::class, $events[0]);
+        self::assertTrue($card->executorId()?->equals($bob->id()));
+
+        $card->unassignExecutor($alice);
+        self::assertSame([], $card->releaseEvents());
+
+        $card->unassignExecutor($bob);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardExecutorUnassigned::class, $events[0]);
+        self::assertSame('Bob', $events[0]->userName);
+        self::assertNull($card->executorId());
+
+        $card->unassignExecutor($bob);
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testExecutorIsIndependentFromAssignees(): void
+    {
+        $card = $this->createCard();
+        $alice = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $card->assignExecutor($alice);
+        $card->assign($alice);
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        self::assertInstanceOf(CardExecutorAssigned::class, $events[0]);
+        self::assertInstanceOf(CardAssigned::class, $events[1]);
+        self::assertCount(1, $card->assignees());
+        self::assertTrue($card->executorId()?->equals($alice->id()));
+
+        $card->unassign($alice);
+        self::assertCount(0, $card->assignees());
+        self::assertTrue($card->executorId()?->equals($alice->id()));
     }
 }

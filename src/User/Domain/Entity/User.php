@@ -41,6 +41,9 @@ final class User implements DomainEventAwareInterface
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE', nullable: true)]
     private ?\DateTimeImmutable $avatarUpdatedAt;
 
+    #[ORM\Column(type: Types::STRING, length: 7, nullable: true)]
+    private ?string $avatarColor;
+
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $isGlobalAdmin;
 
@@ -72,6 +75,7 @@ final class User implements DomainEventAwareInterface
         $this->displayName = $displayName;
         $this->avatarStorageKey = null;
         $this->avatarUpdatedAt = null;
+        $this->avatarColor = null;
         $this->isGlobalAdmin = false;
         $this->isNewsMaker = false;
         $this->createdAt = $createdAt;
@@ -133,6 +137,29 @@ final class User implements DomainEventAwareInterface
         }
 
         return $this->avatarUpdatedAt->format('Uu');
+    }
+
+    public function avatarColor(): ?string
+    {
+        return $this->avatarColor;
+    }
+
+    public function changeAvatarColor(?string $color): void
+    {
+        $color = $color === null ? null : strtolower(trim($color));
+        if ($color === '') {
+            $color = null;
+        }
+
+        if ($this->avatarColor === $color) {
+            return;
+        }
+
+        if ($color !== null && preg_match('/^#[0-9a-f]{6}$/', $color) !== 1) {
+            throw new \InvalidArgumentException('Avatar color must be a hex color like #1a2b3c');
+        }
+
+        $this->avatarColor = $color;
     }
 
     public function changeAvatar(string $storageKey): void

@@ -54,6 +54,8 @@ const USER_EVENT_VERBS: Record<string, (item: UserEventItem) => string> = {
     'card.created': (item) => `created “${item.cardTitle ?? 'a card'}”`,
     'card.assigned': (item) => `assigned you to “${item.cardTitle ?? 'a card'}”`,
     'card.unassigned': (item) => `unassigned you from “${item.cardTitle ?? 'a card'}”`,
+    'card.executor_assigned': (item) => `made you the executor of “${item.cardTitle ?? 'a card'}”`,
+    'card.executor_unassigned': (item) => `removed you as executor of “${item.cardTitle ?? 'a card'}”`,
     'comment.created': (item) => `commented on “${item.cardTitle ?? 'a card'}”`,
     'project.member_role_changed': (item) =>
         item.role !== null
@@ -276,7 +278,7 @@ const openSettings = (event: Event) => {
                     :aria-label="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     :title="isDark ? 'Switch to light theme' : 'Switch to dark theme'"
                     @click="toggleTheme">
-                    <i class="fa-solid fa-lg" :class="isDark ? 'fa-sun' : 'fa-moon'"></i>
+                    <i class="fa-regular fa-lg" :class="isDark ? 'fa-sun text-yellow-500' : 'fa-moon text-mist-600'"></i>
                 </button>
                 <RouterLink
                     v-if="isAdmin"
@@ -288,7 +290,8 @@ const openSettings = (event: Event) => {
                     <UserAvatar
                         :user-id="auth.user?.id ?? ''"
                         :name="auth.user?.displayName ?? null"
-                        :avatar-version="auth.user?.avatarVersion ?? null" size="md"/>
+                        :avatar-version="auth.user?.avatarVersion ?? null"
+                        :color="auth.user?.avatarColor ?? null" size="md"/>
                 </div>
             </div>
         </header>
@@ -312,6 +315,7 @@ const openSettings = (event: Event) => {
                         :user-id="auth.user?.id ?? ''"
                         :name="auth.user?.displayName ?? null"
                         :avatar-version="auth.user?.avatarVersion ?? null"
+                        :color="auth.user?.avatarColor ?? null"
                         size="md"/>
                     <div class="truncate font-medium">{{ auth.user?.displayName }}</div>
                     <div
@@ -429,8 +433,9 @@ const openSettings = (event: Event) => {
                         size="small"
                         class="w-full justify-start"
                         :label="isDark ? 'Light theme' : 'Dark theme'"
-                        :icon="isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon'"
-                        @click="toggleTheme"/>
+                        @click="toggleTheme">
+                        <i class="fa-regular fa-lg" :class="isDark ? 'fa-sun text-yellow-500' : 'fa-moon text-mist-600'"></i>
+                    </Button>
                     <Button
                         severity="secondary"
                         text
@@ -494,7 +499,7 @@ const openSettings = (event: Event) => {
                 <span class="text-body">{{ auth.user?.displayName }}</span>
                 <Divider/>
                 <RouterLink to="/settings">
-                    <i class="fa-solid fa-gear fa-lg text-white/70 hover:text-white" title="Settings"></i>
+                    <i class="fa-solid fa-gear fa-lg text-body hover:text-strong" title="Settings"></i>
                     Settings
                 </RouterLink>
                 <Button text @click="logout" class="p-1 justify-start">Log out</Button>

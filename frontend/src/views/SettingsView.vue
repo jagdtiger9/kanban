@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Button from 'primevue/button'
+import ColorPicker from 'primevue/colorpicker'
 import Password from 'primevue/password'
 import McpSettings from '../components/McpSettings.vue'
 import { useAuthStore } from '../stores/auth'
 import { ApiError } from '../api/client'
 import { AVATAR_ACCEPT, MAX_AVATAR_BYTES } from '../utils/attachments'
+import { avatarColor } from '../utils/people'
 import UserAvatar from '../components/UserAvatar.vue'
 import AvatarCropper from '../components/AvatarCropper.vue'
 
@@ -73,6 +75,42 @@ async function removeAvatar(): Promise<void> {
     }
 }
 
+const autoColor = computed(() => avatarColor(auth.user?.id ?? ''))
+const editColor = ref<string>(auth.user?.avatarColor ?? autoColor.value)
+const colorBusy = ref(false)
+const colorError = ref<string | null>(null)
+const colorSuccess = ref<string | null>(null)
+const hasCustomColor = computed(() => auth.user?.avatarColor != null)
+
+async function applyColor(): Promise<void> {
+    colorError.value = null
+    colorSuccess.value = null
+    colorBusy.value = true
+    try {
+        await auth.updateColor(editColor.value)
+        colorSuccess.value = 'Color updated'
+    } catch (e) {
+        colorError.value = e instanceof ApiError ? e.message : 'Failed to update color'
+    } finally {
+        colorBusy.value = false
+    }
+}
+
+async function resetColor(): Promise<void> {
+    colorError.value = null
+    colorSuccess.value = null
+    colorBusy.value = true
+    try {
+        await auth.updateColor(null)
+        editColor.value = autoColor.value
+        colorSuccess.value = 'Color reset to auto'
+    } catch (e) {
+        colorError.value = e instanceof ApiError ? e.message : 'Failed to reset color'
+    } finally {
+        colorBusy.value = false
+    }
+}
+
 async function submit(): Promise<void> {
     error.value = null
     fieldErrors.value = {}
@@ -110,7 +148,7 @@ async function submit(): Promise<void> {
         <div class="w-full max-w-sm rounded-2xl border border-line bg-panel/60 p-8 shadow-xl">
             <div class="mb-8 text-center">
                 <h1 class="text-2xl font-semibold">Settings</h1>
-                <p class="mt-1 text-muted">Manage your photo and password</p>
+                <p class="mt-1 text-muted">Manage your photo, avatar color, and password</p>
             </div>
 
             <div class="mb-8 flex flex-col items-center gap-3">
@@ -118,6 +156,7 @@ async function submit(): Promise<void> {
                     :user-id="auth.user?.id ?? ''"
                     :name="auth.user?.displayName ?? null"
                     :avatar-version="auth.user?.avatarVersion ?? null"
+                    :color="editColor"
                     size="lg"
                 />
                 <input
@@ -153,6 +192,37 @@ async function submit(): Promise<void> {
                 </div>
                 <p v-if="avatarError" class="text-xs text-danger-text">{{ avatarError }}</p>
                 <p v-if="avatarSuccess" class="text-xs text-body">{{ avatarSuccess }}</p>
+            </div>
+
+            <div class="mb-8">
+                <p class="mb-1 block font-medium text-body">Avatar color</p>
+                <p class="mb-2 text-xs text-muted">
+                    Used for your initials and card marks. The default is derived from your account.
+                </p>
+                <div class="flex items-center gap-2">
+                    <ColorPicker
+                        :model-value="editColor"
+                        format="hex"
+                        @update:model-value="(value: string) => (editColor = `#${value}`)"
+                    />
+                    <Button
+                        size="small"
+                        label="Apply"
+                        :disabled="colorBusy || auth.user?.avatarColor === editColor"
+                        @click="applyColor"
+                    />
+                    <Button
+                        v-if="hasCustomColor"
+                        severity="danger"
+                        text
+                        size="small"
+                        label="Reset to auto"
+                        :disabled="colorBusy"
+                        @click="resetColor"
+                    />
+                </div>
+                <p v-if="colorError" class="mt-1 text-xs text-danger-text">{{ colorError }}</p>
+                <p v-if="colorSuccess" class="mt-1 text-xs text-body">{{ colorSuccess }}</p>
             </div>
 
             <div class="mb-6 border-t border-line"></div>

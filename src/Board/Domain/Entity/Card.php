@@ -9,6 +9,8 @@ use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -51,6 +53,9 @@ final class Card implements DomainEventAwareInterface
     #[ORM\Column(type: 'uuid')]
     private UuidInterface $creatorId;
 
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?UuidInterface $executorId;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
 
@@ -87,6 +92,7 @@ final class Card implements DomainEventAwareInterface
         $this->id = $id;
         $this->columnId = $columnId;
         $this->creatorId = $creatorId;
+        $this->executorId = null;
         $this->title = $title;
         $this->description = $description;
         $this->position = $position;
@@ -154,6 +160,11 @@ final class Card implements DomainEventAwareInterface
     public function creatorId(): UuidInterface
     {
         return $this->creatorId;
+    }
+
+    public function executorId(): ?UuidInterface
+    {
+        return $this->executorId;
     }
 
     public function createdAt(): \DateTimeImmutable
@@ -317,6 +328,26 @@ final class Card implements DomainEventAwareInterface
 
         $this->assignees->removeElement($user);
         $this->recordEvent(new CardUnassigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
+    }
+
+    public function assignExecutor(User $user, ?UuidInterface $actorId = null): void
+    {
+        if ($this->executorId !== null && $this->executorId->equals($user->id())) {
+            return;
+        }
+
+        $this->executorId = $user->id();
+        $this->recordEvent(new CardExecutorAssigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
+    }
+
+    public function unassignExecutor(User $user, ?UuidInterface $actorId = null): void
+    {
+        if ($this->executorId === null || !$this->executorId->equals($user->id())) {
+            return;
+        }
+
+        $this->executorId = null;
+        $this->recordEvent(new CardExecutorUnassigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
     }
 
     private function touch(): void

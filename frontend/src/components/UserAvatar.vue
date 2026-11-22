@@ -8,9 +8,10 @@ const props = withDefaults(
         userId: string
         name: string | null
         avatarVersion?: string | null
-        size?: 'sm' | 'md' | 'lg'
+        color?: string | null
+        size?: 'sm' | 'md' | 'lg' | 'card' | 'card-sm'
     }>(),
-    { avatarVersion: null, size: 'sm' },
+    { avatarVersion: null, color: null, size: 'sm' },
 )
 
 const sizeClass = computed(() => {
@@ -19,12 +20,16 @@ const sizeClass = computed(() => {
             return 'h-24 w-24 text-2xl'
         case 'md':
             return 'h-9 w-9 text-xs'
+        case 'card':
+            return 'h-7 w-7 text-xs'
+        case 'card-sm':
+            return 'h-5 w-5 text-xs'
         default:
             return 'h-6 w-6 text-[10px]'
     }
 })
 const label = computed(() => initials(props.name))
-const color = computed(() => avatarColor(props.userId))
+const color = computed(() => props.color ?? avatarColor(props.userId))
 const src = computed(() => avatarUrl(props.userId, props.avatarVersion))
 </script>
 
@@ -33,8 +38,7 @@ const src = computed(() => avatarUrl(props.userId, props.avatarVersion))
         aria-hidden="true"
         class="flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
         :class="sizeClass"
-        :style="src === null ? { backgroundColor: color } : undefined"
-    >
+        :style="src === null ? { backgroundColor: color } : undefined">
         <img v-if="src !== null" :src="src" alt="" class="h-full w-full object-cover"/>
         <template v-else>{{ label }}</template>
     </span>

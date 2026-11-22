@@ -16,6 +16,7 @@ export interface CardPayload {
     position: number
     dueDate: string | null
     creatorId: string
+    executorId: string | null
     createdAt: string
     updatedAt: string
     archived: boolean
@@ -115,6 +116,13 @@ export function setCardAssignees(cardId: string, userIds: string[]): Promise<voi
     return api<void>(`/cards/${cardId}/assignees`, {
         method: 'PUT',
         body: JSON.stringify({ userIds }),
+    })
+}
+
+export function setCardExecutor(cardId: string, executorId: string | null): Promise<void> {
+    return api<void>(`/cards/${cardId}/executor`, {
+        method: 'PUT',
+        body: JSON.stringify({ executorId }),
     })
 }
 

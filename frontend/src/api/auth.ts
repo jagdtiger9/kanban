@@ -7,6 +7,7 @@ export interface UserPayload {
     displayName: string
     roles: string[]
     avatarVersion: string | null
+    avatarColor: string | null
 }
 
 export interface AuthResponse {

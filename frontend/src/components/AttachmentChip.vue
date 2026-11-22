@@ -86,14 +86,9 @@ async function togglePreview(): Promise<void> {
                 :label="previewOpen ? 'Hide' : 'Preview'"
                 @click="togglePreview"
             />
-            <Button
-                v-if="canDelete"
-                severity="danger"
-                text
-                size="small"
-                label="Remove"
-                @click="emit('remove')"
-            />
+            <Button severity="secondary" class="p-1" text size="small" v-if="canDelete" @click="emit('remove')">
+                <i class="fa-solid fa-x"></i>
+            </Button>
         </div>
         <div v-if="previewOpen" class="border-t border-line px-3 py-2">
             <p v-if="previewLoading" class="text-xs text-faint">Loading…</p>
