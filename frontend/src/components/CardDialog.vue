@@ -681,7 +681,7 @@ function copyCardLink(): void {
             </div>
             <Divider class="my-0"/>
             <div class="grid lg:grid-cols-12">
-                <div class="min-w-0 space-y-4 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pl-1 border-r border-r-line">
+                <div class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3 border-r border-r-line">
                     <div>
                         <!--                        <label for="card-description" class="mb-1 block font-medium text-body">Description</label>-->
                         <template v-if="canManage && editingDescription">
@@ -760,7 +760,7 @@ function copyCardLink(): void {
                     </div>
 
                     <Divider class="my-4"/>
-                    <div class="grid grid-cols-2 gap-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
                             <p class="mb-1.5 font-medium text-body">Assignees</p>
                             <MultiSelect
@@ -852,7 +852,7 @@ function copyCardLink(): void {
                     </div>
                 </div>
 
-                <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-5 pr-1">
+                <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3">
                     <div>
                         <Textarea
                             v-model="newComment"
