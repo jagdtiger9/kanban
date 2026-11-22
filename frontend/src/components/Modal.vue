@@ -21,7 +21,7 @@ const visible = computed({
             maxWidth: 'calc(100vw - 2rem)',
         }">
         <template #header>
-            <div class="flex w-full items-center justify-between mr-5">
+            <div class="flex w-full min-w-0 items-center justify-between mr-5 gap-3">
                 <div class="p-dialog-title min-w-0 flex-1">
                     <slot name="title"/>
                 </div>
