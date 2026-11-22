@@ -49,10 +49,13 @@ final class DoctrineCardRepositoryTest extends DatabaseTestCase
 
         $cards = $this->cards->findByColumn($column->id());
 
-        self::assertSame(['First', 'Second', 'Third'], array_map(
-            static fn (Card $c): string => $c->title(),
-            $cards,
-        ));
+        self::assertSame(
+            ['First', 'Second', 'Third'],
+            array_map(
+                static fn(Card $c): string => $c->title(),
+                $cards,
+            )
+        );
     }
 
     public function testCardRelationsPersistThroughJoinTables(): void
@@ -78,6 +81,31 @@ final class DoctrineCardRepositoryTest extends DatabaseTestCase
         self::assertCount(1, $reloaded->assignees());
         self::assertTrue($reloaded->assignees()->first()->id()->equals($user->id()));
         self::assertSame('2026-12-01', $reloaded->dueDate()->format('Y-m-d'));
+    }
+
+    public function testExecutorRoundTrip(): void
+    {
+        $column = $this->column();
+        $user = User::create(Uuid::uuid4(), 'bob@example.com', 'hash', 'Bob');
+        $this->users->save($user);
+
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'Card', '', 0);
+        $card->assignExecutor($user);
+        $this->cards->save($card);
+        $this->em()->clear();
+
+        $reloaded = $this->cards->findById($card->id());
+        self::assertNotNull($reloaded);
+        self::assertNotNull($reloaded->executorId());
+        self::assertTrue($reloaded->executorId()->equals($user->id()));
+
+        $reloaded->unassignExecutor($user);
+        $this->cards->save($reloaded);
+        $this->em()->clear();
+
+        $cleared = $this->cards->findById($card->id());
+        self::assertNotNull($cleared);
+        self::assertNull($cleared->executorId());
     }
 
     public function testCountByColumnCountsOnlyThatColumnsCards(): void

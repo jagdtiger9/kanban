@@ -12,6 +12,7 @@ use App\News\Infrastructure\Controller\NewsController;
 use App\Project\Infrastructure\Controller\ProjectController;
 use App\User\Infrastructure\Controller\AuthController;
 use App\User\Infrastructure\Controller\UserAvatarController;
+use App\User\Infrastructure\Controller\UserColorController;
 use App\UserEvent\Infrastructure\Controller\UserEventController;
 use App\UserEvent\Infrastructure\Controller\UserRealtimeController;
 use App\User\Infrastructure\Controller\UserController;
@@ -181,6 +182,11 @@ $config = Routes::config([
         'controller' => [UserAvatarController::class, 'get'],
         'methods' => ['GET'],
     ],
+    'api_user_color_update' => [
+        'path' => '/api/users/me/color',
+        'controller' => [UserColorController::class, 'update'],
+        'methods' => ['PUT'],
+    ],
     'api_board_get' => [
         'path' => '/api/projects/{projectId}/board',
         'controller' => [BoardController::class, 'get'],
@@ -304,6 +310,11 @@ $config = Routes::config([
     'api_card_assignees' => [
         'path' => '/api/cards/{cardId}/assignees',
         'controller' => [BoardController::class, 'setCardAssignees'],
+        'methods' => ['PUT'],
+    ],
+    'api_card_executor' => [
+        'path' => '/api/cards/{cardId}/executor',
+        'controller' => [BoardController::class, 'setCardExecutor'],
         'methods' => ['PUT'],
     ],
     'api_card_due_date' => [

@@ -29,6 +29,8 @@ const CARD_EVENT_VERBS: Record<string, string> = {
     'card.restored': 'restored',
     'card.assigned': 'changed assignees on',
     'card.unassigned': 'changed assignees on',
+    'card.executor_assigned': 'changed the executor of',
+    'card.executor_unassigned': 'changed the executor of',
     'card.label_added': 'added a label to',
     'card.label_removed': 'removed a label from',
     'comment.created': 'commented on',
@@ -84,12 +86,28 @@ const memberAvatars = computed(() => {
     return versions
 })
 
+const memberColors = computed(() => {
+    const colors = new Map<string, string | null>()
+    for (const member of detail.value?.members ?? []) {
+        colors.set(member.userId, member.avatarColor)
+    }
+    return colors
+})
+
 const labelColors = computed(() => {
     const colors = new Map<string, string>()
     for (const label of labels.value) {
         colors.set(label.id, label.color)
     }
     return colors
+})
+
+const labelNames = computed(() => {
+    const names = new Map<string, string>()
+    for (const label of labels.value) {
+        names.set(label.id, label.name)
+    }
+    return names
 })
 
 function labelColor(labelId: string): string | undefined {
@@ -505,28 +523,30 @@ function closeCard(): void {
                 {{ error }}
             </div>
             <template v-else-if="detail">
-                <div class="mb-2 flex items-center gap-3">
+                <div class="mb-2 flex items-center gap-10">
                     <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
-                    <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
-                    <Button
-                        :severity="showArchived ? 'info' : 'secondary'"
-                        text size="small" class="fa-lg"
-                        :title="showArchived ? 'Hide archived cards' : 'Show archived cards'"
-                        :aria-label="showArchived ? 'Hide archived cards' : 'Show archived cards'"
-                        :aria-pressed="showArchived"
-                        @click="toggleArchived">
-                        <i class="fa-solid fa-box-archive"></i>
-                    </Button>
-                    <Button
-                        severity="secondary" text size="small" class="fa-lg"
-                        title="Labels" aria-label="Labels"
-                        @click="showLabelsDialog = true">
-                        <i class="fa-solid fa-tags"></i>
-                    </Button>
                     <span
                         v-if="detail.project.archived"
                         class="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-xs text-warn-text">
                         Archived</span>
+                    <div>
+                        <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
+                        <Button
+                            severity="secondary" text size="small" class="fa-lg"
+                            title="Labels" aria-label="Labels"
+                            @click="showLabelsDialog = true">
+                            <i class="fa-solid fa-tags"></i>
+                        </Button>
+                        <Button
+                            :severity="showArchived ? 'info' : 'secondary'"
+                            text size="small" class="fa-lg"
+                            :title="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                            :aria-label="showArchived ? 'Hide archived cards' : 'Show archived cards'"
+                            :aria-pressed="showArchived"
+                            @click="toggleArchived">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </Button>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <span
@@ -601,12 +621,14 @@ function closeCard(): void {
                                     <span
                                         v-for="labelId in card.labelIds" :key="labelId"
                                         class="h-2 w-6 rounded-sm"
+                                        :title="labelNames.get(labelId)"
                                         :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <button type="button"
                                                 class="min-w-0 flex-1 cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
-                                            {{ card.title }}</button>
+                                            {{ card.title }}
+                                        </button>
                                         <span
                                             v-if="card.unseenCount > 0"
                                             class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
@@ -621,10 +643,11 @@ function closeCard(): void {
                                         <CardPeople
                                             :card-title="card.title"
                                             :creator-id="card.creatorId"
+                                            :executor-id="card.executorId"
                                             :assignee-ids="card.assigneeIds"
                                             :member-names="memberNames"
                                             :member-avatars="memberAvatars"
-                                        />
+                                            :member-colors="memberColors"/>
                                     </div>
                                 </template>
                             </Card>
@@ -636,38 +659,25 @@ function closeCard(): void {
                         <div v-if="addingCardColumnId === column.id" class="mt-1">
                             <InputText
                                 v-model="newCardTitle"
-                                class="w-full"
-                                autofocus
-                                placeholder="Card title"
-                                @keydown.enter="addCard(column.id)"
-                                @keydown.esc="cancelAddCard"
-                            />
+                                class="w-full" autofocus placeholder="Card title"
+                                @keydown.enter="addCard(column.id)" @keydown.esc="cancelAddCard"/>
                             <div class="mt-1.5 flex gap-2">
                                 <Button label="Add" :disabled="newCardTitle.trim() === ''" @click="addCard(column.id)"/>
                                 <Button severity="secondary" size="small" label="Cancel" @click="cancelAddCard"/>
                             </div>
                         </div>
                         <Button
-                            v-else
-                            severity="secondary"
-                            text
-                            size="small"
-                            class="mt-1 w-full justify-start text-body hover:bg-raised"
-                            label="+ Add card"
-                            @click="startAddCard(column.id)"
-                        />
+                            v-else @click="startAddCard(column.id)"
+                            severity="secondary" text size="small" label="+ Add card"
+                            class="mt-1 w-full justify-start text-body hover:bg-raised"/>
                     </div>
                 </div>
 
                 <div v-if="addingColumn" class="w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line-strong bg-panel p-2 sm:w-72">
                     <InputText
                         v-model="newColumnName"
-                        autofocus
-                        placeholder="Column name"
-                        class="w-full"
-                        @keydown.enter="addColumn"
-                        @keydown.esc="cancelAdd"
-                    />
+                        autofocus placeholder="Column name" class="w-full"
+                        @keydown.enter="addColumn" @keydown.esc="cancelAdd"/>
                     <div class="mt-2 flex gap-2">
                         <Button label="Add" :disabled="newColumnName.trim() === ''" @click="addColumn"/>
                         <Button severity="secondary" label="Cancel" @click="cancelAdd"/>

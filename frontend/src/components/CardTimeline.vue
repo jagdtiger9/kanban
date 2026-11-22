@@ -99,6 +99,10 @@ function memberAvatarVersion(userId: string): string | null {
     return membersById.value.get(userId)?.avatarVersion ?? null
 }
 
+function memberColor(userId: string): string | null {
+    return membersById.value.get(userId)?.avatarColor ?? null
+}
+
 function formatTime(iso: string): string {
     return new Date(iso).toLocaleString()
 }
@@ -147,6 +151,10 @@ function activityText(activity: ActivityPayload): string {
             return `assigned ${payloadString(p.userName)}`
         case 'member_unassigned':
             return `unassigned ${payloadString(p.userName)}`
+        case 'executor_assigned':
+            return `made ${payloadString(p.userName)} the executor`
+        case 'executor_unassigned':
+            return `removed ${payloadString(p.userName)} as executor`
         case 'attachment_added':
             return `attached ${payloadString(p.fileName)}`
         case 'attachment_removed':
@@ -370,7 +378,8 @@ function askRemoveCommentAttachment(comment: CommentPayload, target: AttachmentP
                         <UserAvatar
                             :user-id="item.comment.authorId"
                             :name="memberName(item.comment.authorId)"
-                            :avatar-version="memberAvatarVersion(item.comment.authorId)"/>
+                            :avatar-version="memberAvatarVersion(item.comment.authorId)"
+                            :color="memberColor(item.comment.authorId)"/>
                         <span class="font-medium text-strong">{{ memberName(item.comment.authorId) }}</span>
                         <span v-if="item.comment.updatedAt !== item.comment.createdAt" class="text-xs text-faint">
                             edited
@@ -426,6 +435,7 @@ function askRemoveCommentAttachment(comment: CommentPayload, target: AttachmentP
                         :user-id="item.event.actorId ?? ''"
                         :name="item.event.actorId ? memberName(item.event.actorId) : null"
                         :avatar-version="item.event.actorId ? memberAvatarVersion(item.event.actorId) : null"
+                        :color="item.event.actorId ? memberColor(item.event.actorId) : null"
                         class="mt-0.5"/>
                     <p class="min-w-0 flex-1 text-body">
                         <span class="font-medium text-strong">{{ item.event.actorId ? memberName(item.event.actorId) : 'System' }}</span>

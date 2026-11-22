@@ -9,6 +9,7 @@ defineProps<{
     cardTitle: string
     people: CardPerson[]
     memberAvatars: Map<string, string | null>
+    memberColors: Map<string, string | null>
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -27,6 +28,7 @@ const selfId = computed(() => auth.user?.id ?? null)
                     :user-id="person.id"
                     :name="person.name"
                     :avatar-version="memberAvatars.get(person.id) ?? null"
+                    :color="memberColors.get(person.id) ?? null"
                     size="md"
                 />
                 <div class="min-w-0">

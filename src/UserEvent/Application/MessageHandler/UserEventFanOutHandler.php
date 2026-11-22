@@ -7,6 +7,8 @@ namespace App\UserEvent\Application\MessageHandler;
 use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventInterface;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardUnassigned;
 use App\Board\Domain\Event\CommentCreated;
 use App\Project\Domain\Event\ProjectArchived;
@@ -46,6 +48,18 @@ final class UserEventFanOutHandler
 
     #[AsMessageHandler]
     public function onCardUnassigned(CardUnassigned $event): void
+    {
+        $this->fanOutCard($event, $event->cardId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardExecutorAssigned(CardExecutorAssigned $event): void
+    {
+        $this->fanOutCard($event, $event->cardId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardExecutorUnassigned(CardExecutorUnassigned $event): void
     {
         $this->fanOutCard($event, $event->cardId);
     }

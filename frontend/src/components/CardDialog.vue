@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type ComponentPublicInstance } from 'vue'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
@@ -22,6 +21,7 @@ import AttachmentChip from './AttachmentChip.vue'
 import CardTimeline from './CardTimeline.vue'
 import ClipboardPasteDialog from './ClipboardPasteDialog.vue'
 import MarkdownField from './MarkdownField.vue'
+import MemberPicker, { type MemberOption } from './MemberPicker.vue'
 import Modal from './Modal.vue'
 import UserAvatar from './UserAvatar.vue'
 
@@ -52,6 +52,7 @@ const title = ref(props.card.title)
 const description = ref(props.card.description)
 const labelIds = ref<string[]>([...props.card.labelIds])
 const assigneeIds = ref<string[]>([...props.card.assigneeIds])
+const executorId = ref<string | null>(props.card.executorId)
 const dueDate = ref<string | null>(props.card.dueDate)
 const dueDateModel = computed(() => fromYmd(dueDate.value))
 
@@ -105,6 +106,13 @@ watch(
     () => props.card.assigneeIds,
     (ids) => {
         assigneeIds.value = [...ids]
+    },
+)
+
+watch(
+    () => props.card.executorId,
+    (value) => {
+        executorId.value = value
     },
 )
 
@@ -289,19 +297,69 @@ async function toggleLabel(labelId: string): Promise<void> {
     }
 }
 
-async function toggleAssignee(userId: string): Promise<void> {
-    const next = assigneeIds.value.includes(userId)
-        ? assigneeIds.value.filter((id) => id !== userId)
-        : [...assigneeIds.value, userId]
-    assigneeIds.value = next
+// Options for the assignee and executor dropdowns (with the avatar color).
+const memberOptions = computed<MemberOption[]>(() =>
+    props.members.map((member) => ({
+        userId: member.userId,
+        displayName: member.displayName,
+        avatarVersion: member.avatarVersion,
+        avatarColor: member.avatarColor,
+    })),
+)
+
+const selectedAssignees = computed(() =>
+    assigneeIds.value
+        .map((id) => props.members.find((member) => member.userId === id))
+        .filter((member): member is MemberPayload => member !== undefined),
+)
+
+async function changeAssignees(next: string[] | null): Promise<void> {
+    const userIds = next ?? []
+    assigneeIds.value = userIds
     error.value = null
     try {
-        await boardApi.setCardAssignees(props.card.id, next)
-        emit('updated', { assigneeIds: next })
+        await boardApi.setCardAssignees(props.card.id, userIds)
+        emit('updated', { assigneeIds: userIds })
     } catch (e) {
         assigneeIds.value = [...props.card.assigneeIds]
         error.value = e instanceof ApiError ? e.message : 'Failed to update assignees'
     }
+}
+
+function removeAssignee(userId: string): void {
+    void changeAssignees(assigneeIds.value.filter((id) => id !== userId))
+}
+
+// "+ Add" opens the list of members not assigned yet; a click adds one.
+const assigneePicker = ref<{ toggle: (event: Event) => void } | null>(null)
+const unassignedOptions = computed(() =>
+    memberOptions.value.filter((option) => !assigneeIds.value.includes(option.userId)),
+)
+
+function addAssignee(userId: string): void {
+    void changeAssignees([...assigneeIds.value, userId])
+}
+
+async function changeExecutor(userId: string | null): Promise<void> {
+    executorId.value = userId
+    error.value = null
+    try {
+        await boardApi.setCardExecutor(props.card.id, userId)
+        emit('updated', { executorId: userId })
+    } catch (e) {
+        executorId.value = props.card.executorId
+        error.value = e instanceof ApiError ? e.message : 'Failed to set executor'
+    }
+}
+
+// "+ Choose" / "Change" opens the list of all members; the current executor is ticked.
+const executorPicker = ref<{ toggle: (event: Event) => void } | null>(null)
+const executor = computed(() => props.members.find((member) => member.userId === executorId.value) ?? null)
+
+function assignExecutorToMe(): void {
+    const userId = auth.user?.id
+    if (userId === undefined) return
+    void changeExecutor(userId)
 }
 
 async function changeDue(value: string | null): Promise<void> {
@@ -521,40 +579,100 @@ function copyCardLink(): void {
                         <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
                     </div>
 
-                    <!-- Assignees and due date side by side, so the date is not lost at the bottom. -->
+                    <!-- Left: assignees; right: executor and due date (kept near the top). -->
                     <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="min-w-0">
-                        <p class="section-heading mb-1.5">Assignees</p>
-                        <div v-if="props.members.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
-                            <label
-                                v-for="member in props.members"
-                                :key="member.userId"
-                                class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-body transition-colors hover:bg-raised">
-                                <Checkbox
-                                    :model-value="assigneeIds.includes(member.userId)"
-                                    :binary="true"
-                                    @update:model-value="toggleAssignee(member.userId)"/>
-                                <UserAvatar
-                                    :user-id="member.userId"
-                                    :name="member.displayName"
-                                    :avatar-version="member.avatarVersion"/>
-                                {{ member.displayName }}
-                            </label>
+                        <div class="min-w-0">
+                            <p class="section-heading mb-1.5">Assignees</p>
+                            <ul v-if="selectedAssignees.length > 0" class="max-h-40 space-y-0.5 overflow-y-auto">
+                                <li
+                                    v-for="member in selectedAssignees"
+                                    :key="member.userId"
+                                    class="flex items-center gap-2 rounded-lg py-0.5 text-body">
+                                    <Button
+                                        severity="secondary" text size="small"
+                                        :title="`Unassign ${member.displayName}`"
+                                        :aria-label="`Unassign ${member.displayName}`"
+                                        @click="removeAssignee(member.userId)">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </Button>
+                                    <UserAvatar
+                                        :user-id="member.userId"
+                                        :name="member.displayName"
+                                        :avatar-version="member.avatarVersion"
+                                        :color="member.avatarColor"/>
+                                    <span class="min-w-0">{{ member.displayName }}</span>
+                                </li>
+                            </ul>
+                            <p v-else class="text-xs text-faint">{{ props.members.length > 0 ? 'No assignees.' : 'No members.' }}</p>
+                            <Button
+                                v-if="unassignedOptions.length > 0"
+                                text
+                                size="small"
+                                class="mt-1"
+                                aria-label="Add assignee"
+                                @click="(event: Event) => assigneePicker?.toggle(event)">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add</span>
+                            </Button>
+                            <MemberPicker ref="assigneePicker" :members="unassignedOptions" @pick="addAssignee"/>
                         </div>
-                        <p v-else class="text-xs text-faint">No members.</p>
-                    </div>
 
-                    <div class="min-w-0">
-                        <p class="section-heading mb-1.5">Due date</p>
-                        <DatePicker
-                            :model-value="dueDateModel"
-                            date-format="yy-mm-dd"
-                            show-icon
-                            show-clear
-                            fluid
-                            @update:model-value="onDueChange"
-                        />
-                    </div>
+                        <div class="min-w-0 space-y-4">
+                            <div>
+                                <p class="section-heading mb-1.5">Executor</p>
+                                <div v-if="executor !== null" class="flex items-center gap-2 rounded-lg py-0.5 text-body">
+                                    <Button
+                                        severity="secondary" text size="small"
+                                        :title="`Remove ${executor.displayName} as executor`"
+                                        :aria-label="`Remove ${executor.displayName} as executor`"
+                                        @click="changeExecutor(null)">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </Button>
+                                    <UserAvatar
+                                        :user-id="executor.userId"
+                                        :name="executor.displayName"
+                                        :avatar-version="executor.avatarVersion"
+                                        :color="executor.avatarColor"/>
+                                    <span class="min-w-0">{{ executor.displayName }}</span>
+                                </div>
+                                <p v-else class="text-xs text-faint">{{ props.members.length > 0 ? 'No executor.' : 'No members.' }}</p>
+                                <div v-if="props.members.length > 0" class="mt-1 flex items-center gap-1">
+                                    <Button
+                                        text
+                                        size="small"
+                                        :aria-label="executor === null ? 'Choose executor' : 'Change executor'"
+                                        @click="(event: Event) => executorPicker?.toggle(event)">
+                                        <i :class="['fa-solid', executor === null ? 'fa-plus' : 'fa-arrows-rotate']"></i>
+                                        <span>{{ executor === null ? 'Choose' : 'Change' }}</span>
+                                    </Button>
+                                    <Button
+                                        text
+                                        size="small"
+                                        title="Assign to me"
+                                        aria-label="Assign to me"
+                                        :disabled="auth.user?.id === executorId"
+                                        @click="assignExecutorToMe">
+                                        <i class="fa-solid fa-user-check"></i>
+                                    </Button>
+                                </div>
+                                <MemberPicker
+                                    ref="executorPicker"
+                                    :members="memberOptions"
+                                    :selected-ids="executorId === null ? [] : [executorId]"
+                                    @pick="changeExecutor"/>
+                            </div>
+
+                            <div>
+                                <p class="section-heading mb-1.5">Due date</p>
+                                <DatePicker
+                                    :model-value="dueDateModel"
+                                    date-format="yy-mm-dd"
+                                    show-icon
+                                    show-clear
+                                    fluid
+                                    @update:model-value="onDueChange"/>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

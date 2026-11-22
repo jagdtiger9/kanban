@@ -77,6 +77,7 @@ final class ProjectController extends AbstractController
                     'email' => $member['email'],
                     'displayName' => $member['displayName'],
                     'avatarVersion' => $member['avatarVersion'],
+                    'avatarColor' => $member['avatarColor'],
                     'joinedAt' => $member['joinedAt']->format(\DateTimeInterface::ATOM),
                 ],
                 $result['members'],

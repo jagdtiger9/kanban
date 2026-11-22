@@ -57,6 +57,13 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function updateColor(color: string | null): Promise<void> {
+        const { avatarColor } = await usersApi.updateAvatarColor(color)
+        if (user.value !== null) {
+            user.value = { ...user.value, avatarColor }
+        }
+    }
+
     async function logout(): Promise<void> {
         await authApi.logout()
         user.value = null
@@ -72,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
         changePassword,
         updateAvatar,
         removeAvatar,
+        updateColor,
         logout,
     }
 })

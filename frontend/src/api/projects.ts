@@ -18,6 +18,7 @@ export interface MemberPayload {
     email: string
     displayName: string
     avatarVersion: string | null
+    avatarColor: string | null
     joinedAt: string
 }
 

@@ -1,4 +1,4 @@
-export type CardRole = 'creator' | 'assignee'
+export type CardRole = 'creator' | 'assignee' | 'executor'
 
 export interface CardPerson {
     id: string
@@ -9,6 +9,7 @@ export interface CardPerson {
 const ROLE_LABELS: Record<CardRole, string> = {
     creator: 'Creator',
     assignee: 'Assignee',
+    executor: 'Executor',
 }
 
 const AVATAR_COLORS = [

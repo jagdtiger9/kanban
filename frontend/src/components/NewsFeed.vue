@@ -200,6 +200,7 @@ function askDelete(post: NewsPostPayload): void {
                             :user-id="post.authorId"
                             :name="post.authorName"
                             :avatar-version="post.authorAvatarVersion"
+                            :color="post.authorAvatarColor"
                             size="md"
                         />
                         <div class="min-w-0">

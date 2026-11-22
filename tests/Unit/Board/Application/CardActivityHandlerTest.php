@@ -11,6 +11,8 @@ use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -165,6 +167,30 @@ final class CardActivityHandlerTest extends TestCase
 
         $activity = $this->last();
         self::assertSame('member_unassigned', $activity->type());
+        self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
+    }
+
+    public function testExecutorAssigned(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $userId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardExecutorAssigned(new CardExecutorAssigned($cardId, $userId, 'Alice', null));
+
+        $activity = $this->last();
+        self::assertSame('executor_assigned', $activity->type());
+        self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
+    }
+
+    public function testExecutorUnassigned(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $userId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardExecutorUnassigned(new CardExecutorUnassigned($cardId, $userId, 'Alice', null));
+
+        $activity = $this->last();
+        self::assertSame('executor_unassigned', $activity->type());
         self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
     }
 

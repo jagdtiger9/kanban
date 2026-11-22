@@ -21,6 +21,7 @@ use App\Board\Application\Message\Command\ReorderColumnCommand;
 use App\Board\Application\Message\Command\RestoreCardCommand;
 use App\Board\Application\Message\Command\SetCardAssigneesCommand;
 use App\Board\Application\Message\Command\SetCardDueDateCommand;
+use App\Board\Application\Message\Command\SetCardExecutorCommand;
 use App\Board\Application\Message\Command\SetCardLabelsCommand;
 use App\Board\Application\Message\Command\UpdateCardContentCommand;
 use App\Board\Application\Message\Command\UpdateCommentCommand;
@@ -215,6 +216,14 @@ final class BoardController extends AbstractController
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
+    public function setCardExecutor(SetCardExecutorCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
     public function setCardDueDate(SetCardDueDateCommand $command, Security $security): Response
     {
         $command->actorId = $this->actorId($security);
@@ -309,6 +318,7 @@ final class BoardController extends AbstractController
      *     position: int,
      *     dueDate: ?string,
      *     creatorId: string,
+     *     executorId: ?string,
      *     createdAt: string,
      *     updatedAt: string,
      *     archived: bool,
@@ -326,6 +336,7 @@ final class BoardController extends AbstractController
             'position' => $card->position(),
             'dueDate' => $card->dueDate()?->format('Y-m-d'),
             'creatorId' => (string)$card->creatorId(),
+            'executorId' => $card->executorId()?->toString(),
             'createdAt' => $card->createdAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $card->updatedAt()->format(\DateTimeInterface::ATOM),
             'archived' => $card->isArchived(),

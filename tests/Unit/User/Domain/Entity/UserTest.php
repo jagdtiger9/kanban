@@ -205,6 +205,62 @@ final class UserTest extends TestCase
         self::assertNull($user->avatarVersion());
     }
 
+    public function testNewUserHasNoAvatarColor(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        self::assertNull($user->avatarColor());
+    }
+
+    public function testChangeAvatarColorStoresNormalizedColor(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $user->changeAvatarColor('  #AABBCC  ');
+
+        self::assertSame('#aabbcc', $user->avatarColor());
+        self::assertCount(0, $user->releaseEvents());
+    }
+
+    public function testChangeAvatarColorCanBeResetToAuto(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatarColor('#112233');
+
+        $user->changeAvatarColor(null);
+
+        self::assertNull($user->avatarColor());
+    }
+
+    public function testChangeAvatarColorTreatsBlankAsResetToAuto(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatarColor('#112233');
+
+        $user->changeAvatarColor('   ');
+
+        self::assertNull($user->avatarColor());
+    }
+
+    public function testChangeAvatarColorIsANoOpWhenUnchanged(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+        $user->changeAvatarColor('#112233');
+
+        $user->changeAvatarColor('#112233');
+
+        self::assertSame('#112233', $user->avatarColor());
+        self::assertCount(0, $user->releaseEvents());
+    }
+
+    public function testChangeAvatarColorRejectsInvalidValue(): void
+    {
+        $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $user->changeAvatarColor('red');
+    }
+
     public function testChangeAvatarStoresKeyAndRecordsEvent(): void
     {
         $user = User::create(Uuid::uuid4(), 'alice@example.com', 'hash', 'Alice');

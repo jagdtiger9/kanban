@@ -10,6 +10,8 @@ use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
 use App\Board\Domain\Event\CardCreated;
+use App\Board\Domain\Event\CardExecutorAssigned;
+use App\Board\Domain\Event\CardExecutorUnassigned;
 use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
@@ -98,6 +100,24 @@ final class CardActivityHandler
     public function onCardUnassigned(CardUnassigned $event): void
     {
         $this->store($event->cardId, $event->actorId, 'member_unassigned', [
+            'userId' => $event->userId,
+            'userName' => $event->userName,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardExecutorAssigned(CardExecutorAssigned $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'executor_assigned', [
+            'userId' => $event->userId,
+            'userName' => $event->userName,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardExecutorUnassigned(CardExecutorUnassigned $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'executor_unassigned', [
             'userId' => $event->userId,
             'userName' => $event->userName,
         ]);
