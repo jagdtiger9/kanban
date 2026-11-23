@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { computed, ComputedRef, nextTick, onMounted, Ref, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
-import InputText from 'primevue/inputtext'
-import MultiSelect from 'primevue/multiselect'
-import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
@@ -12,26 +9,20 @@ import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
 import * as attachmentsApi from '../api/attachments'
 import type { AttachmentPayload } from '../api/attachments'
-import type {
-    ActivityPayload,
-    CardPayload,
-    ColumnPayload,
-    CommentPayload,
-    LabelPayload,
-    TimelineItem,
-} from '../api/board'
+import type { CardPayload, ColumnPayload, LabelPayload, TimelineItem } from '../api/board'
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { text2Clipboard } from '../utils/clipboard'
 import { fromYmd, toYmd } from '../utils/dates'
 import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
-import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
+import { MEDIA_ACCEPT } from '../utils/attachments'
 import AttachmentChip from './AttachmentChip.vue'
+import CardAssignees from './CardAssignees.vue'
+import CardComments from './CardComments.vue'
 import ClipboardPasteDialog from './ClipboardPasteDialog.vue'
 import MarkdownEditorDialog from './MarkdownEditorDialog.vue'
 import Modal from './Modal.vue'
-import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps<{
     card: CardPayload
@@ -52,14 +43,10 @@ const confirm = useConfirm()
 const toast = useToast()
 const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
-const canDeleteComment = (comment: CommentPayload): boolean =>
-    auth.user?.id === comment.authorId || props.isAdmin
 
 const title = ref(props.card.title)
 const description = ref(props.card.description)
 const labelIds = ref<string[]>([...props.card.labelIds])
-const assigneeIds = ref<string[]>([...props.card.assigneeIds])
-const executorId = ref<string | null>(props.card.executorId)
 const dueDate = ref<string | null>(props.card.dueDate)
 const dueDateModel = computed(() => fromYmd(dueDate.value))
 
@@ -70,13 +57,6 @@ const timeline = ref<TimelineItem[]>([])
 const attachments = ref<AttachmentPayload[]>([])
 const detailLoading = ref(true)
 const detailError = ref<string | null>(null)
-
-const newComment = ref('')
-const commentSaving = ref(false)
-const commentFiles = ref<File[]>([])
-const commentFileInput = ref<HTMLInputElement | null>(null)
-const editingId = ref<string | null>(null)
-const editBody = ref('')
 
 const editingDescription = ref(false)
 const descriptionDraft = ref('')
@@ -90,134 +70,19 @@ const cardFileInput = ref<HTMLInputElement | null>(null)
 const attachmentBusy = ref(false)
 const attachmentError = ref<string | null>(null)
 
-const memberNames = computed(() => {
-    const names = new Map<string, string>()
-    for (const member of props.members) {
-        names.set(member.userId, member.displayName)
-    }
-    return names
-})
-
-const memberAvatars = computed(() => {
-    const versions = new Map<string, string | null>()
-    for (const member of props.members) {
-        versions.set(member.userId, member.avatarVersion)
-    }
-    return versions
-})
-
-const memberColors = computed(() => {
-    const colors = new Map<string, string | null>()
-    for (const member of props.members) {
-        colors.set(member.userId, member.avatarColor)
-    }
-    return colors
-})
-
-const assigneeOptions = computed(() =>
-    props.members.map((member) => ({
-        userId: member.userId,
-        displayName: member.displayName,
-        avatarVersion: member.avatarVersion,
-        avatarColor: member.avatarColor,
-    })),
-)
-
-const selectedAssignees = computed(() =>
-    assigneeIds.value
-        .map((id) => props.members.find((member) => member.userId === id))
-        .filter((member): member is MemberPayload => member !== undefined),
-)
-const selectedExecutor = computed((): MemberPayload | undefined =>
-    props.members.find((member: MemberPayload) => member.userId === executorId.value)
-)
-
-function memberName(userId: string): string {
-    return memberNames.value.get(userId) ?? 'Unknown member'
-}
-
-function memberAvatarVersion(userId: string): string | null {
-    return memberAvatars.value.get(userId) ?? null
-}
-
-function memberColor(userId: string): string | null {
-    return memberColors.value.get(userId) ?? null
-}
-
-function formatTime(iso: string): string {
-    return new Date(iso).toLocaleString()
-}
-
-function columnName(columnId: string): string {
-    return props.columns.find((column) => column.id === columnId)?.name ?? 'Unknown column'
-}
-
-function payloadString(value: unknown): string {
-    return typeof value === 'string' ? value : ''
-}
-
-function activityText(activity: ActivityPayload): string {
-    const p = activity.payload
-    switch (activity.type) {
-        case 'card_created':
-            return 'created this card'
-        case 'card_archived':
-            return 'archived this card'
-        case 'card_restored':
-            return 'restored this card'
-        case 'comment_added':
-            return 'added a comment'
-        case 'comment_edited':
-            return 'edited a comment'
-        case 'card_moved': {
-            const from = columnName(payloadString(p.fromColumnId))
-            const to = columnName(payloadString(p.toColumnId))
-            return from === to ? `reordered this card in ${from}` : `moved this card from ${from} to ${to}`
-        }
-        case 'card_updated': {
-            const field = payloadString(p.field)
-            if (field === 'description') return 'changed the description'
-            const label = field === 'due_date' ? 'due date' : 'title'
-            const oldValue = payloadString(p.oldValue)
-            const newValue = payloadString(p.newValue)
-            if (oldValue === '' && newValue !== '') return `set ${label} to ${newValue}`
-            if (newValue === '' && oldValue !== '') return `removed ${label}`
-            return `changed ${label} from ${oldValue} to ${newValue}`
-        }
-        case 'label_added':
-            return `added label ${payloadString(p.labelName)}`
-        case 'label_removed':
-            return `removed label ${payloadString(p.labelName)}`
-        case 'member_assigned':
-            return `assigned ${payloadString(p.userName)}`
-        case 'member_unassigned':
-            return `unassigned ${payloadString(p.userName)}`
-        case 'executor_assigned':
-            return `made ${payloadString(p.userName)} the executor`
-        case 'executor_unassigned':
-            return `removed ${payloadString(p.userName)} as executor`
-        case 'attachment_added':
-            return `attached ${payloadString(p.fileName)}`
-        case 'attachment_removed':
-            return `removed attachment ${payloadString(p.fileName)}`
-        default:
-            return activity.type
-    }
-}
-
 async function refreshDetail(): Promise<void> {
     const detail = await boardApi.getCard(props.card.id)
     timeline.value = detail.timeline
     attachments.value = detail.attachments
 }
 
-const timeLineFilter: Ref<'all' | 'comment' | 'event'> = ref('all')
-const timelinePrint: ComputedRef<TimelineItem[]> = computed((): TimelineItem[] => {
-    if (timeLineFilter.value === 'all') {
-        return timeline.value
+async function onCommentsRefresh(): Promise<void> {
+    try {
+        await refreshDetail()
+    } catch (e) {
+        detailError.value = e instanceof ApiError ? e.message : 'Failed to refresh comments and activity'
     }
-    return timeline.value.filter((item: TimelineItem) => item.kind === timeLineFilter.value)
-})
+}
 
 async function loadDetail(): Promise<void> {
     detailLoading.value = true
@@ -236,9 +101,7 @@ onMounted(loadDetail)
 watch(
     () => props.realtimeTick,
     () => {
-        refreshDetail().catch((e: unknown) => {
-            detailError.value = e instanceof ApiError ? e.message : 'Failed to refresh comments and activity'
-        })
+        void onCommentsRefresh()
     },
 )
 
@@ -246,20 +109,6 @@ watch(
     () => props.card.labelIds,
     (ids) => {
         labelIds.value = [...ids]
-    },
-)
-
-watch(
-    () => props.card.assigneeIds,
-    (ids) => {
-        assigneeIds.value = [...ids]
-    },
-)
-
-watch(
-    () => props.card.executorId,
-    (value) => {
-        executorId.value = value
     },
 )
 
@@ -283,23 +132,6 @@ watch(
         if (!editingTitle.value) title.value = value
     },
 )
-
-async function addComment(): Promise<void> {
-    const body = newComment.value.trim()
-    if (body === '' || commentSaving.value) return
-    commentSaving.value = true
-    detailError.value = null
-    try {
-        await boardApi.createComment(props.card.id, body, commentFiles.value)
-        newComment.value = ''
-        commentFiles.value = []
-        await refreshDetail()
-    } catch (e) {
-        detailError.value = e instanceof ApiError ? e.message : 'Failed to add comment'
-    } finally {
-        commentSaving.value = false
-    }
-}
 
 function onCardFilesSelected(event: Event): void {
     const input = event.target as HTMLInputElement
@@ -353,111 +185,11 @@ function askRemoveCardAttachment(target: AttachmentPayload): void {
     })
 }
 
-function onCommentFilesSelected(event: Event): void {
-    const input = event.target as HTMLInputElement
-    const files = [...(input.files ?? [])]
-    input.value = ''
-    addCommentFiles(files)
-}
-
-// Where the clipboard dialog was opened from: a new comment or the card's attachments.
-const clipboardTarget = ref<'comment' | 'card' | null>(null)
+const clipboardOpen = ref(false)
 
 function onClipboardImage(file: File): void {
-    const target = clipboardTarget.value
-    clipboardTarget.value = null
-    if (target === 'card') {
-        void uploadCardFiles([file])
-    } else {
-        addCommentFiles([file])
-    }
-}
-
-/** One path for picked and pasted files, so the per-comment limits apply to both. */
-function addCommentFiles(files: File[]): void {
-    detailError.value = null
-
-    const selected = [...commentFiles.value]
-    for (const file of files) {
-        if (selected.length >= MAX_COMMENT_FILES) {
-            detailError.value = `A comment can have at most ${MAX_COMMENT_FILES} attachments`
-            break
-        }
-        const total = selected.reduce((sum, f) => sum + f.size, 0) + file.size
-        if (total > MAX_COMMENT_BYTES) {
-            detailError.value = 'Comment attachments cannot exceed 50 MB in total'
-            break
-        }
-        selected.push(file)
-    }
-
-    commentFiles.value = selected
-}
-
-function removeCommentFile(index: number): void {
-    commentFiles.value = commentFiles.value.filter((_, i) => i !== index)
-}
-
-async function removeCommentAttachment(comment: CommentPayload, target: AttachmentPayload): Promise<void> {
-    commentSaving.value = true
-    detailError.value = null
-    try {
-        await attachmentsApi.deleteCommentAttachment(comment.id, target.id)
-        await refreshDetail()
-    } catch (e) {
-        detailError.value = e instanceof ApiError ? e.message : 'Failed to remove attachment'
-    } finally {
-        commentSaving.value = false
-    }
-}
-
-function askRemoveCommentAttachment(comment: CommentPayload, target: AttachmentPayload): void {
-    confirm.require({
-        header: 'Remove attachment',
-        message: `Remove “${target.name}”?`,
-        acceptProps: { label: 'Remove', severity: 'danger' },
-        rejectProps: { label: 'Cancel', severity: 'secondary' },
-        accept: () => removeCommentAttachment(comment, target),
-    })
-}
-
-function startEdit(comment: CommentPayload): void {
-    editingId.value = comment.id
-    editBody.value = comment.body
-}
-
-function cancelEdit(): void {
-    editingId.value = null
-}
-
-async function saveEdit(): Promise<void> {
-    const body = editBody.value.trim()
-    if (editingId.value === null || body === '' || commentSaving.value) return
-    commentSaving.value = true
-    detailError.value = null
-    try {
-        await boardApi.updateComment(editingId.value, body)
-        editingId.value = null
-        await refreshDetail()
-    } catch (e) {
-        detailError.value = e instanceof ApiError ? e.message : 'Failed to update comment'
-    } finally {
-        commentSaving.value = false
-    }
-}
-
-async function removeComment(target: CommentPayload): Promise<void> {
-    if (commentSaving.value) return
-    commentSaving.value = true
-    detailError.value = null
-    try {
-        await boardApi.deleteComment(target.id)
-        await refreshDetail()
-    } catch (e) {
-        detailError.value = e instanceof ApiError ? e.message : 'Failed to delete comment'
-    } finally {
-        commentSaving.value = false
-    }
+    clipboardOpen.value = false
+    void uploadCardFiles([file])
 }
 
 function askArchive(): void {
@@ -467,16 +199,6 @@ function askArchive(): void {
         acceptProps: { label: 'Archive', severity: 'secondary' },
         rejectProps: { label: 'Cancel', severity: 'secondary' },
         accept: archive,
-    })
-}
-
-function askDeleteComment(comment: CommentPayload): void {
-    confirm.require({
-        header: 'Delete comment',
-        message: 'Delete this comment? This cannot be undone.',
-        acceptProps: { label: 'Delete', severity: 'danger' },
-        rejectProps: { label: 'Cancel', severity: 'secondary' },
-        accept: () => removeComment(comment),
     })
 }
 
@@ -548,41 +270,6 @@ async function toggleLabel(labelId: string): Promise<void> {
     }
 }
 
-async function changeAssignees(next: string[] | null): Promise<void> {
-    const userIds = next ?? []
-    assigneeIds.value = userIds
-    error.value = null
-    try {
-        await boardApi.setCardAssignees(props.card.id, userIds)
-        emit('updated', { assigneeIds: userIds })
-    } catch (e) {
-        assigneeIds.value = [...props.card.assigneeIds]
-        error.value = e instanceof ApiError ? e.message : 'Failed to update assignees'
-    }
-}
-
-function removeAssignee(userId: string): void {
-    void changeAssignees(assigneeIds.value.filter((id) => id !== userId))
-}
-
-async function changeExecutor(userId: string | null): Promise<void> {
-    executorId.value = userId
-    error.value = null
-    try {
-        await boardApi.setCardExecutor(props.card.id, userId)
-        emit('updated', { executorId: userId })
-    } catch (e) {
-        executorId.value = props.card.executorId
-        error.value = e instanceof ApiError ? e.message : 'Failed to set executor'
-    }
-}
-
-function assignExecutorToMe(): void {
-    const userId = auth.user?.id
-    if (userId === undefined) return
-    void changeExecutor(userId)
-}
-
 async function changeDue(value: string | null): Promise<void> {
     dueDate.value = value
     error.value = null
@@ -647,58 +334,18 @@ function copyCardLink(): void {
     })
 }
 
-const isAssigneeOpen = ref(false)
-const assigneeRef = ref<InstanceType<typeof MultiSelect> | null>(null)
-
-const openAssigneeMultiselect = async () => {
-    isAssigneeOpen.value = true
-    await nextTick()
-    // Open the popup programmatically after the component is mounted
-    assigneeRef.value?.show()
-}
-
-const closeAssigneeMultiselect = () => {
-    // Called when the overlay closes (Escape, outside click, or selection)
-    isAssigneeOpen.value = false
-}
-
-const isExecutorOpen = ref(false)
-const executorRef = ref<InstanceType<typeof Select> | null>(null)
-
-const openExecutorMultiselect = async () => {
-    isExecutorOpen.value = true
-    await nextTick()
-    // Open the popup programmatically after the component is mounted
-    executorRef.value?.show()
-}
-
-const closeExecutorMultiselect = () => {
-    // Called when the overlay closes (Escape, outside click, or selection)
-    isExecutorOpen.value = false
-}
-
-// Full-size markdown editor: its Save puts the text into the field and runs that field's save.
-type MarkdownTarget = 'description' | 'newComment' | 'editComment'
-const markdownTarget = ref<MarkdownTarget | null>(null)
+const markdownOpen = ref(false)
 const markdownText = ref('')
 
-function openMarkdownEditor(target: MarkdownTarget, text: string): void {
+function openMarkdownEditor(text: string): void {
     markdownText.value = text
-    markdownTarget.value = target
+    markdownOpen.value = true
 }
 
 async function saveFromMarkdownEditor(text: string): Promise<void> {
-    if (markdownTarget.value === 'description') {
-        descriptionDraft.value = text
-        await saveDescription()
-    } else if (markdownTarget.value === 'newComment') {
-        newComment.value = text
-        await addComment()
-    } else if (markdownTarget.value === 'editComment') {
-        editBody.value = text
-        await saveEdit()
-    }
-    markdownTarget.value = null
+    descriptionDraft.value = text
+    await saveDescription()
+    markdownOpen.value = false
 }
 </script>
 
@@ -761,7 +408,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                                 placeholder="Markdown supported"/>
                             <div class="mt-2 flex justify-end gap-2">
                                 <Button label="Save" size="small" outlined :disabled="descriptionSaving" @click="saveDescription"/>
-                                <Button label="Edit" size="small" outlined @click="openMarkdownEditor('description', descriptionDraft)"/>
+                                <Button label="Edit" size="small" outlined @click="openMarkdownEditor(descriptionDraft)"/>
                                 <Button severity="secondary" label="Cancel" size="small" @click="cancelEditDescription"/>
                             </div>
                         </template>
@@ -792,7 +439,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                                 :disabled="attachmentBusy" @click="cardFileInput?.click()"/>
                             <Button
                                 severity="primary" text size="small" label="Clipboard" class="p-1"
-                                :disabled="attachmentBusy" @click="clipboardTarget = 'card'"/>
+                                :disabled="attachmentBusy" @click="clipboardOpen = true"/>
                         </div>
                         <p v-if="attachmentError"
                            class="mb-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
@@ -827,111 +474,13 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                         <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
                     </div>
 
-                    <Divider class="my-4"/>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div>
-                            <div>
-                                <Button class="p-1 pl-0 text-lg" text @click="openAssigneeMultiselect">+ Assignees</Button>
-                            </div>
-                            <div v-if="isAssigneeOpen">
-                                <MultiSelect
-                                    v-if="props.members.length > 0"
-                                    v-model="assigneeIds"
-                                    ref="assigneeRef"
-                                    :options="assigneeOptions"
-                                    option-label="displayName"
-                                    option-value="userId"
-                                    filter
-                                    placeholder="No assignees"
-                                    @update:model-value="changeAssignees"
-                                    @hide="closeAssigneeMultiselect">
-                                    <template #option="{ option }">
-                                        <div class="flex items-center gap-2">
-                                            <UserAvatar
-                                                :user-id="option.userId"
-                                                :name="option.displayName"
-                                                :avatar-version="option.avatarVersion"
-                                                :color="option.avatarColor"/>
-                                            <span>{{ option.displayName }}</span>
-                                        </div>
-                                    </template>
-                                </MultiSelect>
-                                <p v-else class="text-xs text-faint">No members.</p>
-                            </div>
-                            <ul
-                                v-if="selectedAssignees.length > 0"
-                                class="max-h-40 space-y-0.5 overflow-y-auto">
-                                <li
-                                    v-for="member in selectedAssignees"
-                                    :key="member.userId"
-                                    class="flex items-center gap-2 rounded-lg px-2 py-1 text-body">
-                                    <Button
-                                        class="pl-0"
-                                        severity="secondary" text size="small" label="✕"
-                                        :title="`Unassign ${member.displayName}`"
-                                        @click="removeAssignee(member.userId)">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </Button>
-                                    <UserAvatar
-                                        :user-id="member.userId"
-                                        :name="member.displayName"
-                                        :avatar-version="member.avatarVersion"
-                                        :color="member.avatarColor"/>
-                                    <span class="min-w-0">{{ member.displayName }}</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <Button class="p-1 pl-0 text-lg" text @click="openExecutorMultiselect">+ Executor</Button>
-                                <Button
-                                    severity="secondary"
-                                    size="small"
-                                    label="Assign to me"
-                                    :disabled="auth.user?.id === executorId"
-                                    @click="assignExecutorToMe"/>
-                            </div>
-                            <div v-if="isExecutorOpen && props.members.length > 0">
-                                <Select
-                                    :model-value="executorId"
-                                    :options="assigneeOptions"
-                                    ref="executorRef"
-                                    option-label="displayName"
-                                    option-value="userId"
-                                    placeholder="No executor"
-                                    show-clear
-                                    class="min-w-0 flex-1"
-                                    @hide="closeExecutorMultiselect"
-                                    @update:model-value="(value: string | null) => changeExecutor(value)">
-                                    <template #option="{ option }">
-                                        <div class="flex items-center gap-2">
-                                            <UserAvatar
-                                                :user-id="option.userId"
-                                                :name="option.displayName"
-                                                :avatar-version="option.avatarVersion"
-                                                :color="option.avatarColor"/>
-                                            <span>{{ option.displayName }}</span>
-                                        </div>
-                                    </template>
-                                </Select>
-                            </div>
-                            <div class="flex items-center gap-2" v-if="selectedExecutor">
-                                <Button
-                                    class="pl-0"
-                                    severity="secondary" text size="small" label="✕"
-                                    :title="`Unassign ${selectedExecutor.displayName}`"
-                                    @click="changeExecutor(null)">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </Button>
-                                <UserAvatar
-                                    :user-id="selectedExecutor.userId"
-                                    :name="selectedExecutor.displayName"
-                                    :avatar-version="selectedExecutor.avatarVersion"
-                                    :color="selectedExecutor.avatarColor"/>
-                                <span class="min-w-0">{{ selectedExecutor.displayName }}</span>
-                            </div>
-                        </div>
-                    </div>
+                    <CardAssignees
+                        :card-id="props.card.id"
+                        :members="props.members"
+                        :assignee-ids="props.card.assigneeIds"
+                        :executor-id="props.card.executorId"
+                        @updated="emit('updated', $event)"
+                        @error="error = $event"/>
 
                     <div>
                         <p class="mb-1.5 font-medium text-body">Due date</p>
@@ -944,125 +493,16 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                     </div>
                 </div>
 
-                <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3">
-                    <div>
-                        <Textarea
-                            v-model="newComment"
-                            rows="3"
-                            class="w-full resize-none"
-                            placeholder="Write a comment… (markdown supported)"
-                        />
-                        <input
-                            ref="commentFileInput"
-                            type="file"
-                            multiple
-                            class="hidden"
-                            :accept="MEDIA_ACCEPT"
-                            @change="onCommentFilesSelected"
-                        />
-                        <div v-if="commentFiles.length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
-                            <span
-                                v-for="(file, index) in commentFiles"
-                                :key="`${file.name}-${index}`"
-                                class="flex items-center gap-1 rounded-full bg-active px-2 py-0.5 text-xs text-body">
-                                {{ file.name }}
-                                <button
-                                    type="button"
-                                    class="cursor-pointer text-faint hover:text-strong"
-                                    :aria-label="`Remove ${file.name}`"
-                                    @click="removeCommentFile(index)">
-                                    ×
-                                </button>
-                            </span>
-                        </div>
-                        <div class="mt-1.5 flex items-center justify-end gap-2">
-                            <Button
-                                severity="secondary" text size="small" label="Add files"
-                                :disabled="commentSaving" @click="commentFileInput?.click()"/>
-                            <Button
-                                severity="secondary" text size="small" label="Clipboard"
-                                :disabled="commentSaving" @click="clipboardTarget = 'comment'"/>
-                            <Button
-                                label="Save" outlined size="small"
-                                @click="addComment" :disabled="commentSaving || newComment.trim() === ''"/>
-                            <Button label="Edit" outlined size="small" @click="openMarkdownEditor('newComment', newComment)"/>
-                        </div>
-                    </div>
-
-                    <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
-                    <p v-else-if="timeline.length === 0 && !detailError" class="text-xs text-faint">No comments or activity yet.</p>
-                    <div v-else class="space-y-3">
-                        <div class="flex justify-end gap-3">
-                            <Button text class="p-1" size="small" @click="timeLineFilter = 'all'">All</Button>
-                            <Button text class="p-1" size="small" @click="timeLineFilter = 'comment'">Comments</Button>
-                        </div>
-                        <template
-                            v-for="item in timelinePrint"
-                            :key="item.kind === 'comment' ? `comment-${item.comment.id}` : `event-${item.event.id}`">
-                            <div v-if="item.kind === 'comment'" class="rounded-lg bg-raised/50 px-3 py-2">
-                                <div class="mb-1 flex items-center gap-2">
-                                    <UserAvatar
-                                        :user-id="item.comment.authorId"
-                                        :name="memberName(item.comment.authorId)"
-                                        :avatar-version="memberAvatarVersion(item.comment.authorId)"
-                                        :color="memberColor(item.comment.authorId)"/>
-                                    <span class="font-medium text-strong">{{ memberName(item.comment.authorId) }}</span>
-                                    <span v-if="item.comment.updatedAt !== item.comment.createdAt" class="text-xs text-faint">
-                                        edited
-                                    </span>
-                                    <span class="ml-auto shrink-0 text-xs text-faint">{{ formatTime(item.comment.createdAt) }}</span>
-                                </div>
-                                <div v-if="editingId === item.comment.id" class="pl-8">
-                                    <Textarea v-model="editBody" rows="3" class="w-full resize-none" autofocus/>
-                                    <div class="mt-1.5 flex justify-end gap-2">
-                                        <Button
-                                            label="Save" size="small" outlined
-                                            @click="saveEdit" :disabled="commentSaving || editBody.trim() === ''"/>
-                                        <Button label="Edit" size="small" outlined @click="openMarkdownEditor('editComment', editBody)"/>
-                                        <Button severity="secondary" label="Cancel" size="small" @click="cancelEdit"/>
-                                    </div>
-                                </div>
-                                <div
-                                    v-else
-                                    :class="['pl-8 text-body', MARKDOWN_CLASS]"
-                                    v-html="renderMarkdown(item.comment.body)"/>
-                                <div
-                                    v-if="item.comment.attachments.length > 0"
-                                    class="mt-1.5 space-y-1.5 pl-8">
-                                    <AttachmentChip
-                                        v-for="attachment in item.comment.attachments"
-                                        :key="attachment.id" :attachment="attachment"
-                                        :can-delete="canDeleteComment(item.comment)"
-                                        @remove="askRemoveCommentAttachment(item.comment, attachment)"/>
-                                </div>
-                                <div v-if="canDeleteComment(item.comment) && editingId !== item.comment.id"
-                                     class="flex justify-end gap-3">
-                                    <Button
-                                        v-if="auth.user?.id === item.comment.authorId" @click="startEdit(item.comment)"
-                                        severity="secondary" text size="small" label="Edit"/>
-                                    <Button severity="danger" text size="small" @click="askDeleteComment(item.comment)">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </Button>
-                                </div>
-                            </div>
-                            <div v-else class="flex items-start gap-2 px-3">
-                                <UserAvatar
-                                    :user-id="item.event.actorId ?? ''"
-                                    :name="item.event.actorId ? memberName(item.event.actorId) : null"
-                                    :avatar-version="item.event.actorId ? memberAvatarVersion(item.event.actorId) : null"
-                                    :color="item.event.actorId ? memberColor(item.event.actorId) : null"
-                                    class="mt-0.5"/>
-                                <p class="min-w-0 flex-1 text-body">
-                                    <span class="font-medium text-strong">
-                                        {{ item.event.actorId ? memberName(item.event.actorId) : 'System' }}
-                                    </span>
-                                    {{ activityText(item.event) }}
-                                    <span class="ml-1 text-xs text-faint">{{ formatTime(item.event.createdAt) }}</span>
-                                </p>
-                            </div>
-                        </template>
-                    </div>
-                </aside>
+                <CardComments
+                    :card-id="props.card.id"
+                    :members="props.members"
+                    :columns="props.columns"
+                    :is-admin="props.isAdmin"
+                    :timeline="timeline"
+                    :loading="detailLoading"
+                    :detail-error="detailError"
+                    @refresh="onCommentsRefresh"
+                    @error="detailError = $event"/>
             </div>
 
             <div v-if="canManage" class="border-t border-line pt-3">
@@ -1083,15 +523,15 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
             </div>
         </div>
         <ClipboardPasteDialog
-            v-if="clipboardTarget !== null"
-            @cancel="clipboardTarget = null"
+            v-if="clipboardOpen"
+            @cancel="clipboardOpen = false"
             @done="onClipboardImage"/>
         <MarkdownEditorDialog
-            v-if="markdownTarget !== null"
+            v-if="markdownOpen"
             :text="markdownText"
-            :title="markdownTarget === 'description' ? 'Description' : 'Comment'"
-            :saving="descriptionSaving || commentSaving"
+            title="Description"
+            :saving="descriptionSaving"
             @save="saveFromMarkdownEditor"
-            @close="markdownTarget = null"/>
+            @close="markdownOpen = false"/>
     </Modal>
 </template>
