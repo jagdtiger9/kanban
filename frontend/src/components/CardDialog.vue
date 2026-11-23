@@ -2,24 +2,16 @@
 import { computed, ComputedRef, nextTick, onMounted, Ref, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
-import InputText from 'primevue/inputtext'
 import MultiSelect from 'primevue/multiselect'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import type { ActivityPayload, CardPayload, ColumnPayload, CommentPayload, LabelPayload, TimelineItem, } from '../api/board'
 import * as boardApi from '../api/board'
-import * as attachmentsApi from '../api/attachments'
 import type { AttachmentPayload } from '../api/attachments'
-import type {
-    ActivityPayload,
-    CardPayload,
-    ColumnPayload,
-    CommentPayload,
-    LabelPayload,
-    TimelineItem,
-} from '../api/board'
+import * as attachmentsApi from '../api/attachments'
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
@@ -480,6 +472,14 @@ function askDeleteComment(comment: CommentPayload): void {
 }
 
 function startEditTitle(): void {
+    if (!canManage.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Only the card creator or a project admin can edit the title and description',
+            life: 3000,
+        })
+        return
+    }
     titleDraft.value = title.value
     editingTitle.value = true
 }
@@ -680,26 +680,23 @@ const closeExecutorMultiselect = () => {
 <template>
     <Modal size="xl" @close="emit('close')">
         <template #title>
-            <div v-if="canManage">
-                <div v-if="editingTitle" class="flex flex-wrap gap-1 md:gap-3">
+            <div v-if="editingTitle" class="flex flex-wrap gap-1 md:gap-3">
                     <Textarea
                         v-model="titleDraft"
                         rows="1" auto-resize maxlength="255"
                         class="w-full resize-none text-lg font-medium"
                         id="card-title" autofocus
                         @keyup.enter="saveTitle" @keyup.esc="cancelEditTitle"/>
-                    <Button label="Save" size="small" outlined
-                            :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
-                    <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
-                </div>
-                <div v-else
-                     class="cursor-text rounded px-1 hover:bg-raised w-fit font-medium text-lg leading-tight"
-                     title="Click to edit the title"
-                     @click="startEditTitle">
-                    {{ title }}
-                </div>
+                <Button label="Save" size="small" outlined
+                        :disabled="titleSaving || titleDraft.trim() === ''" @click="saveTitle"/>
+                <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
             </div>
-            <p v-else class="text-xs text-faint">Only the card creator or a project admin can edit the title and description.</p>
+            <div v-else
+                 class="cursor-text rounded px-1 hover:bg-raised w-fit font-medium text-lg leading-tight"
+                 title="Click to edit the title"
+                 @click="startEditTitle">
+                {{ title }}
+            </div>
         </template>
         <template #attributes>
             <i class="fa-solid fa-share-nodes cursor-pointer text-muted hover:text-strong"
