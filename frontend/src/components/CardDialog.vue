@@ -29,6 +29,7 @@ import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
 import { MAX_COMMENT_BYTES, MAX_COMMENT_FILES, MEDIA_ACCEPT } from '../utils/attachments'
 import AttachmentChip from './AttachmentChip.vue'
 import ClipboardPasteDialog from './ClipboardPasteDialog.vue'
+import MarkdownEditorDialog from './MarkdownEditorDialog.vue'
 import Modal from './Modal.vue'
 import UserAvatar from './UserAvatar.vue'
 
@@ -675,6 +676,30 @@ const closeExecutorMultiselect = () => {
     // Called when the overlay closes (Escape, outside click, or selection)
     isExecutorOpen.value = false
 }
+
+// Full-size markdown editor: its Save puts the text into the field and runs that field's save.
+type MarkdownTarget = 'description' | 'newComment' | 'editComment'
+const markdownTarget = ref<MarkdownTarget | null>(null)
+const markdownText = ref('')
+
+function openMarkdownEditor(target: MarkdownTarget, text: string): void {
+    markdownText.value = text
+    markdownTarget.value = target
+}
+
+async function saveFromMarkdownEditor(text: string): Promise<void> {
+    if (markdownTarget.value === 'description') {
+        descriptionDraft.value = text
+        await saveDescription()
+    } else if (markdownTarget.value === 'newComment') {
+        newComment.value = text
+        await addComment()
+    } else if (markdownTarget.value === 'editComment') {
+        editBody.value = text
+        await saveEdit()
+    }
+    markdownTarget.value = null
+}
 </script>
 
 <template>
@@ -736,6 +761,7 @@ const closeExecutorMultiselect = () => {
                                 placeholder="Markdown supported"/>
                             <div class="mt-2 flex justify-end gap-2">
                                 <Button label="Save" size="small" outlined :disabled="descriptionSaving" @click="saveDescription"/>
+                                <Button label="Edit" size="small" outlined @click="openMarkdownEditor('description', descriptionDraft)"/>
                                 <Button severity="secondary" label="Cancel" size="small" @click="cancelEditDescription"/>
                             </div>
                         </template>
@@ -959,6 +985,7 @@ const closeExecutorMultiselect = () => {
                             <Button
                                 label="Save" outlined size="small"
                                 @click="addComment" :disabled="commentSaving || newComment.trim() === ''"/>
+                            <Button label="Edit" outlined size="small" @click="openMarkdownEditor('newComment', newComment)"/>
                         </div>
                     </div>
 
@@ -991,6 +1018,7 @@ const closeExecutorMultiselect = () => {
                                         <Button
                                             label="Save" size="small" outlined
                                             @click="saveEdit" :disabled="commentSaving || editBody.trim() === ''"/>
+                                        <Button label="Edit" size="small" outlined @click="openMarkdownEditor('editComment', editBody)"/>
                                         <Button severity="secondary" label="Cancel" size="small" @click="cancelEdit"/>
                                     </div>
                                 </div>
@@ -1058,5 +1086,12 @@ const closeExecutorMultiselect = () => {
             v-if="clipboardTarget !== null"
             @cancel="clipboardTarget = null"
             @done="onClipboardImage"/>
+        <MarkdownEditorDialog
+            v-if="markdownTarget !== null"
+            :text="markdownText"
+            :title="markdownTarget === 'description' ? 'Description' : 'Comment'"
+            :saving="descriptionSaving || commentSaving"
+            @save="saveFromMarkdownEditor"
+            @close="markdownTarget = null"/>
     </Modal>
 </template>
