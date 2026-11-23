@@ -15,8 +15,9 @@ const visible = computed({
 </script>
 
 <template>
-    <Dialog v-model:visible="visible" modal dismissable-mask close-on-escape
-            :style="{
+    <Dialog
+        v-model:visible="visible" modal dismissable-mask :close-on-escape="false" :draggable="false"
+        :style="{
             width: props.size === 'xl' ? '80rem' : props.size === 'lg' ? '64rem' : '56rem',
             maxWidth: 'calc(100vw - 2rem)',
         }">

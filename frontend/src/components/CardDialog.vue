@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ComputedRef, nextTick, onMounted, Ref, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
@@ -127,6 +127,9 @@ const selectedAssignees = computed(() =>
         .map((id) => props.members.find((member) => member.userId === id))
         .filter((member): member is MemberPayload => member !== undefined),
 )
+const selectedExecutor = computed((): MemberPayload | undefined =>
+    props.members.find((member: MemberPayload) => member.userId === executorId.value)
+)
 
 function memberName(userId: string): string {
     return memberNames.value.get(userId) ?? 'Unknown member'
@@ -206,6 +209,14 @@ async function refreshDetail(): Promise<void> {
     timeline.value = detail.timeline
     attachments.value = detail.attachments
 }
+
+const timeLineFilter: Ref<'all' | 'comment' | 'event'> = ref('all')
+const timelinePrint: ComputedRef<TimelineItem[]> = computed((): TimelineItem[] => {
+    if (timeLineFilter.value === 'all') {
+        return timeline.value
+    }
+    return timeline.value.filter((item: TimelineItem) => item.kind === timeLineFilter.value)
+})
 
 async function loadDetail(): Promise<void> {
     detailLoading.value = true
@@ -634,6 +645,36 @@ function copyCardLink(): void {
         }),
     })
 }
+
+const isAssigneeOpen = ref(false)
+const assigneeRef = ref<InstanceType<typeof MultiSelect> | null>(null)
+
+const openAssigneeMultiselect = async () => {
+    isAssigneeOpen.value = true
+    await nextTick()
+    // Open the popup programmatically after the component is mounted
+    assigneeRef.value?.show()
+}
+
+const closeAssigneeMultiselect = () => {
+    // Called when the overlay closes (Escape, outside click, or selection)
+    isAssigneeOpen.value = false
+}
+
+const isExecutorOpen = ref(false)
+const executorRef = ref<InstanceType<typeof Select> | null>(null)
+
+const openExecutorMultiselect = async () => {
+    isExecutorOpen.value = true
+    await nextTick()
+    // Open the popup programmatically after the component is mounted
+    executorRef.value?.show()
+}
+
+const closeExecutorMultiselect = () => {
+    // Called when the overlay closes (Escape, outside click, or selection)
+    isExecutorOpen.value = false
+}
 </script>
 
 <template>
@@ -641,9 +682,10 @@ function copyCardLink(): void {
         <template #title>
             <div v-if="canManage">
                 <div v-if="editingTitle" class="flex flex-wrap gap-1 md:gap-3">
-                    <InputText
+                    <Textarea
                         v-model="titleDraft"
-                        class="field-sizing-content min-w-12 max-w-full"
+                        rows="1" auto-resize maxlength="255"
+                        class="w-full resize-none text-lg font-medium"
                         id="card-title" autofocus
                         @keyup.enter="saveTitle" @keyup.esc="cancelEditTitle"/>
                     <Button label="Save" size="small" outlined
@@ -651,7 +693,8 @@ function copyCardLink(): void {
                     <Button severity="secondary" label="Cancel" size="small" @click="cancelEditTitle"/>
                 </div>
                 <div v-else
-                     class="cursor-text rounded-lg bg-raised/50 px-3 py-2 text-body hover:bg-raised w-fit"
+                     class="cursor-text rounded px-1 hover:bg-raised w-fit font-medium text-lg leading-tight"
+                     title="Click to edit the title"
                      @click="startEditTitle">
                     {{ title }}
                 </div>
@@ -683,7 +726,6 @@ function copyCardLink(): void {
             <div class="grid lg:grid-cols-12">
                 <div class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3 border-r border-r-line">
                     <div>
-                        <!--                        <label for="card-description" class="mb-1 block font-medium text-body">Description</label>-->
                         <template v-if="canManage && editingDescription">
                             <Textarea
                                 id="card-description"
@@ -762,31 +804,37 @@ function copyCardLink(): void {
                     <Divider class="my-4"/>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                            <p class="mb-1.5 font-medium text-body">Assignees</p>
-                            <MultiSelect
-                                v-if="props.members.length > 0"
-                                v-model="assigneeIds"
-                                :options="assigneeOptions"
-                                option-label="displayName"
-                                option-value="userId"
-                                filter
-                                placeholder="No assignees"
-                                @update:model-value="changeAssignees">
-                                <template #option="{ option }">
-                                    <div class="flex items-center gap-2">
-                                        <UserAvatar
-                                            :user-id="option.userId"
-                                            :name="option.displayName"
-                                            :avatar-version="option.avatarVersion"
-                                            :color="option.avatarColor"/>
-                                        <span>{{ option.displayName }}</span>
-                                    </div>
-                                </template>
-                            </MultiSelect>
-                            <p v-else class="text-xs text-faint">No members.</p>
+                            <div>
+                                <Button class="p-1 pl-0 text-lg" text @click="openAssigneeMultiselect">+ Assignees</Button>
+                            </div>
+                            <div v-if="isAssigneeOpen">
+                                <MultiSelect
+                                    v-if="props.members.length > 0"
+                                    v-model="assigneeIds"
+                                    ref="assigneeRef"
+                                    :options="assigneeOptions"
+                                    option-label="displayName"
+                                    option-value="userId"
+                                    filter
+                                    placeholder="No assignees"
+                                    @update:model-value="changeAssignees"
+                                    @hide="closeAssigneeMultiselect">
+                                    <template #option="{ option }">
+                                        <div class="flex items-center gap-2">
+                                            <UserAvatar
+                                                :user-id="option.userId"
+                                                :name="option.displayName"
+                                                :avatar-version="option.avatarVersion"
+                                                :color="option.avatarColor"/>
+                                            <span>{{ option.displayName }}</span>
+                                        </div>
+                                    </template>
+                                </MultiSelect>
+                                <p v-else class="text-xs text-faint">No members.</p>
+                            </div>
                             <ul
                                 v-if="selectedAssignees.length > 0"
-                                class="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
+                                class="max-h-40 space-y-0.5 overflow-y-auto">
                                 <li
                                     v-for="member in selectedAssignees"
                                     :key="member.userId"
@@ -808,16 +856,26 @@ function copyCardLink(): void {
                             </ul>
                         </div>
                         <div>
-                            <p class="mb-1.5 font-medium text-body">Executor</p>
-                            <div v-if="props.members.length > 0" class="flex items-center gap-2">
+                            <div class="flex items-center gap-2">
+                                <Button class="p-1 pl-0 text-lg" text @click="openExecutorMultiselect">+ Executor</Button>
+                                <Button
+                                    severity="secondary"
+                                    size="small"
+                                    label="Assign to me"
+                                    :disabled="auth.user?.id === executorId"
+                                    @click="assignExecutorToMe"/>
+                            </div>
+                            <div v-if="isExecutorOpen && props.members.length > 0">
                                 <Select
                                     :model-value="executorId"
                                     :options="assigneeOptions"
+                                    ref="executorRef"
                                     option-label="displayName"
                                     option-value="userId"
                                     placeholder="No executor"
                                     show-clear
                                     class="min-w-0 flex-1"
+                                    @hide="closeExecutorMultiselect"
                                     @update:model-value="(value: string | null) => changeExecutor(value)">
                                     <template #option="{ option }">
                                         <div class="flex items-center gap-2">
@@ -830,14 +888,22 @@ function copyCardLink(): void {
                                         </div>
                                     </template>
                                 </Select>
-                                <Button
-                                    severity="secondary"
-                                    size="small"
-                                    label="Assign to me"
-                                    :disabled="auth.user?.id === executorId"
-                                    @click="assignExecutorToMe"/>
                             </div>
-                            <p v-else class="text-xs text-faint">No members.</p>
+                            <div class="flex items-center gap-2" v-if="selectedExecutor">
+                                <Button
+                                    class="pl-0"
+                                    severity="secondary" text size="small" label="✕"
+                                    :title="`Unassign ${selectedExecutor.displayName}`"
+                                    @click="changeExecutor(null)">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </Button>
+                                <UserAvatar
+                                    :user-id="selectedExecutor.userId"
+                                    :name="selectedExecutor.displayName"
+                                    :avatar-version="selectedExecutor.avatarVersion"
+                                    :color="selectedExecutor.avatarColor"/>
+                                <span class="min-w-0">{{ selectedExecutor.displayName }}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -899,8 +965,12 @@ function copyCardLink(): void {
                     <p v-if="detailLoading" class="text-xs text-faint">Loading…</p>
                     <p v-else-if="timeline.length === 0 && !detailError" class="text-xs text-faint">No comments or activity yet.</p>
                     <div v-else class="space-y-3">
+                        <div class="flex justify-end gap-3">
+                            <Button text class="p-1" size="small" @click="timeLineFilter = 'all'">All</Button>
+                            <Button text class="p-1" size="small" @click="timeLineFilter = 'comment'">Comments</Button>
+                        </div>
                         <template
-                            v-for="item in timeline"
+                            v-for="item in timelinePrint"
                             :key="item.kind === 'comment' ? `comment-${item.comment.id}` : `event-${item.event.id}`">
                             <div v-if="item.kind === 'comment'" class="rounded-lg bg-raised/50 px-3 py-2">
                                 <div class="mb-1 flex items-center gap-2">
