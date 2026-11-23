@@ -412,8 +412,10 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                                 autofocus
                                 placeholder="Markdown supported"/>
                             <div class="mt-2 flex justify-end gap-2">
+                                <Button text severity="secondary" outlined @click="openMarkdownEditor(descriptionDraft)">
+                                    <i class="fa-solid fa-expand fa-lg"></i>
+                                </Button>
                                 <Button label="Save" size="small" outlined :disabled="descriptionSaving" @click="saveDescription"/>
-                                <Button label="Edit" size="small" outlined @click="openMarkdownEditor(descriptionDraft)"/>
                                 <Button severity="secondary" label="Cancel" size="small" @click="cancelEditDescription"/>
                             </div>
                         </template>

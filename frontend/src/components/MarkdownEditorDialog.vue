@@ -29,7 +29,7 @@ const draft = ref(props.text)
         </div>
 
         <div class="mt-4 flex justify-end gap-2">
-            <Button label="Save" size="small" :disabled="props.saving" @click="emit('save', draft)"/>
+            <Button label="Add" outlined size="small" :disabled="props.saving" @click="emit('save', draft)"/>
             <Button severity="secondary" label="Cancel" size="small" @click="emit('close')"/>
         </div>
     </Modal>

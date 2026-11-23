@@ -74,6 +74,13 @@ async function changeAssignees(next: string[] | null): Promise<void> {
     }
 }
 
+const amIAssignee = computed(() => selectedAssigneeIds.value.find((id) => id === auth.user?.id))
+const addMeAssignee = () => {
+    if (auth.user?.id) {
+        selectedAssigneeIds.value.push(auth.user?.id)
+    }
+}
+
 function removeAssignee(userId: string): void {
     void changeAssignees(selectedAssigneeIds.value.filter((id) => id !== userId))
 }
@@ -131,18 +138,23 @@ const closeExecutorMultiselect = () => {
     <Divider class="my-4"/>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-            <div>
+            <div class="flex items-center gap-2">
                 <Button class="p-1 pl-0 text-lg" text @click="openAssigneeMultiselect">+ Assignees</Button>
+                <Button
+                    severity="secondary"
+                    size="small" outlined class="py-1 px-2"
+                    label="Add me"
+                    v-show="!amIAssignee"
+                    @click="addMeAssignee"/>
             </div>
             <div v-if="isAssigneeOpen">
                 <MultiSelect
-                    v-if="props.members.length > 0"
                     v-model="selectedAssigneeIds"
                     ref="assigneeRef"
                     :options="assigneeOptions"
                     option-label="displayName"
                     option-value="userId"
-                    filter
+                    :showToggleAll="false"
                     placeholder="No assignees"
                     @update:model-value="changeAssignees"
                     @hide="closeAssigneeMultiselect">
@@ -157,7 +169,6 @@ const closeExecutorMultiselect = () => {
                         </div>
                     </template>
                 </MultiSelect>
-                <p v-else class="text-xs text-faint">No members.</p>
             </div>
             <ul
                 v-if="selectedAssignees.length > 0"
@@ -187,9 +198,9 @@ const closeExecutorMultiselect = () => {
                 <Button class="p-1 pl-0 text-lg" text @click="openExecutorMultiselect">+ Executor</Button>
                 <Button
                     severity="secondary"
-                    size="small"
+                    size="small" outlined class="py-1 px-2"
                     label="Assign to me"
-                    :disabled="auth.user?.id === selectedExecutorId"
+                    v-show="auth.user?.id !== selectedExecutorId"
                     @click="assignExecutorToMe"/>
             </div>
             <div v-if="isExecutorOpen && props.members.length > 0">

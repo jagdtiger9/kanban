@@ -289,7 +289,7 @@ function openMarkdownEditor(target: MarkdownTarget, text: string): void {
 async function saveFromMarkdownEditor(text: string): Promise<void> {
     if (markdownTarget.value === 'newComment') {
         newComment.value = text
-        await addComment()
+        //await addComment()
     } else if (markdownTarget.value === 'editComment') {
         editBody.value = text
         await saveEdit()
@@ -331,6 +331,9 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                 </span>
             </div>
             <div class="mt-1.5 flex items-center justify-end gap-2">
+                <Button text severity="secondary" @click="openMarkdownEditor('newComment', newComment)" class="py-2">
+                    <i class="fa-solid fa-expand fa-lg"></i>
+                </Button>
                 <Button
                     severity="secondary" text size="small" label="Add files"
                     :disabled="commentSaving" @click="commentFileInput?.click()"/>
@@ -340,7 +343,6 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                 <Button
                     label="Save" outlined size="small"
                     @click="addComment" :disabled="commentSaving || newComment.trim() === ''"/>
-                <Button label="Edit" outlined size="small" @click="openMarkdownEditor('newComment', newComment)"/>
             </div>
         </div>
 
