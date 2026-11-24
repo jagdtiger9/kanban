@@ -22,6 +22,7 @@ import RenameColumnDialog from '../components/RenameColumnDialog.vue'
 import { useBoardRealtime, type RealtimeChange } from '../composables/useBoardRealtime'
 import { usePresenceHeartbeat } from '../composables/usePresenceHeartbeat'
 import { useAuthStore } from '../stores/auth'
+import UserAvatar from "../components/UserAvatar.vue";
 
 const CARD_EVENT_VERBS: Record<string, string> = {
     'card.created': 'created',
@@ -532,7 +533,7 @@ function openUsersDialog(): void {
                 {{ error }}
             </div>
             <template v-else-if="detail">
-                <div class="mb-2 flex items-center gap-10">
+                <div class="mb-2 flex flex-wrap items-center gap-4 md:gap-10">
                     <h1 class="text-xl font-semibold sm:text-2xl">{{ detail.project.name }}</h1>
                     <span
                         v-if="detail.project.archived"
@@ -541,7 +542,7 @@ function openUsersDialog(): void {
                     <div>
                         <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
                         <Button
-                            severity="secondary" text size="small" class="fa-lg"
+                            severity="info" text size="small" class="fa-lg"
                             title="Users" aria-label="Users"
                             @click="openUsersDialog">
                             <i class="fa-solid fa-user-group"></i>
@@ -563,14 +564,14 @@ function openUsersDialog(): void {
                         </Button>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <span
                         v-for="member in detail.members"
                         :key="member.userId"
                         class="rounded-full bg-raised px-2.5 py-1 text-xs text-body">
                         {{ member.displayName }}
-                    <span v-if="member.role === 'admin'" class="text-muted">· admin</span>
-                    <CallBadge :project-id="projectId" :user-id="member.userId"/>
+                        <span v-if="member.role === 'admin'" class="text-muted">· admin</span>
+                        <CallBadge :project-id="projectId" :user-id="member.userId"/>
                     </span>
                 </div>
             </template>
@@ -578,21 +579,20 @@ function openUsersDialog(): void {
         </div>
 
         <div class="flex min-h-0 flex-1 flex-col p-3 sm:p-6">
-            <p
-                v-if="actionError"
-                class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
+            <p v-if="actionError"
+               class="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-danger-text">
                 {{ actionError }}
             </p>
             <div
+                v-if="detail"
                 ref="boardEl"
                 class="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto pb-2 max-sm:snap-x max-sm:snap-mandatory">
-                <p v-if="detail && columns.length === 0" class="max-w-xs py-2 text-faint">
+                <p v-if="columns.length === 0" class="max-w-xs py-2 text-faint">
                     This board has no columns yet. Use “+ Add column” to start organizing cards.
                 </p>
                 <div
-                    v-for="column in columns"
-                    :key="column.id"
-                    class="board-column relative flex max-h-full w-[calc(100vw-3rem)] max-w-72 shrink-0 snap-start flex-col rounded-xl bg-panel sm:w-72">
+                    v-for="column in columns" :key="column.id"
+                    class="board-column relative flex max-h-full w-full shrink-0 snap-start flex-col rounded-xl bg-panel sm:w-72">
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle flex min-w-0 flex-1 items-center gap-2 cursor-grab px-3 py-2 active:cursor-grabbing">
                             <span class="min-w-0 truncate font-semibold">{{ column.name }}</span>
@@ -627,7 +627,7 @@ function openUsersDialog(): void {
                             <Card
                                 v-for="card in columnCards(column.id)"
                                 :key="card.id"
-                                class="board-card block w-full shrink-0 cursor-pointer rounded-lg border border-line bg-raised shadow-card transition-colors hover:border-line-emphasis"
+                                class="board-card w-full shrink-0 cursor-pointer rounded-lg border border-line bg-raised shadow-card transition-colors hover:border-line-emphasis"
                                 :class="{ 'opacity-50': card.archived }"
                                 :data-card-id="card.id"
                                 @click="setActiveCard(card)">
@@ -688,7 +688,7 @@ function openUsersDialog(): void {
                     </div>
                 </div>
 
-                <div v-if="addingColumn" class="w-[calc(100vw-3rem)] max-w-72 shrink-0 rounded-xl border border-line-strong bg-panel p-2 sm:w-72">
+                <div v-if="addingColumn" class="w-full shrink-0 snap-start rounded-xl border border-line-strong bg-panel p-2 sm:w-72">
                     <InputText
                         v-model="newColumnName"
                         autofocus placeholder="Column name" class="w-full"
@@ -700,9 +700,8 @@ function openUsersDialog(): void {
                 </div>
                 <button
                     v-else
-                    type="button"
-                    class="mr-6 w-[calc(100vw-3rem)] max-w-72 shrink-0 cursor-pointer snap-start rounded-xl bg-panel/50 px-3 py-2 text-left text-body transition-colors hover:bg-panel hover:text-strong sm:w-72"
-                    @click="addingColumn = true">
+                    @click="addingColumn = true" type="button"
+                    class="w-full shrink-0 cursor-pointer snap-start rounded-xl bg-panel/50 px-3 py-2 text-left text-body transition-colors hover:bg-panel hover:text-strong sm:mr-6 sm:w-72">
                     + Add column
                 </button>
             </div>

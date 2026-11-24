@@ -1,18 +1,17 @@
 <!doctype html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Kanban</title>
-    <link rel="icon" type="image/svg+xml" href="/src/assets/brand/command-deck-icon.svg" />
     <script>
-      if (localStorage.getItem('kanban-theme') === 'light') {
-        document.documentElement.classList.replace('dark', 'light')
-      }
+        if (localStorage.getItem('kanban-theme') === 'light') {
+            document.documentElement.classList.replace('dark', 'light')
+        }
     </script>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>

@@ -9,7 +9,8 @@ const props = withDefaults(
         name: string | null
         avatarVersion?: string | null
         color?: string | null
-        size?: 'sm' | 'md' | 'lg' | 'card' | 'card-sm'
+        size?: 'sm' | 'md' | 'lg' | 'card' | 'card-sm',
+        title?: string | null
     }>(),
     { avatarVersion: null, color: null, size: 'sm' },
 )
@@ -39,7 +40,9 @@ const src = computed(() => avatarUrl(props.userId, props.avatarVersion))
         class="flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white"
         :class="sizeClass"
         :style="src === null ? { backgroundColor: color } : undefined">
-        <img v-if="src !== null" :src="src" alt="" class="h-full w-full object-cover"/>
+        <img v-if="src !== null"
+             :src="src" :alt="props.title || ''" :title="props.title || ''"
+             class="h-full w-full object-cover"/>
         <template v-else>{{ label }}</template>
     </span>
 </template>
