@@ -41,7 +41,8 @@ final class GetProjectQueryHandler
      *         displayName: string,
      *         avatarVersion: ?string,
      *         avatarColor: ?string,
-     *         joinedAt: \DateTimeImmutable
+     *         joinedAt: \DateTimeImmutable,
+     *         lastSeenAt: ?\DateTimeImmutable
      *     }>
      * }
      */
@@ -77,6 +78,7 @@ final class GetProjectQueryHandler
                 'avatarVersion' => $user->avatarVersion(),
                 'avatarColor' => $user->avatarColor(),
                 'joinedAt' => $member->joinedAt(),
+                'lastSeenAt' => $member->lastSeenAt(),
             ];
         }
 

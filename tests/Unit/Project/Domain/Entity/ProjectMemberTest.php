@@ -93,4 +93,43 @@ final class ProjectMemberTest extends TestCase
 
         self::assertSame([], $member->releaseEvents());
     }
+
+    public function testNewMemberHasNoLastSeenAt(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+
+        self::assertNull($member->lastSeenAt());
+    }
+
+    public function testTouchPresenceSetsLastSeenAt(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $at = new \DateTimeImmutable('2026-11-24 10:00:00');
+
+        $member->touchPresence($at);
+
+        self::assertSame($at, $member->lastSeenAt());
+    }
+
+    public function testTouchPresenceIgnoresEarlierTimestamp(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $newer = new \DateTimeImmutable('2026-11-24 10:00:00');
+        $earlier = new \DateTimeImmutable('2026-11-24 09:59:00');
+
+        $member->touchPresence($newer);
+        $member->touchPresence($earlier);
+
+        self::assertSame($newer, $member->lastSeenAt());
+    }
+
+    public function testTouchPresenceRecordsNoDomainEvent(): void
+    {
+        $member = ProjectMember::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), MemberRole::Member);
+        $member->releaseEvents();
+
+        $member->touchPresence(new \DateTimeImmutable());
+
+        self::assertSame([], $member->releaseEvents());
+    }
 }

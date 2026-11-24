@@ -107,6 +107,11 @@ $config = Routes::config([
         'controller' => [ProjectController::class, 'setFavourite'],
         'methods' => ['PUT'],
     ],
+    'api_project_presence_heartbeat' => [
+        'path' => '/api/projects/{projectId}/presence/heartbeat',
+        'controller' => [ProjectController::class, 'touchPresence'],
+        'methods' => ['POST'],
+    ],
     'api_project_member_add' => [
         'path' => '/api/projects/{projectId}/members',
         'controller' => [ProjectController::class, 'addMember'],

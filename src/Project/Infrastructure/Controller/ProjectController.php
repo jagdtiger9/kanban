@@ -15,6 +15,7 @@ use App\Project\Application\Message\Command\RemoveProjectMemberCommand;
 use App\Project\Application\Message\Command\RenameProjectCommand;
 use App\Project\Application\Message\Command\RestoreProjectCommand;
 use App\Project\Application\Message\Command\SetProjectFavouriteCommand;
+use App\Project\Application\Message\Command\TouchProjectPresenceCommand;
 use App\Project\Application\Message\Query\GetProjectQuery;
 use App\Project\Application\Message\Query\ListProjectsQuery;
 use App\Project\Domain\Entity\Project;
@@ -79,6 +80,7 @@ final class ProjectController extends AbstractController
                     'avatarVersion' => $member['avatarVersion'],
                     'avatarColor' => $member['avatarColor'],
                     'joinedAt' => $member['joinedAt']->format(\DateTimeInterface::ATOM),
+                    'lastSeenAt' => $member['lastSeenAt']?->format(\DateTimeInterface::ATOM),
                 ],
                 $result['members'],
             ),
@@ -115,6 +117,14 @@ final class ProjectController extends AbstractController
     }
 
     public function setFavourite(SetProjectFavouriteCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    public function touchPresence(TouchProjectPresenceCommand $command, Security $security): Response
     {
         $command->actorId = $this->actorId($security);
         $this->commandBus->dispatch($command);

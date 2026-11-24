@@ -7,7 +7,7 @@ services:
             - CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=${CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY}
             - CENTRIFUGO_HTTP_API_KEY=${CENTRIFUGO_HTTP_API_KEY}
         volumes:
-            - ${HOSTS_DATA}/kanban/docker/centrifugo/config.json:/centrifugo/config.json:ro
+            - ./data/config/centrifugo/config.json:/centrifugo/config.json:ro
         command: [ 'centrifugo', '-c', '/centrifugo/config.json' ]
         networks:
             - net

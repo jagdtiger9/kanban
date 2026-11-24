@@ -5,6 +5,7 @@ import { Divider, OverlayBadge, Popover } from 'primevue'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
 import { useConfirm } from 'primevue/useconfirm'
+import commandDeckLogo from '../assets/brand/command-deck.svg'
 import { ApiError, ping } from '../api/client'
 import type { ProjectPayload } from '../api/projects'
 import type { UserEventItem } from '../api/userEvents'
@@ -228,11 +229,11 @@ const openSettings = (event: Event) => {
                     label="☰"
                     @click="drawerOpen = !drawerOpen"
                 />
-                <div class="flex size-8 items-center justify-center rounded-lg bg-brand font-bold text-white">
-                    <RouterLink to="/">C</RouterLink>
-                </div>
                 <RouterLink to="/" class="font-semibold">
-                    Kanban
+                    <i class="fa-solid fa-dharmachakra fa-xl dark:text-yellow-400 text-blue-600"></i>
+                </RouterLink>
+                <RouterLink to="/" class="font-semibold">
+                    Command Deck
                 </RouterLink>
             </div>
             <div class="lg:hidden">
@@ -280,12 +281,6 @@ const openSettings = (event: Event) => {
                     @click="toggleTheme">
                     <i class="fa-regular fa-lg" :class="isDark ? 'fa-sun text-yellow-500' : 'fa-moon text-mist-600'"></i>
                 </button>
-                <RouterLink
-                    v-if="isAdmin"
-                    to="/admin/users"
-                    class="rounded-lg border border-line-strong px-3 py-1.5 text-body transition-colors hover:border-line-emphasis hover:text-strong">
-                    Users
-                </RouterLink>
                 <div @click="openSettings($event)" class="cursor-pointer">
                     <UserAvatar
                         :user-id="auth.user?.id ?? ''"
@@ -340,9 +335,8 @@ const openSettings = (event: Event) => {
                 <div class="mb-3 flex items-center justify-between">
                     <button
                         type="button"
-                        class="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-muted transition-colors hover:text-body"
-                        :aria-expanded="!projectsCollapsed"
-                        aria-controls="other-projects"
+                        class="flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-muted hover:text-body"
+                        :aria-expanded="!projectsCollapsed" aria-controls="other-projects"
                         @click="projectsCollapsed = !projectsCollapsed">
                         <span class="w-4 text-base leading-none">{{ projectsCollapsed ? '▸' : '▾' }}</span>
                         Projects
@@ -415,17 +409,18 @@ const openSettings = (event: Event) => {
                     </ul>
                 </template>
 
+                <RouterLink
+                    v-if="isAdmin"
+                    to="/admin/users"
+                    class="text-body transition-colors hover:border-line-emphasis hover:text-strong">
+                    Users
+                </RouterLink>
+
                 <div class="mt-auto space-y-1 border-t border-line pt-4 lg:hidden">
                     <RouterLink
                         to="/settings"
                         class="block rounded-lg px-2 py-2 text-body transition-colors hover:bg-raised hover:text-strong">
                         Settings
-                    </RouterLink>
-                    <RouterLink
-                        v-if="isAdmin"
-                        to="/admin/users"
-                        class="block rounded-lg px-2 py-2 text-body transition-colors hover:bg-raised hover:text-strong">
-                        Users
                     </RouterLink>
                     <Button
                         severity="secondary"

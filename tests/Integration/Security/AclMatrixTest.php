@@ -191,6 +191,9 @@ final class AclMatrixTest extends DatabaseTestCase
             // Favourites are stored on the actor's own membership row; a global
             // admin without a membership has nowhere to store the flag.
             'api_project_set_favourite' => ['anon' => 401, 'outsider' => 403, 'member' => 204, 'other' => 204, 'admin' => 204, 'global' => 403, 'news' => 403],
+            // Presence is stored on the membership row; a global admin without
+            // one is accepted but nothing is written.
+            'api_project_presence_heartbeat' => self::memberRoute(204),
 
             // Project admins
             'api_project_rename' => self::adminRoute(200),
@@ -495,6 +498,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_project_archive' => ['POST', "/api/projects/$project/archive", null],
             'api_project_restore' => ['POST', "/api/projects/$project/restore", null],
             'api_project_set_favourite' => ['PUT', "/api/projects/$project/favourite", ['isFavourite' => true]],
+            'api_project_presence_heartbeat' => ['POST', "/api/projects/$project/presence/heartbeat", null],
             'api_project_member_add' => ['POST', "/api/projects/$project/members", ['userId' => $candidateId, 'role' => 'member']],
             'api_project_member_change_role' => ['PUT', "/api/projects/$project/members/$otherId", ['role' => 'admin']],
             'api_project_member_remove' => ['DELETE', "/api/projects/$project/members/$otherId", null],

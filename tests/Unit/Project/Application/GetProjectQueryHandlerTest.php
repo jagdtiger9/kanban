@@ -61,16 +61,18 @@ final class GetProjectQueryHandlerTest extends TestCase
         $bob = User::create(Uuid::uuid4(), 'bob@example.com', 'hash', 'Bob');
         $memberAlice = ProjectMember::create(Uuid::uuid4(), $project->id(), $alice->id(), MemberRole::Admin);
         $memberBob = ProjectMember::create(Uuid::uuid4(), $project->id(), $bob->id(), MemberRole::Member);
+        $lastSeen = new \DateTimeImmutable('2026-11-24 10:00:00');
+        $memberBob->touchPresence($lastSeen);
         $this->memberRepository->method('findByProject')->willReturn([$memberAlice, $memberBob]);
         $this->userRepository->method('findById')->willReturnCallback(
-            static fn (UuidInterface $userId): ?User => match (true) {
+            static fn(UuidInterface $userId): ?User => match (true) {
                 $userId->equals($alice->id()) => $alice,
                 default => $bob,
             },
         );
 
         $result = $this->handler($project, $memberAlice)
-            ->__invoke(new GetProjectQuery((string) $project->id(), (string) $alice->id()));
+            ->__invoke(new GetProjectQuery((string)$project->id(), (string)$alice->id()));
 
         self::assertSame($project, $result['project']);
         self::assertTrue($result['boardId']->equals($board->id()));
@@ -80,6 +82,7 @@ final class GetProjectQueryHandlerTest extends TestCase
         self::assertSame(MemberRole::Admin, $result['members'][0]['role']);
         self::assertSame('Bob', $result['members'][1]['displayName']);
         self::assertSame(MemberRole::Member, $result['members'][1]['role']);
+        self::assertSame($lastSeen, $result['members'][1]['lastSeenAt']);
     }
 
     public function testGlobalAdminGetsAdminRoleWithoutMembership(): void
@@ -93,7 +96,7 @@ final class GetProjectQueryHandlerTest extends TestCase
         $this->userRepository->method('findById')->willReturn($admin);
 
         $result = $this->handler($project, null)
-            ->__invoke(new GetProjectQuery((string) $project->id(), (string) $admin->id()));
+            ->__invoke(new GetProjectQuery((string)$project->id(), (string)$admin->id()));
 
         self::assertSame(MemberRole::Admin, $result['role']);
         self::assertCount(0, $result['members']);
@@ -104,7 +107,7 @@ final class GetProjectQueryHandlerTest extends TestCase
         $this->expectException(ProjectNotFoundException::class);
 
         $this->handler(null, null)
-            ->__invoke(new GetProjectQuery((string) Uuid::uuid4(), (string) Uuid::uuid4()));
+            ->__invoke(new GetProjectQuery((string)Uuid::uuid4(), (string)Uuid::uuid4()));
     }
 
     public function testThrowsWhenActorIsNotMember(): void
@@ -114,7 +117,6 @@ final class GetProjectQueryHandlerTest extends TestCase
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($project, null)
-            ->__invoke(new GetProjectQuery((string) $project->id(), (string) Uuid::uuid4()));
+            ->__invoke(new GetProjectQuery((string)$project->id(), (string)Uuid::uuid4()));
     }
 }
-

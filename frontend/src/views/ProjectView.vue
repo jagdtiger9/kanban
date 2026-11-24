@@ -17,8 +17,10 @@ import CallButton from '../call/CallButton.vue'
 import CardDialog from '../components/CardDialog.vue'
 import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
+import ProjectUsersDialog from '../components/ProjectUsersDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
 import { useBoardRealtime, type RealtimeChange } from '../composables/useBoardRealtime'
+import { usePresenceHeartbeat } from '../composables/usePresenceHeartbeat'
 import { useAuthStore } from '../stores/auth'
 
 const CARD_EVENT_VERBS: Record<string, string> = {
@@ -153,6 +155,7 @@ const deleting = ref(false)
 
 const activeCard = ref<CardPayload | null>(null)
 const showLabelsDialog = ref(false)
+const showUsersDialog = ref(false)
 
 const cardIdFromRoute = computed<string | null>(() => {
     const value = route.query.card
@@ -162,7 +165,8 @@ const cardIdFromRoute = computed<string | null>(() => {
 const realtimeTick = ref(0)
 let dragging = false
 
-useBoardRealtime(projectId, refreshFromRealtime, () => !dragging)
+const { onlineUserIds, presenceAvailable, refreshPresence } = useBoardRealtime(projectId, refreshFromRealtime, () => !dragging)
+usePresenceHeartbeat(projectId)
 
 async function refreshFromRealtime(change: RealtimeChange): Promise<void> {
     realtimeTick.value++
@@ -512,6 +516,11 @@ function closeCard(): void {
     activeCard.value = null
     void removeCardQuery()
 }
+
+function openUsersDialog(): void {
+    showUsersDialog.value = true
+    void refreshPresence()
+}
 </script>
 
 <template>
@@ -531,6 +540,12 @@ function closeCard(): void {
                         Archived</span>
                     <div>
                         <CallButton v-if="!detail.project.archived" :project-id="projectId"/>
+                        <Button
+                            severity="secondary" text size="small" class="fa-lg"
+                            title="Users" aria-label="Users"
+                            @click="openUsersDialog">
+                            <i class="fa-solid fa-user-group"></i>
+                        </Button>
                         <Button
                             severity="secondary" text size="small" class="fa-lg"
                             title="Labels" aria-label="Labels"
@@ -718,6 +733,13 @@ function closeCard(): void {
             :can-delete="isAdmin"
             @close="showLabelsDialog = false"
             @changed="onLabelsChanged"
+        />
+        <ProjectUsersDialog
+            v-if="showUsersDialog"
+            :project-id="projectId"
+            :online-user-ids="onlineUserIds"
+            :presence-available="presenceAvailable"
+            @close="showUsersDialog = false"
         />
     </main>
 </template>

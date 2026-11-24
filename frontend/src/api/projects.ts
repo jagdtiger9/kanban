@@ -20,6 +20,7 @@ export interface MemberPayload {
     avatarVersion: string | null
     avatarColor: string | null
     joinedAt: string
+    lastSeenAt: string | null
 }
 
 export interface ProjectDetail {
@@ -95,4 +96,13 @@ export function changeMemberRole(
 
 export function removeMember(projectId: string, userId: string): Promise<void> {
     return api<void>(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export function touchProjectPresence(projectId: string): Promise<void> {
+    return api<void>(`/projects/${projectId}/presence/heartbeat`, { method: 'POST' })
+}
+
+/** Record presence while the page is closing: fetch may be cancelled, a beacon is not. */
+export function touchProjectPresenceOnUnload(projectId: string): void {
+    navigator.sendBeacon(`/api/projects/${encodeURIComponent(projectId)}/presence/heartbeat`)
 }

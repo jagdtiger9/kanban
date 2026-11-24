@@ -57,7 +57,7 @@ function openDelete(): void {
             <button
                 v-if="project.isFavourite !== undefined"
                 type="button"
-                class="ml-1 shrink-0 cursor-pointer rounded leading-none transition-colors"
+                class="shrink-0 cursor-pointer rounded leading-none transition-colors"
                 :class="project.isFavourite ? 'text-warn' : 'text-faint hover:text-body'"
                 :aria-label="project.isFavourite ? 'Remove from favourites' : 'Add to favourites'"
                 :aria-pressed="project.isFavourite"
@@ -81,46 +81,25 @@ function openDelete(): void {
                 @click="openMembers">
                 {{ project.memberCount }}
             </button>
-            <Button
-                aria-label="Project actions"
-                severity="secondary"
-                text
-                size="small"
-                class="opacity-100 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                label="⋯"
-                @click.stop="menuOpen = !menuOpen"/>
+            <Button aria-label="Project actions" severity="secondary" text size="small"
+                    label="⋯" class="opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                    @click.stop="menuOpen = !menuOpen"/>
         </div>
         <div v-if="menuOpen"
              class="absolute right-0 top-full z-10 mt-1 w-36 rounded-lg border border-line-strong bg-raised py-1 shadow-xl">
             <Button
-                severity="secondary"
-                text
-                size="small"
-                class="w-full justify-start"
-                label="Members"
-                @click="openMembers"/>
+                severity="secondary" text size="small" label="Members"
+                class="w-full justify-start" @click="openMembers"/>
             <Button
-                severity="secondary"
-                text
-                size="small"
-                class="w-full justify-start"
-                label="Rename"
-                @click="openRename"/>
+                severity="secondary" text size="small" label="Rename"
+                class="w-full justify-start" @click="openRename"/>
             <Button
-                severity="secondary"
-                text
-                size="small"
-                class="w-full justify-start"
-                label="Archive"
-                @click="openArchive"/>
+                severity="secondary" text size="small" label="Archive"
+                class="w-full justify-start" @click="openArchive"/>
             <Button
-                v-if="canDelete"
-                severity="danger"
-                text
-                size="small"
-                class="w-full justify-start"
-                label="Delete"
-                @click="openDelete"/>
+                v-if="canDelete" @click="openDelete"
+                severity="danger" text size="small" label="Delete"
+                class="w-full justify-start"/>
         </div>
     </li>
 </template>

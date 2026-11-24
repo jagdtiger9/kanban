@@ -39,6 +39,9 @@ final class ProjectMember implements DomainEventAwareInterface
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $joinedAt;
 
+    #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE', nullable: true)]
+    private ?\DateTimeImmutable $lastSeenAt;
+
     private function __construct(
         UuidInterface $id,
         UuidInterface $projectId,
@@ -53,6 +56,7 @@ final class ProjectMember implements DomainEventAwareInterface
         $this->role = $role;
         $this->isFavourite = $isFavourite;
         $this->joinedAt = $joinedAt;
+        $this->lastSeenAt = null;
     }
 
     public static function create(
@@ -108,6 +112,20 @@ final class ProjectMember implements DomainEventAwareInterface
     public function joinedAt(): \DateTimeImmutable
     {
         return $this->joinedAt;
+    }
+
+    public function lastSeenAt(): ?\DateTimeImmutable
+    {
+        return $this->lastSeenAt;
+    }
+
+    public function touchPresence(\DateTimeImmutable $at): void
+    {
+        if ($this->lastSeenAt !== null && $this->lastSeenAt >= $at) {
+            return;
+        }
+
+        $this->lastSeenAt = $at;
     }
 
     public function changeRole(MemberRole $role, UuidInterface $actorId): void

@@ -1,9 +1,9 @@
 {
     "client": {
         "allowed_origins": [
+            "https://kanban.sportelement.ru",
             "https://kanban.local",
-            "https://kanban.domain",
-            "https://kanban.sportelement.ru"
+            "https://kanban.domain"
         ]
     },
     "channel": {
@@ -11,6 +11,9 @@
             {
                 "name": "kanban",
                 "allow_subscribe_for_client": false,
+                "presence": true,
+                "join_leave": true,
+                "allow_presence_for_subscriber": true,
                 "history_size": 100,
                 "history_ttl": "300s",
                 "force_recovery": true

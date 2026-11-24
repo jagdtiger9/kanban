@@ -11,7 +11,7 @@ stack.
 | --- | --- |
 | `compose.example.yaml` | merge the `kanban-centrifugo` service into `~/work/Docker/custom.yaml` |
 | `.env.example` | secrets into `~/work/Docker/.env`; app values into this project's `.env` |
-| `centrifugo/config.json` | stays here — mounted from `${HOSTS_DATA}/kanban/docker/centrifugo/config.json` |
+| `centrifugo/config.json` | `~/work/Docker/data/config/centrifugo/config.json` (the running container's bind mount) |
 | `proxy/kanban.local.conf` | `~/work/Docker/data/config/hosts/kanban.local.conf` |
 | `worker/kanban-messenger.conf` | `~/work/Docker/data/config/worker/kanban-messenger.conf` |
 
@@ -78,9 +78,11 @@ restart.
 ### 5. Centrifugo
 
 Merge the service from `compose.example.yaml` into the `services:` map of
-`~/work/Docker/custom.yaml`, then start it:
+`~/work/Docker/custom.yaml`, copy the config into the base env, then start it:
 
 ```bash
+mkdir -p ~/work/Docker/data/config/centrifugo
+cp ~/work/web/kanban/docker/centrifugo/config.json ~/work/Docker/data/config/centrifugo/
 cd ~/work/Docker
 docker compose up -d kanban-centrifugo
 ```
@@ -113,7 +115,7 @@ Edit the copy in this repo first, then re-copy it into the base env:
 | --- | --- |
 | `proxy/kanban.local.conf` | `make -C ~/work/Docker nginx.reload` |
 | `worker/kanban-messenger.conf` | `docker restart php-worker` |
-| `centrifugo/config.json` | `docker restart kanban-centrifugo` |
+| `centrifugo/config.json` | copy to `~/work/Docker/data/config/centrifugo/`, then `docker restart kanban-centrifugo` |
 | `compose.example.yaml` | `docker compose up -d kanban-centrifugo` |
 
 ## Troubleshooting
