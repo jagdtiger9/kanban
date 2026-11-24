@@ -300,8 +300,8 @@ domain-event contracts, the outbox listener and publisher, and the event bus.
 - Reusable stateful logic goes in composables; components stay focused on rendering.
 - All HTTP goes through `api()` from `api/client.ts`. Do not add `fetch` calls in
   components or a second HTTP client.
-- Markdown is rendered with `marked` and sanitized with `DOMPurify`; never bind unsanitized
-  HTML.
+- Markdown is rendered with `marked` (`breaks: true`, so a single newline renders as
+  `<br>`) and sanitized with `DOMPurify`; never bind unsanitized HTML.
 
 ### Styling
 

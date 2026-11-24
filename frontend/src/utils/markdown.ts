@@ -2,7 +2,7 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 export function renderMarkdown(markdown: string): string {
-    return DOMPurify.sanitize(marked.parse(markdown, { async: false }))
+    return DOMPurify.sanitize(marked.parse(markdown, { async: false, breaks: true }))
 }
 
 export const MARKDOWN_CLASS =
