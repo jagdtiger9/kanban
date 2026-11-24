@@ -5,6 +5,8 @@ import Sortable from 'sortablejs'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
+import Popover from 'primevue/popover'
+import Select from 'primevue/select'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
@@ -150,7 +152,9 @@ const newColumnName = ref('')
 const addingCardColumnId = ref<string | null>(null)
 const newCardTitle = ref('')
 
-const openMenuId = ref<string | null>(null)
+const openColumnMenuId = ref<string | null>(null)
+const cardMenuPopover = ref<InstanceType<typeof Popover> | null>(null)
+const cardMenuCard = ref<BoardCardPayload | null>(null)
 const renameTarget = ref<ColumnPayload | null>(null)
 const deleting = ref(false)
 
@@ -302,7 +306,7 @@ function initCardSortables(): void {
                 animation: 150,
                 ghostClass: 'opacity-40',
                 draggable: '.board-card',
-                filter: '.people-badge',
+                filter: '.people-badge, .card-menu',
                 preventOnFilter: false,
                 delay: 250,
                 delayOnTouchOnly: true,
@@ -357,6 +361,55 @@ async function onCardDragEnd(evt: Sortable.SortableEvent): Promise<void> {
     } finally {
         dragging = false
     }
+}
+
+async function moveCardToColumn(card: BoardCardPayload, targetColumnId: string): Promise<void> {
+    const current = cards.value.find((c) => c.id === card.id)
+    if (current === undefined || current.columnId === targetColumnId) return
+    actionError.value = null
+
+    const sourceCards = columnCards(current.columnId)
+    const sourceIndex = sourceCards.findIndex((c) => c.id === current.id)
+    if (sourceIndex === -1) return
+    sourceCards.splice(sourceIndex, 1)
+    sourceCards.forEach((c, i) => (c.position = i))
+
+    current.columnId = targetColumnId
+    const targetCards = columnCards(targetColumnId)
+    targetCards.push(current)
+    targetCards.forEach((c, i) => (c.position = i))
+
+    try {
+        await boardApi.moveCard(current.id, targetColumnId, targetCards.length - 1)
+    } catch (e) {
+        actionError.value = e instanceof ApiError ? e.message : 'Failed to move card'
+        await load()
+    }
+}
+
+function toggleCardMenu(event: Event, card: BoardCardPayload): void {
+    openColumnMenuId.value = null
+    const popover = cardMenuPopover.value
+    if (popover === null) return
+    if (cardMenuCard.value?.id === card.id) {
+        popover.hide()
+        return
+    }
+    cardMenuCard.value = card
+    popover.show(event)
+    void nextTick(() => popover.alignOverlay())
+}
+
+function onCardMenuColumn(columnId: string | null): void {
+    const card = cardMenuCard.value
+    cardMenuPopover.value?.hide()
+    if (card === null || columnId === null) return
+    void moveCardToColumn(card, columnId)
+}
+
+function toggleColumnMenu(column: ColumnPayload): void {
+    cardMenuPopover.value?.hide()
+    openColumnMenuId.value = openColumnMenuId.value === column.id ? null : column.id
 }
 
 async function addColumn(): Promise<void> {
@@ -454,7 +507,7 @@ async function onLabelsChanged(): Promise<void> {
 }
 
 function onDocumentClick(): void {
-    openMenuId.value = null
+    openColumnMenuId.value = null
 }
 
 onMounted(async () => {
@@ -472,7 +525,9 @@ onBeforeUnmount(() => {
 })
 
 watch(projectId, async () => {
-    openMenuId.value = null
+    openColumnMenuId.value = null
+    cardMenuPopover.value?.hide()
+    cardMenuCard.value = null
     addingColumn.value = false
     newColumnName.value = ''
     addingCardColumnId.value = null
@@ -602,14 +657,11 @@ function openUsersDialog(): void {
                                 :aria-label="unseenLabel(columnUnseen(column.id))">{{ columnUnseen(column.id) }}</span>
                         </div>
                         <Button
-                            aria-label="Column actions"
-                            severity="secondary"
-                            text
-                            size="small"
-                            label="⋯"
-                            @click.stop="openMenuId = openMenuId === column.id ? null : column.id"/>
+                            label="⋯" aria-label="Column actions"
+                            severity="secondary" size="small" text
+                            @click.stop="toggleColumnMenu(column)"/>
                         <div
-                            v-if="openMenuId === column.id"
+                            v-if="openColumnMenuId === column.id"
                             class="absolute right-2 top-10 z-10 w-32 rounded-lg border border-line-strong bg-raised py-1 shadow-xl">
                             <Button
                                 severity="secondary" text size="small" class="w-full justify-start" label="Rename"
@@ -649,6 +701,11 @@ function openUsersDialog(): void {
                                             class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
                                             :title="unseenLabel(card.unseenCount)"
                                             :aria-label="unseenLabel(card.unseenCount)">{{ card.unseenCount }}</span>
+                                        <Button
+                                            class="card-menu -my-1 -mr-1 shrink-0"
+                                            label="⋯" aria-label="Card actions"
+                                            severity="secondary" size="small" text
+                                            @click.stop="toggleCardMenu($event, card)"/>
                                     </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
                                         <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
@@ -706,6 +763,20 @@ function openUsersDialog(): void {
                 </button>
             </div>
         </div>
+
+        <Popover ref="cardMenuPopover" class="w-56" :pt="{ content: 'p-2' }">
+            <div v-if="cardMenuCard">
+                <p class="mb-1.5 text-xs font-medium text-muted">Move to column</p>
+                <Select
+                    :model-value="cardMenuCard.columnId"
+                    :options="columns"
+                    option-label="name"
+                    option-value="id"
+                    size="small"
+                    fluid
+                    @change="onCardMenuColumn($event.value)"/>
+            </div>
+        </Popover>
 
         <RenameColumnDialog
             v-if="renameTarget"
