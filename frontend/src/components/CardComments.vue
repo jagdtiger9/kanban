@@ -112,6 +112,9 @@ function activityText(activity: ActivityPayload): string {
         }
         case 'card_updated': {
             const field = payloadString(p.field)
+            if (field === 'linked_card') {
+                return payloadString(p.newValue) === '' ? 'removed the linked card' : 'linked another card'
+            }
             if (field === 'description') return 'changed the description'
             const label = field === 'due_date' ? 'due date' : 'title'
             const oldValue = payloadString(p.oldValue)

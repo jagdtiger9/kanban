@@ -17,6 +17,7 @@ use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Exception\CardLinkException;
 use App\User\Domain\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -56,6 +57,9 @@ final class Card implements DomainEventAwareInterface
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?UuidInterface $executorId;
 
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?UuidInterface $linkedCardId;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
 
@@ -93,6 +97,7 @@ final class Card implements DomainEventAwareInterface
         $this->columnId = $columnId;
         $this->creatorId = $creatorId;
         $this->executorId = null;
+        $this->linkedCardId = null;
         $this->title = $title;
         $this->description = $description;
         $this->position = $position;
@@ -167,6 +172,11 @@ final class Card implements DomainEventAwareInterface
         return $this->executorId;
     }
 
+    public function linkedCardId(): ?UuidInterface
+    {
+        return $this->linkedCardId;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -238,6 +248,23 @@ final class Card implements DomainEventAwareInterface
         $this->dueDate = $dueDate;
         $this->touch();
         $this->recordEvent(new CardFieldChanged($this->id->toString(), 'due_date', $old, $new, $actorId?->toString()));
+    }
+
+    public function changeLinkedCard(?UuidInterface $linkedCardId, ?UuidInterface $actorId = null): void
+    {
+        if ($linkedCardId !== null && $linkedCardId->equals($this->id)) {
+            throw new CardLinkException('A card cannot be linked to itself');
+        }
+
+        $new = $linkedCardId?->toString();
+        $old = $this->linkedCardId?->toString();
+        if ($new === $old) {
+            return;
+        }
+
+        $this->linkedCardId = $linkedCardId;
+        $this->touch();
+        $this->recordEvent(new CardFieldChanged($this->id->toString(), 'linked_card', $old, $new, $actorId?->toString()));
     }
 
     public function moveTo(UuidInterface $newColumnId, int $newPosition, ?UuidInterface $actorId = null): void

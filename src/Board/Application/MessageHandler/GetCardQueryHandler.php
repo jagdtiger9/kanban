@@ -12,6 +12,7 @@ use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
+use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\CommentRepository;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -21,6 +22,7 @@ final class GetCardQueryHandler
 {
     public function __construct(
         private CardGuard $guard,
+        private CardRepository $cardRepository,
         private CommentRepository $commentRepository,
         private AttachmentRepository $attachmentRepository,
         private CardActivityRepository $activityRepository,
@@ -30,6 +32,7 @@ final class GetCardQueryHandler
     /**
      * @return array{
      *     card: Card,
+     *     linkedCard: ?Card,
      *     comments: list<Comment>,
      *     attachments: list<Attachment>,
      *     activities: list<CardActivity>,
@@ -44,6 +47,7 @@ final class GetCardQueryHandler
 
         return [
             'card' => $card,
+            'linkedCard' => $card->linkedCardId() === null ? null : $this->cardRepository->findById($card->linkedCardId()),
             'comments' => $comments,
             'attachments' => $this->attachmentRepository->findByCard($card->id()),
             'activities' => $activities,

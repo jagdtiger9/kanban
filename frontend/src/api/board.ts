@@ -17,6 +17,7 @@ export interface CardPayload {
     dueDate: string | null
     creatorId: string
     executorId: string | null
+    linkedCardId: string | null
     createdAt: string
     updatedAt: string
     archived: boolean
@@ -133,6 +134,13 @@ export function setCardDueDate(cardId: string, dueDate: string | null): Promise<
     })
 }
 
+export function setCardLinkedCard(cardId: string, linkedCardId: string | null): Promise<void> {
+    return api<void>(`/cards/${cardId}/linked-card`, {
+        method: 'PUT',
+        body: JSON.stringify({ linkedCardId }),
+    })
+}
+
 export function createLabel(projectId: string, name: string, color: string): Promise<LabelPayload> {
     return api<LabelPayload>(`/projects/${projectId}/labels`, {
         method: 'POST',
@@ -174,8 +182,14 @@ export type TimelineItem =
     | { kind: 'comment'; at: string; comment: CommentPayload }
     | { kind: 'event'; at: string; event: ActivityPayload }
 
+export interface LinkedCardPayload {
+    id: string
+    title: string
+}
+
 export interface CardDetailPayload {
     card: CardPayload
+    linkedCard: LinkedCardPayload | null
     attachments: AttachmentPayload[]
     timeline: TimelineItem[]
 }

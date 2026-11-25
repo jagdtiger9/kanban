@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
+import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
-import type { CardPayload, ColumnPayload, LabelPayload, TimelineItem } from '../api/board'
+import type { CardPayload, ColumnPayload, LabelPayload, LinkedCardPayload, TimelineItem } from '../api/board'
 import type { AttachmentPayload } from '../api/attachments'
 import * as attachmentsApi from '../api/attachments'
 import type { MemberPayload } from '../api/projects'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { parseCardRef } from '../utils/cardLink'
 import { text2Clipboard } from '../utils/clipboard'
 import { fromYmd, toYmd } from '../utils/dates'
 import { MARKDOWN_CLASS, renderMarkdown } from '../utils/markdown'
@@ -41,6 +44,8 @@ const emit = defineEmits<{
 const auth = useAuthStore()
 const confirm = useConfirm()
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
 
@@ -55,8 +60,13 @@ const saving = ref(false)
 
 const timeline = ref<TimelineItem[]>([])
 const attachments = ref<AttachmentPayload[]>([])
+const linkedCard = ref<LinkedCardPayload | null>(null)
 const detailLoading = ref(true)
 const detailError = ref<string | null>(null)
+
+const linkEditorOpen = ref(false)
+const linkDraft = ref('')
+const linkSaving = ref(false)
 
 const editingDescription = ref(false)
 const descriptionDraft = ref('')
@@ -74,6 +84,7 @@ async function refreshDetail(): Promise<void> {
     const detail = await boardApi.getCard(props.card.id)
     timeline.value = detail.timeline
     attachments.value = detail.attachments
+    linkedCard.value = detail.linkedCard
 }
 
 async function onCommentsRefresh(): Promise<void> {
@@ -342,6 +353,49 @@ function copyCardLink(): void {
     })
 }
 
+function toggleLinkEditor(): void {
+    linkEditorOpen.value = !linkEditorOpen.value
+    linkDraft.value = ''
+}
+
+function saveLink(): void {
+    const linkedCardId = parseCardRef(linkDraft.value)
+    if (linkedCardId === null) {
+        toast.add({ severity: 'warn', summary: 'Paste a card id or a card URL', life: 3000 })
+        return
+    }
+    if (linkedCardId === props.card.id) {
+        toast.add({ severity: 'warn', summary: 'A card cannot be linked to itself', life: 3000 })
+        return
+    }
+    void applyLink(linkedCardId)
+}
+
+function unlinkCard(): void {
+    void applyLink(null)
+}
+
+async function applyLink(linkedCardId: string | null): Promise<void> {
+    if (linkSaving.value) return
+    linkSaving.value = true
+    error.value = null
+    try {
+        await boardApi.setCardLinkedCard(props.card.id, linkedCardId)
+        emit('updated', { linkedCardId })
+        linkEditorOpen.value = false
+        await onCommentsRefresh()
+    } catch (e) {
+        error.value = e instanceof ApiError ? e.message : 'Failed to update the card link'
+    } finally {
+        linkSaving.value = false
+    }
+}
+
+function openLinkedCard(id: string): void {
+    if (route.query.card === id) return
+    void router.push({ query: { ...route.query, card: id } })
+}
+
 const markdownOpen = ref(false)
 const markdownText = ref('')
 
@@ -377,11 +431,6 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                  @click="startEditTitle">
                 {{ title }}
             </div>
-        </template>
-        <template #attributes>
-            <i class="fa-solid fa-share-nodes cursor-pointer text-muted hover:text-strong"
-               title="Copy card link"
-               @click="copyCardLink"></i>
         </template>
         <div>
             <p v-if="error"
@@ -512,21 +561,65 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                     @error="detailError = $event"/>
             </div>
 
-            <div v-if="canManage" class="border-t border-line pt-3">
-                <Button
-                    v-if="!props.card.archived"
-                    severity="secondary"
-                    size="small"
-                    label="Archive"
-                    @click="askArchive"
-                />
-                <Button
-                    v-else
-                    severity="secondary"
-                    size="small"
-                    label="Restore"
-                    @click="restore"
-                />
+            <!-- Footer -->
+            <div class="border-t border-line pt-3 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <!-- Share link -->
+                        <i class="fa-solid fa-link fa-lg cursor-pointer text-muted hover:text-strong"
+                           title="Copy card link"
+                           @click="copyCardLink"></i>
+
+                        <!-- Linked to another msg -->
+                        <div class="flex min-w-0 items-center gap-2">
+                            <i class="fa-solid fa-share-nodes fa-lg cursor-pointer text-muted hover:text-strong"
+                               title="Link another card"
+                               @click="toggleLinkEditor"></i>
+                            <template v-if="props.card.linkedCardId !== null">
+                                <button v-if="linkedCard !== null"
+                                        type="button"
+                                        class="max-w-60 cursor-pointer truncate text-sm text-brand-text hover:underline"
+                                        :title="linkedCard.title"
+                                        @click="openLinkedCard(linkedCard.id)">{{ linkedCard.title }}</button>
+                                <span v-else-if="!detailLoading" class="text-xs text-faint">Linked card unavailable</span>
+                                <i class="fa-solid fa-xmark cursor-pointer text-muted hover:text-strong"
+                                   title="Remove card link"
+                                   @click="unlinkCard"></i>
+                            </template>
+                        </div>
+                    </div>
+                    <div v-if="canManage">
+                        <Button
+                            v-if="!props.card.archived"
+                            severity="secondary"
+                            size="small"
+                            label="Archive"
+                            @click="askArchive"
+                        />
+                        <Button
+                            v-else
+                            severity="secondary"
+                            size="small"
+                            label="Restore"
+                            @click="restore"
+                        />
+                    </div>
+                </div>
+                <div v-if="linkEditorOpen" class="flex items-center gap-2">
+                    <InputText
+                        v-model="linkDraft"
+                        size="small"
+                        class="w-full"
+                        placeholder="Paste a card id or card URL"
+                        autofocus
+                        :disabled="linkSaving"
+                        @keyup.enter="saveLink"
+                        @keyup.esc="linkEditorOpen = false"/>
+                    <Button label="Link" size="small" outlined
+                            :disabled="linkSaving || linkDraft.trim() === ''"
+                            @click="saveLink"/>
+                    <Button severity="secondary" label="Cancel" size="small" @click="linkEditorOpen = false"/>
+                </div>
             </div>
         </div>
         <ClipboardPasteDialog

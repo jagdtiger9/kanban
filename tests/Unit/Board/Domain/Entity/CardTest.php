@@ -17,6 +17,7 @@ use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Exception\CardLinkException;
 use App\User\Domain\Entity\User;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
@@ -283,5 +284,45 @@ final class CardTest extends TestCase
         $card->unassign($alice);
         self::assertCount(0, $card->assignees());
         self::assertTrue($card->executorId()?->equals($alice->id()));
+    }
+
+    public function testLinksAndUnlinksAnotherCard(): void
+    {
+        $card = $this->createCard();
+        $other = Card::create(Uuid::uuid4(), $card->columnId(), Uuid::uuid4(), 'Other', '', 1);
+
+        self::assertNull($card->linkedCardId());
+
+        $card->changeLinkedCard($other->id());
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardFieldChanged::class, $events[0]);
+        self::assertSame('linked_card', $events[0]->field);
+        self::assertNull($events[0]->oldValue);
+        self::assertSame((string) $other->id(), $events[0]->newValue);
+        self::assertTrue($card->linkedCardId()?->equals($other->id()));
+
+        $card->changeLinkedCard($other->id());
+        self::assertSame([], $card->releaseEvents());
+
+        $card->changeLinkedCard(null);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertSame('linked_card', $events[0]->field);
+        self::assertSame((string) $other->id(), $events[0]->oldValue);
+        self::assertNull($events[0]->newValue);
+        self::assertNull($card->linkedCardId());
+
+        $card->changeLinkedCard(null);
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testRejectsLinkingCardToItself(): void
+    {
+        $card = $this->createCard();
+
+        $this->expectException(CardLinkException::class);
+
+        $card->changeLinkedCard($card->id());
     }
 }

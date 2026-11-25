@@ -787,6 +787,7 @@ function openUsersDialog(): void {
         />
         <CardDialog
             v-if="activeCard"
+            :key="activeCard.id"
             :card="activeCard"
             :labels="labels"
             :members="detail?.members ?? []"

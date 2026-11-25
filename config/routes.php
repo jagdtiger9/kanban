@@ -332,6 +332,11 @@ $config = Routes::config([
         'controller' => [BoardController::class, 'setCardDueDate'],
         'methods' => ['PUT'],
     ],
+    'api_card_linked_card' => [
+        'path' => '/api/cards/{cardId}/linked-card',
+        'controller' => [BoardController::class, 'setCardLinkedCard'],
+        'methods' => ['PUT'],
+    ],
     'api_card_get' => [
         'path' => '/api/cards/{cardId}',
         'controller' => [BoardController::class, 'getCard'],

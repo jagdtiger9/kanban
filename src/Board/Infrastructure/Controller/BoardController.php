@@ -23,6 +23,7 @@ use App\Board\Application\Message\Command\SetCardAssigneesCommand;
 use App\Board\Application\Message\Command\SetCardDueDateCommand;
 use App\Board\Application\Message\Command\SetCardExecutorCommand;
 use App\Board\Application\Message\Command\SetCardLabelsCommand;
+use App\Board\Application\Message\Command\SetCardLinkedCardCommand;
 use App\Board\Application\Message\Command\UpdateCardContentCommand;
 use App\Board\Application\Message\Command\UpdateCommentCommand;
 use App\Board\Application\Message\Command\UpdateLabelCommand;
@@ -94,6 +95,10 @@ final class BoardController extends AbstractController
 
         return $this->json([
             'card' => $this->cardPayload($result['card']),
+            'linkedCard' => $result['linkedCard'] === null ? null : [
+                'id' => (string)$result['linkedCard']->id(),
+                'title' => $result['linkedCard']->title(),
+            ],
             'attachments' => array_map(
                 fn(Attachment $attachment): array => $this->attachmentPayload($attachment),
                 $cardAttachments,
@@ -232,6 +237,14 @@ final class BoardController extends AbstractController
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
+    public function setCardLinkedCard(SetCardLinkedCardCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
     public function createComment(CreateCommentCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);
@@ -319,6 +332,7 @@ final class BoardController extends AbstractController
      *     dueDate: ?string,
      *     creatorId: string,
      *     executorId: ?string,
+     *     linkedCardId: ?string,
      *     createdAt: string,
      *     updatedAt: string,
      *     archived: bool,
@@ -337,6 +351,7 @@ final class BoardController extends AbstractController
             'dueDate' => $card->dueDate()?->format('Y-m-d'),
             'creatorId' => (string)$card->creatorId(),
             'executorId' => $card->executorId()?->toString(),
+            'linkedCardId' => $card->linkedCardId()?->toString(),
             'createdAt' => $card->createdAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $card->updatedAt()->format(\DateTimeInterface::ATOM),
             'archived' => $card->isArchived(),

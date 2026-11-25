@@ -6,7 +6,7 @@ the status — a card moves between columns and carries no separate status field
 ## Features
 
 - Projects with members and project/global admin roles
-- One board per project: columns, cards, drag-and-drop reordering
+- Several boards per project: columns, cards, drag-and-drop reordering
 - Labels, due dates, assignees, markdown comments, and an activity log
 - File attachments on cards and comments, with image thumbnails and text previews
 - Email-confirmed accounts, self-service password change, and profile photos

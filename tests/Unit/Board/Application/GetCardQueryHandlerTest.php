@@ -67,8 +67,19 @@ final class GetCardQueryHandlerTest extends TestCase
         array $comments,
         array $activities,
         array $attachments = [],
+        ?Card $linkedCard = null,
     ): GetCardQueryHandler {
-        $this->cardRepository->method('findById')->willReturn($card);
+        $this->cardRepository->method('findById')->willReturnCallback(
+            static function (UuidInterface $id) use ($card, $linkedCard): ?Card {
+                foreach ([$card, $linkedCard] as $candidate) {
+                    if ($candidate !== null && $id->equals($candidate->id())) {
+                        return $candidate;
+                    }
+                }
+
+                return null;
+            },
+        );
         $this->columnRepository->method('findById')->willReturn($column);
         $this->boardRepository->method('findById')->willReturn($board);
         $this->memberRepository->method('findByProjectAndUser')->willReturn($actorMembership);
@@ -85,6 +96,7 @@ final class GetCardQueryHandlerTest extends TestCase
 
         return new GetCardQueryHandler(
             $guard,
+            $this->cardRepository,
             $this->commentRepository,
             $this->attachmentRepository,
             $this->activityRepository,
@@ -116,12 +128,38 @@ final class GetCardQueryHandlerTest extends TestCase
             ->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
 
         self::assertSame($card, $result['card']);
+        self::assertNull($result['linkedCard']);
         self::assertSame($comments, $result['comments']);
         self::assertSame($attachments, $result['attachments']);
         self::assertSame($activities, $result['activities']);
         self::assertCount(2, $result['timeline']);
         self::assertTrue(in_array($comments[0], $result['timeline'], true));
         self::assertTrue(in_array($activities[0], $result['timeline'], true));
+    }
+
+    public function testReturnsLinkedCard(): void
+    {
+        [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $linkedCard = Card::create(Uuid::uuid4(), $column->id(), $actorId, 'Linked', '', 1);
+        $card->changeLinkedCard($linkedCard->id(), $actorId);
+
+        $result = $this->handler($card, $column, $board, $member, [], [], [], $linkedCard)
+            ->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
+
+        self::assertSame($linkedCard, $result['linkedCard']);
+    }
+
+    public function testLinkedCardIsNullWhenTargetNoLongerExists(): void
+    {
+        [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $card->changeLinkedCard(Uuid::uuid4(), $actorId);
+
+        $result = $this->handler($card, $column, $board, $member, [], [])
+            ->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
+
+        self::assertNull($result['linkedCard']);
     }
 
     public function testTimelineOrdersNewestFirstAndSkipsCommentEvents(): void

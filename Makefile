@@ -35,4 +35,4 @@ storage.sweep.dry: ## Remove orphaned attachments, dry-run
 	bin/console app:media:sweep --dry-run
 
 storage.sweep: ## Remove orphaned attachments
-	bin/console app:media:sweep --dry-run
+	bin/console app:media:sweep
