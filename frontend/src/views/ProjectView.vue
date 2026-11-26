@@ -254,6 +254,7 @@ async function toggleOccurrence(card: BoardCardPayload): Promise<void> {
 
 async function toggleSticker(card: BoardCardPayload): Promise<void> {
     if (!canToggleCompletion(card)) return
+    void markSeen(card.id)
     const previous = card.completedAt
     card.completedAt = previous === null ? new Date().toISOString() : null
     try {
