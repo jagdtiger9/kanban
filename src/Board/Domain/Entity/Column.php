@@ -6,6 +6,7 @@ namespace App\Board\Domain\Entity;
 
 use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
 use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Event\ColumnCreated;
 use App\Board\Domain\Event\ColumnDeleted;
 use App\Board\Domain\Event\ColumnRenamed;
@@ -34,6 +35,9 @@ final class Column implements DomainEventAwareInterface
     #[ORM\Column(type: Types::INTEGER)]
     private int $position;
 
+    #[ORM\Column(type: Types::STRING, length: 20, enumType: ColumnKind::class)]
+    private ColumnKind $kind;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
 
@@ -42,12 +46,14 @@ final class Column implements DomainEventAwareInterface
         UuidInterface $boardId,
         string $name,
         int $position,
+        ColumnKind $kind,
         \DateTimeImmutable $createdAt,
     ) {
         $this->id = $id;
         $this->boardId = $boardId;
         $this->name = $name;
         $this->position = $position;
+        $this->kind = $kind;
         $this->createdAt = $createdAt;
     }
 
@@ -56,6 +62,7 @@ final class Column implements DomainEventAwareInterface
         UuidInterface $boardId,
         string $name,
         int $position,
+        ColumnKind $kind = ColumnKind::Task,
         ?UuidInterface $actorId = null,
     ): self {
         $name = trim($name);
@@ -66,7 +73,7 @@ final class Column implements DomainEventAwareInterface
             throw new \InvalidArgumentException('Column position must not be negative');
         }
 
-        $column = new self($id, $boardId, $name, $position, new \DateTimeImmutable());
+        $column = new self($id, $boardId, $name, $position, $kind, new \DateTimeImmutable());
         $column->recordEvent(new ColumnCreated($boardId->toString(), $id->toString(), $actorId?->toString()));
 
         return $column;
@@ -90,6 +97,11 @@ final class Column implements DomainEventAwareInterface
     public function position(): int
     {
         return $this->position;
+    }
+
+    public function kind(): ColumnKind
+    {
+        return $this->kind;
     }
 
     public function createdAt(): \DateTimeImmutable

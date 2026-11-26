@@ -13,10 +13,13 @@ use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Entity\ProjectView;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
+use App\Board\Domain\Repository\CardOccurrenceRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use App\Board\Domain\Repository\ProjectViewRepository;
+use App\Board\Domain\Service\OccurrenceCalculator;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\Project\Application\Service\MembershipGuard;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Entity\ProjectMember;
@@ -39,6 +42,7 @@ final class GetBoardQueryHandlerTest extends TestCase
     private LabelRepository $labelRepository;
     private ProjectViewRepository $projectViewRepository;
     private CardActivityRepository $cardActivityRepository;
+    private CardOccurrenceRepository $occurrenceRepository;
     private ProjectMemberRepository $memberRepository;
     private UserRepository $userRepository;
 
@@ -51,6 +55,7 @@ final class GetBoardQueryHandlerTest extends TestCase
         $this->labelRepository = $this->createMock(LabelRepository::class);
         $this->projectViewRepository = $this->createMock(ProjectViewRepository::class);
         $this->cardActivityRepository = $this->createMock(CardActivityRepository::class);
+        $this->occurrenceRepository = $this->createMock(CardOccurrenceRepository::class);
         $this->memberRepository = $this->createMock(ProjectMemberRepository::class);
         $this->userRepository = $this->createMock(UserRepository::class);
     }
@@ -69,6 +74,7 @@ final class GetBoardQueryHandlerTest extends TestCase
         array $labels,
         ?ProjectView $baseline = null,
         ?\Closure $countUnseen = null,
+        ?\Closure $completedPeriods = null,
     ): GetBoardQueryHandler {
         $this->projectRepository->method('findById')->willReturn($project);
         $this->boardRepository->method('findByProject')->willReturn($board);
@@ -82,6 +88,9 @@ final class GetBoardQueryHandlerTest extends TestCase
         $this->cardActivityRepository->method('countUnseenByBoard')->willReturnCallback(
             $countUnseen ?? static fn(): array => [],
         );
+        $this->occurrenceRepository->method('findCompletedPeriodsByCards')->willReturnCallback(
+            $completedPeriods ?? static fn(): array => [],
+        );
 
         return new GetBoardQueryHandler(
             $this->projectRepository,
@@ -91,6 +100,8 @@ final class GetBoardQueryHandlerTest extends TestCase
             $this->labelRepository,
             $this->projectViewRepository,
             $this->cardActivityRepository,
+            $this->occurrenceRepository,
+            new OccurrenceCalculator(),
             new MembershipGuard($this->memberRepository, $this->userRepository),
         );
     }
@@ -115,6 +126,7 @@ final class GetBoardQueryHandlerTest extends TestCase
         self::assertSame([], $result['cards']);
         self::assertSame($labels, $result['labels']);
         self::assertSame([], $result['unseenCounts']);
+        self::assertSame([], $result['occurrences']);
     }
 
     public function testCreatesBaselineAndReturnsUnseenCountsOnFirstLoad(): void
@@ -235,6 +247,41 @@ final class GetBoardQueryHandlerTest extends TestCase
         )->__invoke(new GetBoardQuery((string) $project->id(), (string) $actorId, true));
 
         self::assertSame([$active, $archived], $result['cards']);
+    }
+
+    public function testComputesOccurrencesForRecurringCardsOnly(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $column = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 0);
+        $today = (new \DateTimeImmutable())->format('Y-m-d');
+
+        $completedCard = Card::create(Uuid::uuid4(), $column->id(), $actorId, 'Completed', '', 0);
+        $completedCard->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $completedCard->releaseEvents();
+        $pendingCard = Card::create(Uuid::uuid4(), $column->id(), $actorId, 'Pending', '', 1);
+        $pendingCard->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $pendingCard->releaseEvents();
+        $plainCard = Card::create(Uuid::uuid4(), $column->id(), $actorId, 'Plain', '', 2);
+
+        $result = $this->handler(
+            $project,
+            $board,
+            $member,
+            [$column],
+            [(string) $column->id() => [$completedCard, $pendingCard, $plainCard]],
+            [],
+            null,
+            null,
+            static fn(): array => [(string) $completedCard->id() => [$today]],
+        )->__invoke(new GetBoardQuery((string) $project->id(), (string) $actorId));
+
+        self::assertSame([
+            (string) $completedCard->id() => ['state' => 'completed', 'period' => $today],
+            (string) $pendingCard->id() => ['state' => 'pending', 'period' => $today],
+        ], $result['occurrences']);
     }
 
     public function testThrowsWhenProjectMissing(): void

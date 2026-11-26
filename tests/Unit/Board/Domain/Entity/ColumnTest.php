@@ -5,11 +5,26 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Board\Domain\Entity;
 
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
 
 final class ColumnTest extends TestCase
 {
+    public function testCreateDefaultsToTaskKind(): void
+    {
+        $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'To Do', 0);
+
+        self::assertSame(ColumnKind::Task, $column->kind());
+    }
+
+    public function testCreateKeepsStickerKind(): void
+    {
+        $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'Stickers', 0, ColumnKind::Sticker);
+
+        self::assertSame(ColumnKind::Sticker, $column->kind());
+    }
+
     public function testCreateTrimsName(): void
     {
         $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), '  To Do  ', 0);

@@ -4,12 +4,21 @@ import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { Divider } from 'primevue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
-import type { CardPayload, ColumnPayload, LabelPayload, LinkedCardPayload, TimelineItem } from '../api/board'
+import type {
+    CardPayload,
+    ColumnPayload,
+    LabelPayload,
+    LinkedCardPayload,
+    RecurrenceKind,
+    RecurrenceRulePayload,
+    TimelineItem,
+} from '../api/board'
 import type { AttachmentPayload } from '../api/attachments'
 import * as attachmentsApi from '../api/attachments'
 import type { MemberPayload } from '../api/projects'
@@ -48,12 +57,17 @@ const route = useRoute()
 const router = useRouter()
 const isCreator = computed(() => auth.user?.id === props.card.creatorId)
 const canManage = computed(() => isCreator.value || props.isAdmin)
+const isSticker = computed(
+    () => props.columns.find((column) => column.id === props.card.columnId)?.kind === 'sticker',
+)
 
 const title = ref(props.card.title)
 const description = ref(props.card.description)
 const labelIds = ref<string[]>([...props.card.labelIds])
 const dueDate = ref<string | null>(props.card.dueDate)
 const dueDateModel = computed(() => fromYmd(dueDate.value))
+const recurrence = ref<RecurrenceRulePayload | null>(props.card.recurrence)
+const scheduleMode = computed((): ScheduleMode => (recurrence.value === null ? 'single' : 'recurring'))
 
 const error = ref<string | null>(null)
 const saving = ref(false)
@@ -127,6 +141,13 @@ watch(
     () => props.card.dueDate,
     (value) => {
         dueDate.value = value
+    },
+)
+
+watch(
+    () => props.card.recurrence,
+    (value) => {
+        recurrence.value = value
     },
 )
 
@@ -309,6 +330,85 @@ function onDueChange(value: Date | Date[] | Array<Date | null> | null | undefine
     }
 }
 
+type ScheduleMode = 'single' | 'recurring'
+
+const SCHEDULE_MODES: { label: string; value: ScheduleMode }[] = [
+    { label: 'Single task', value: 'single' },
+    { label: 'Recurring task', value: 'recurring' },
+]
+
+const RECURRENCE_KINDS: { label: string; value: RecurrenceKind }[] = [
+    { label: 'Weekly', value: 'weekly' },
+    { label: 'Monthly', value: 'monthly' },
+]
+
+const WEEKDAYS: { label: string; value: number }[] = [
+    { label: 'Mon', value: 1 },
+    { label: 'Tue', value: 2 },
+    { label: 'Wed', value: 3 },
+    { label: 'Thu', value: 4 },
+    { label: 'Fri', value: 5 },
+    { label: 'Sat', value: 6 },
+    { label: 'Sun', value: 7 },
+]
+
+const MONTH_DAYS = Array.from({ length: 31 }, (_, index) => index + 1)
+
+function defaultRule(kind: RecurrenceKind): RecurrenceRulePayload {
+    return {
+        kind,
+        weekdays: kind === 'weekly' ? [1, 2, 3, 4, 5, 6, 7] : [],
+        monthDays: kind === 'monthly' ? [1] : [],
+    }
+}
+
+async function applyRecurrence(next: RecurrenceRulePayload | null): Promise<void> {
+    const previous = recurrence.value
+    const previousDueDate = dueDate.value
+    recurrence.value = next
+    if (next !== null) {
+        dueDate.value = null
+    }
+    error.value = null
+    try {
+        await boardApi.setCardRecurrence(props.card.id, next)
+        emit('updated', next !== null ? { recurrence: next, dueDate: null } : { recurrence: null })
+        await onCommentsRefresh()
+    } catch (e) {
+        recurrence.value = previous
+        dueDate.value = previousDueDate
+        error.value = e instanceof ApiError ? e.message : 'Failed to update recurrence'
+    }
+}
+
+function onKindChange(kind: RecurrenceKind): void {
+    void applyRecurrence(defaultRule(kind))
+}
+
+function changeScheduleMode(mode: ScheduleMode): void {
+    if (mode === scheduleMode.value) return
+    void applyRecurrence(mode === 'recurring' ? defaultRule('weekly') : null)
+}
+
+function toggleNumber(values: number[], value: number): number[] {
+    if (!values.includes(value)) {
+        return [...values, value].sort((a, b) => a - b)
+    }
+    return values.length === 1 ? values : values.filter((current) => current !== value)
+}
+
+function toggleWeekday(day: number): void {
+    const rule = recurrence.value
+    if (rule === null) return
+    void applyRecurrence({ ...rule, weekdays: toggleNumber(rule.weekdays, day) })
+}
+
+function toggleMonthDay(day: number): void {
+    const rule = recurrence.value
+    if (rule === null) return
+    void applyRecurrence({ ...rule, monthDays: toggleNumber(rule.monthDays, day) })
+}
+
 async function archive(): Promise<void> {
     saving.value = true
     error.value = null
@@ -450,7 +550,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
             </div>
             <Divider class="my-0"/>
             <div class="grid lg:grid-cols-12">
-                <div class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3 border-r border-r-line">
+                <div class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3 pl-1 border-r border-r-line">
                     <div>
                         <template v-if="canManage && editingDescription">
                             <Textarea
@@ -530,6 +630,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                         <p v-else class="text-xs text-faint">No labels yet — add some via the board Labels button.</p>
                     </div>
 
+                    <Divider class="my-4"/>
                     <CardAssignees
                         :card-id="props.card.id"
                         :members="props.members"
@@ -538,27 +639,72 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                         @updated="emit('updated', $event)"
                         @error="error = $event"/>
 
-                    <div>
-                        <p class="mb-1.5 font-medium text-body">Due date</p>
-                        <DatePicker
-                            :model-value="dueDateModel"
-                            date-format="yy-mm-dd"
-                            show-icon
-                            show-clear
-                            @update:model-value="onDueChange"/>
-                    </div>
+                    <template v-if="!isSticker">
+                        <Divider class="my-4"/>
+                        <div>
+                            <div class="flex flex-wrap gap-1">
+                                <button
+                                    v-for="option in SCHEDULE_MODES" :key="option.value"
+                                    type="button"
+                                    class="cursor-pointer rounded-full border px-2.5 py-1 text-sm transition-colors"
+                                    :class="scheduleMode === option.value ? 'border-brand bg-brand/15 font-medium text-brand-text' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
+                                    @click="changeScheduleMode(option.value)">{{ option.label }}
+                                </button>
+                            </div>
+                            <template v-if="recurrence !== null">
+                                <div class="mt-2">
+                                    <Select
+                                        :model-value="recurrence.kind"
+                                        :options="RECURRENCE_KINDS"
+                                        option-label="label"
+                                        option-value="value"
+                                        size="small"
+                                        @update:model-value="onKindChange"/>
+                                </div>
+                                <div v-if="recurrence.kind === 'weekly'" class="mt-2 flex flex-wrap gap-1">
+                                    <button
+                                        v-for="weekday in WEEKDAYS" :key="weekday.value"
+                                        type="button"
+                                        class="cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors"
+                                        :class="recurrence.weekdays.includes(weekday.value) ? 'border-brand bg-brand/15 font-medium text-brand-text' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
+                                        @click="toggleWeekday(weekday.value)">{{ weekday.label }}
+                                    </button>
+                                </div>
+                                <div v-else-if="recurrence.kind === 'monthly'" class="mt-2 grid grid-cols-7 gap-1">
+                                    <button
+                                        v-for="day in MONTH_DAYS" :key="day"
+                                        type="button"
+                                        class="cursor-pointer rounded-md border py-1 text-xs transition-colors"
+                                        :class="recurrence.monthDays.includes(day) ? 'border-brand bg-brand/15 font-medium text-brand-text' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
+                                        @click="toggleMonthDay(day)">{{ day }}
+                                    </button>
+                                </div>
+                            </template>
+                            <div v-else class="mt-2">
+                                <p class="mb-1 text-xs font-medium text-body">Due date</p>
+                                <DatePicker
+                                    :model-value="dueDateModel"
+                                    date-format="yy-mm-dd"
+                                    show-icon
+                                    show-clear
+                                    @update:model-value="onDueChange"/>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
-                <CardComments
-                    :card-id="props.card.id"
-                    :members="props.members"
-                    :columns="props.columns"
-                    :is-admin="props.isAdmin"
-                    :timeline="timeline"
-                    :loading="detailLoading"
-                    :detail-error="detailError"
-                    @refresh="onCommentsRefresh"
-                    @error="detailError = $event"/>
+                <div class="space-y-3 p-3 pr-1 min-w-0 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto">
+                    <CardComments
+                        :card-id="props.card.id"
+                        :members="props.members"
+                        :columns="props.columns"
+                        :is-admin="props.isAdmin"
+                        :timeline="timeline"
+                        :loading="detailLoading"
+                        :detail-error="detailError"
+                        @refresh="onCommentsRefresh"
+                        @error="detailError = $event"/>
+                </div>
             </div>
 
             <!-- Footer -->
@@ -580,7 +726,8 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                                         type="button"
                                         class="max-w-60 cursor-pointer truncate text-sm text-brand-text hover:underline"
                                         :title="linkedCard.title"
-                                        @click="openLinkedCard(linkedCard.id)">{{ linkedCard.title }}</button>
+                                        @click="openLinkedCard(linkedCard.id)">{{ linkedCard.title }}
+                                </button>
                                 <span v-else-if="!detailLoading" class="text-xs text-faint">Linked card unavailable</span>
                                 <i class="fa-solid fa-xmark cursor-pointer text-muted hover:text-strong"
                                    title="Remove card link"

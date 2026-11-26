@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Board\Infrastructure;
 
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Tests\Integration\DatabaseTestCase;
 use Ramsey\Uuid\Uuid;
@@ -33,9 +34,22 @@ final class DoctrineColumnRepositoryTest extends DatabaseTestCase
         $columns = $this->repo->findByBoard($boardId);
 
         self::assertSame(['First', 'Second', 'Third'], array_map(
-            static fn (Column $c): string => $c->name(),
+            static fn(Column $c): string => $c->name(),
             $columns,
         ));
+    }
+
+    public function testKindRoundTrip(): void
+    {
+        $boardId = Uuid::uuid4();
+        $sticker = Column::create(Uuid::uuid4(), $boardId, 'Stickers', 0, ColumnKind::Sticker);
+        $task = Column::create(Uuid::uuid4(), $boardId, 'Tasks', 1);
+        $this->repo->save($sticker);
+        $this->repo->save($task);
+        $this->em()->clear();
+
+        self::assertSame(ColumnKind::Sticker, $this->repo->findById($sticker->id())?->kind());
+        self::assertSame(ColumnKind::Task, $this->repo->findById($task->id())?->kind());
     }
 
     public function testRemove(): void

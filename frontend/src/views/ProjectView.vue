@@ -10,7 +10,7 @@ import Select from 'primevue/select'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
-import type { BoardCardPayload, CardPayload, ColumnPayload, LabelPayload } from '../api/board'
+import type { BoardCardPayload, CardPayload, ColumnKind, ColumnPayload, LabelPayload } from '../api/board'
 import * as projectsApi from '../api/projects'
 import type { ProjectDetail } from '../api/projects'
 import { ApiError } from '../api/client'
@@ -21,6 +21,7 @@ import CardPeople from '../components/CardPeople.vue'
 import LabelsDialog from '../components/LabelsDialog.vue'
 import ProjectUsersDialog from '../components/ProjectUsersDialog.vue'
 import RenameColumnDialog from '../components/RenameColumnDialog.vue'
+import StickerCard from '../components/StickerCard.vue'
 import { useBoardRealtime, type RealtimeChange } from '../composables/useBoardRealtime'
 import { usePresenceHeartbeat } from '../composables/usePresenceHeartbeat'
 import { useAuthStore } from '../stores/auth'
@@ -38,6 +39,11 @@ const CARD_EVENT_VERBS: Record<string, string> = {
     'card.executor_unassigned': 'changed the executor of',
     'card.label_added': 'added a label to',
     'card.label_removed': 'removed a label from',
+    'card.occurrence_completed': 'completed',
+    'card.occurrence_uncompleted': 'reopened',
+    'card.completed': 'completed',
+    'card.uncompleted': 'reopened',
+    'card.recurrence_changed': 'changed the recurrence of',
     'comment.created': 'commented on',
     'comment.updated': 'edited a comment on',
     'comment.deleted': 'deleted a comment on',
@@ -148,6 +154,12 @@ const cardSortables: Sortable[] = []
 
 const addingColumn = ref(false)
 const newColumnName = ref('')
+const newColumnKind = ref<ColumnKind>('task')
+
+const COLUMN_KINDS: { label: string; value: ColumnKind }[] = [
+    { label: 'Task', value: 'task' },
+    { label: 'Sticker', value: 'sticker' },
+]
 
 const addingCardColumnId = ref<string | null>(null)
 const newCardTitle = ref('')
@@ -205,6 +217,56 @@ function markSeen(cardId: string): Promise<void> {
     if (card !== undefined) card.unseenCount = 0
     // Best-effort: a failed call only delays the indicator clearing until the next load.
     return boardApi.markCardSeen(cardId).catch(() => undefined)
+}
+
+function canToggleCompletion(card: BoardCardPayload): boolean {
+    return card.executorId === null || card.executorId === auth.user?.id
+}
+
+function occurrenceTitle(card: BoardCardPayload): string {
+    const occurrence = card.occurrence
+    if (occurrence === null) return ''
+    if (occurrence.state === 'pending') {
+        return canToggleCompletion(card)
+            ? `Mark completed for ${occurrence.period}`
+            : `Waiting to be completed for ${occurrence.period}`
+    }
+    return canToggleCompletion(card) ? 'Mark uncompleted' : `Completed for ${occurrence.period}`
+}
+
+async function toggleOccurrence(card: BoardCardPayload): Promise<void> {
+    const occurrence = card.occurrence
+    if (occurrence === null) return
+    const next = occurrence.state === 'pending' ? 'completed' : 'pending'
+    card.occurrence = { state: next, period: occurrence.period }
+    try {
+        if (next === 'completed') {
+            await boardApi.completeCard(card.id)
+        } else {
+            await boardApi.uncompleteCard(card.id)
+        }
+    } catch (e) {
+        actionError.value = e instanceof ApiError ? e.message : 'Failed to update occurrence'
+        card.occurrence = occurrence
+        await load()
+    }
+}
+
+async function toggleSticker(card: BoardCardPayload): Promise<void> {
+    if (!canToggleCompletion(card)) return
+    const previous = card.completedAt
+    card.completedAt = previous === null ? new Date().toISOString() : null
+    try {
+        if (previous === null) {
+            await boardApi.completeCard(card.id)
+        } else {
+            await boardApi.uncompleteCard(card.id)
+        }
+    } catch (e) {
+        actionError.value = e instanceof ApiError ? e.message : 'Failed to update sticker'
+        card.completedAt = previous
+        await load()
+    }
 }
 
 async function load(): Promise<void> {
@@ -300,13 +362,14 @@ function initCardSortables(): void {
     cardSortables.length = 0
     if (!boardEl.value) return
     for (const listEl of boardEl.value.querySelectorAll<HTMLElement>('.card-list')) {
+        const group = listEl.dataset.columnKind === 'sticker' ? 'board-stickers' : 'board-cards'
         cardSortables.push(
             Sortable.create(listEl, {
-                group: 'board-cards',
+                group,
                 animation: 150,
                 ghostClass: 'opacity-40',
                 draggable: '.board-card',
-                filter: '.people-badge, .card-menu',
+                filter: '.people-badge, .card-menu, .occurrence-pill, .sticker-check, .sticker-edit',
                 preventOnFilter: false,
                 delay: 250,
                 delayOnTouchOnly: true,
@@ -387,6 +450,13 @@ async function moveCardToColumn(card: BoardCardPayload, targetColumnId: string):
     }
 }
 
+const moveTargets = computed((): ColumnPayload[] => {
+    const card = cardMenuCard.value
+    if (card === null) return []
+    const kind = columns.value.find((column) => column.id === card.columnId)?.kind
+    return columns.value.filter((column) => column.kind === kind)
+})
+
 function toggleCardMenu(event: Event, card: BoardCardPayload): void {
     openColumnMenuId.value = null
     const popover = cardMenuPopover.value
@@ -417,9 +487,10 @@ async function addColumn(): Promise<void> {
     if (name === '') return
     actionError.value = null
     try {
-        const column = await boardApi.createColumn(projectId.value, name)
+        const column = await boardApi.createColumn(projectId.value, name, newColumnKind.value)
         columns.value.push(column)
         newColumnName.value = ''
+        newColumnKind.value = 'task'
         addingColumn.value = false
         await nextTick()
         initCardSortables()
@@ -431,6 +502,7 @@ async function addColumn(): Promise<void> {
 function cancelAdd(): void {
     addingColumn.value = false
     newColumnName.value = ''
+    newColumnKind.value = 'task'
 }
 
 function onRenamed(name: string): void {
@@ -480,7 +552,7 @@ async function addCard(columnId: string): Promise<void> {
     actionError.value = null
     try {
         const card = await boardApi.createCard(columnId, title)
-        cards.value.push({ ...card, unseenCount: 0 })
+        cards.value.push({ ...card, unseenCount: 0, occurrence: null })
         cancelAddCard()
     } catch (e) {
         actionError.value = e instanceof ApiError ? e.message : 'Failed to add card'
@@ -530,6 +602,7 @@ watch(projectId, async () => {
     cardMenuCard.value = null
     addingColumn.value = false
     newColumnName.value = ''
+    newColumnKind.value = 'task'
     addingCardColumnId.value = null
     newCardTitle.value = ''
     showArchived.value = false
@@ -650,6 +723,7 @@ function openUsersDialog(): void {
                     class="board-column relative flex max-h-full w-full shrink-0 snap-start flex-col rounded-xl bg-panel sm:w-72">
                     <div class="flex items-center border-b border-line">
                         <div class="column-drag-handle flex min-w-0 flex-1 items-center gap-2 cursor-grab px-3 py-2 active:cursor-grabbing">
+                            <i v-if="column.kind === 'sticker'" class="fa-solid fa-note-sticky shrink-0 text-xs text-muted" title="Sticker column" aria-hidden="true"/>
                             <span class="min-w-0 truncate font-semibold">{{ column.name }}</span>
                             <span
                                 v-if="columnUnseen(column.id) > 0"
@@ -675,72 +749,107 @@ function openUsersDialog(): void {
                     <div class="flex min-h-0 flex-col gap-1 p-2">
                         <div
                             :data-column-id="column.id"
+                            :data-column-kind="column.kind"
                             class="card-list -mx-1 flex min-h-10 flex-col gap-1.5 overflow-y-auto px-1 pb-1">
-                            <Card
-                                v-for="card in columnCards(column.id)"
-                                :key="card.id"
-                                class="board-card w-full shrink-0 cursor-pointer rounded-lg border border-line bg-raised shadow-card transition-colors hover:border-line-emphasis"
-                                :class="{ 'opacity-50': card.archived }"
-                                :data-card-id="card.id"
-                                @click="setActiveCard(card)">
-                                <template #content>
-                                    <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
-                                    <span
-                                        v-for="labelId in card.labelIds" :key="labelId"
-                                        class="h-2 w-6 rounded-sm"
-                                        :title="labelNames.get(labelId)"
-                                        :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
-                                    </div>
-                                    <div class="flex items-start gap-2">
-                                        <button type="button"
-                                                class="min-w-0 flex-1 cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand">
-                                            {{ card.title }}
-                                        </button>
+                            <template v-if="column.kind === 'sticker'">
+                                <StickerCard
+                                    v-for="card in columnCards(column.id)"
+                                    :key="card.id"
+                                    :card="card"
+                                    :can-toggle="canToggleCompletion(card)"
+                                    @toggle="toggleSticker(card)"
+                                    @open="setActiveCard(card)"/>
+                            </template>
+                            <template v-else>
+                                <Card
+                                    v-for="card in columnCards(column.id)"
+                                    :key="card.id"
+                                    class="board-card w-full shrink-0 cursor-pointer rounded-lg border border-line bg-raised shadow-card transition-colors hover:border-line-emphasis"
+                                    :class="{ 'opacity-50': card.archived }"
+                                    :data-card-id="card.id"
+                                    @click="setActiveCard(card)">
+                                    <template #content>
+                                        <div v-if="card.labelIds.length > 0" class="mb-1.5 flex flex-wrap gap-1">
                                         <span
-                                            v-if="card.unseenCount > 0"
-                                            class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
-                                            :title="unseenLabel(card.unseenCount)"
-                                            :aria-label="unseenLabel(card.unseenCount)">{{ card.unseenCount }}</span>
-                                        <Button
-                                            class="card-menu -my-1 -mr-1 shrink-0"
-                                            label="⋯" aria-label="Card actions"
-                                            severity="secondary" size="small" text
-                                            @click.stop="toggleCardMenu($event, card)"/>
-                                    </div>
-                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                                        <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
-                                        <span v-if="card.archived" class="rounded bg-active px-1.5 py-0.5 text-body">
-                                            Archived
-                                        </span>
-                                        <CardPeople
-                                            :card-title="card.title"
-                                            :creator-id="card.creatorId"
-                                            :executor-id="card.executorId"
-                                            :assignee-ids="card.assigneeIds"
-                                            :member-names="memberNames"
-                                            :member-avatars="memberAvatars"
-                                            :member-colors="memberColors"/>
-                                    </div>
-                                </template>
-                            </Card>
+                                            v-for="labelId in card.labelIds" :key="labelId"
+                                            class="h-2 w-6 rounded-sm"
+                                            :title="labelNames.get(labelId)"
+                                            :style="{ backgroundColor: labelColor(labelId) ?? '#52525b' }"/>
+                                        </div>
+                                        <div class="flex items-start gap-2">
+                                            <button type="button"
+                                                    class="min-w-0 flex-1 cursor-pointer rounded-sm text-left break-words focus-visible:outline-2 focus-visible:outline-brand"
+                                                    :class="{ 'line-through text-muted': card.occurrence?.state === 'completed' }">
+                                                {{ card.title }}
+                                            </button>
+                                            <span
+                                                v-if="card.unseenCount > 0"
+                                                class="mt-0.5 shrink-0 rounded-full bg-brand/15 px-1.5 py-0.5 text-xs font-semibold text-brand-text"
+                                                :title="unseenLabel(card.unseenCount)"
+                                                :aria-label="unseenLabel(card.unseenCount)">{{ card.unseenCount }}</span>
+                                            <template v-if="card.occurrence !== null">
+                                                <button
+                                                    v-if="canToggleCompletion(card)"
+                                                    type="button"
+                                                    class="occurrence-pill mt-0.5 shrink-0 cursor-pointer rounded-full px-1.5 py-0.5 text-sm font-semibold"
+                                                    :class="card.occurrence.state === 'pending' ? 'bg-brand/15 text-brand-text' : 'bg-active text-muted'"
+                                                    :title="occurrenceTitle(card)"
+                                                    :aria-label="occurrenceTitle(card)"
+                                                    @click.stop="toggleOccurrence(card)">
+                                                    <i :class="card.occurrence.state === 'pending' ? 'fa-regular fa-circle-check' : 'fa-solid fa-circle-check'" aria-hidden="true"/>
+                                                </button>
+                                                <span
+                                                    v-else
+                                                    class="occurrence-pill mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-sm font-semibold"
+                                                    :class="card.occurrence.state === 'pending' ? 'bg-brand/15 text-brand-text' : 'bg-active text-muted'"
+                                                    :title="occurrenceTitle(card)"
+                                                    :aria-label="occurrenceTitle(card)">==
+                                                    <i :class="card.occurrence.state === 'pending' ? 'fa-regular fa-circle-check' : 'fa-solid fa-circle-check'" aria-hidden="true"/>
+                                                </span>
+                                            </template>
+                                            <Button
+                                                class="card-menu -my-1 -mr-1 shrink-0"
+                                                label="⋯" aria-label="Card actions"
+                                                severity="secondary" size="small" text
+                                                @click.stop="toggleCardMenu($event, card)"/>
+                                        </div>
+                                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                                            <span v-if="card.dueDate">Due {{ card.dueDate }}</span>
+                                            <span v-if="card.archived" class="rounded bg-active px-1.5 py-0.5 text-body">
+                                                Archived
+                                            </span>
+                                            <CardPeople
+                                                :card-title="card.title"
+                                                :creator-id="card.creatorId"
+                                                :executor-id="card.executorId"
+                                                :assignee-ids="card.assigneeIds"
+                                                :member-names="memberNames"
+                                                :member-avatars="memberAvatars"
+                                                :member-colors="memberColors"/>
+                                        </div>
+                                    </template>
+                                </Card>
+                            </template>
                             <p v-if="columnCards(column.id).length === 0" class="px-2 py-1 text-xs text-faint">
-                                No cards yet
+                                {{ column.kind === 'sticker' ? 'No stickers yet' : 'No cards yet' }}
                             </p>
                         </div>
 
                         <div v-if="addingCardColumnId === column.id" class="mt-1">
                             <InputText
                                 v-model="newCardTitle"
-                                class="w-full" autofocus placeholder="Card title"
+                                class="w-full" autofocus
+                                :placeholder="column.kind === 'sticker' ? 'Sticker text' : 'Card title'"
                                 @keydown.enter="addCard(column.id)" @keydown.esc="cancelAddCard"/>
                             <div class="mt-1.5 flex gap-2">
-                                <Button label="Add" :disabled="newCardTitle.trim() === ''" @click="addCard(column.id)"/>
+                                <Button label="Add" size="small" :disabled="newCardTitle.trim() === ''" @click="addCard(column.id)"/>
                                 <Button severity="secondary" size="small" label="Cancel" @click="cancelAddCard"/>
                             </div>
                         </div>
                         <Button
                             v-else @click="startAddCard(column.id)"
-                            severity="secondary" text size="small" label="+ Add card"
+                            severity="secondary" text size="small"
+                            :label="column.kind === 'sticker' ? '+ Add sticker' : '+ Add card'"
                             class="mt-1 w-full justify-start text-body hover:bg-raised"/>
                     </div>
                 </div>
@@ -750,6 +859,15 @@ function openUsersDialog(): void {
                         v-model="newColumnName"
                         autofocus placeholder="Column name" class="w-full"
                         @keydown.enter="addColumn" @keydown.esc="cancelAdd"/>
+                    <div class="mt-2 flex gap-1">
+                        <button
+                            v-for="option in COLUMN_KINDS" :key="option.value"
+                            type="button"
+                            class="cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors"
+                            :class="newColumnKind === option.value ? 'border-brand bg-brand/15 font-medium text-brand-text' : 'border-line-strong text-muted hover:border-line-emphasis hover:text-body'"
+                            @click="newColumnKind = option.value">{{ option.label }}
+                        </button>
+                    </div>
                     <div class="mt-2 flex gap-2">
                         <Button label="Add" :disabled="newColumnName.trim() === ''" @click="addColumn"/>
                         <Button severity="secondary" label="Cancel" @click="cancelAdd"/>
@@ -769,7 +887,7 @@ function openUsersDialog(): void {
                 <p class="mb-1.5 text-xs font-medium text-muted">Move to column</p>
                 <Select
                     :model-value="cardMenuCard.columnId"
-                    :options="columns"
+                    :options="moveTargets"
                     option-label="name"
                     option-value="id"
                     size="small"

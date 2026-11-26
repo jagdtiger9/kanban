@@ -17,9 +17,12 @@ use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
+use App\Board\Domain\Repository\CardOccurrenceRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\CommentRepository;
+use App\Board\Domain\Service\OccurrenceCalculator;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\Project\Application\Service\MembershipGuard;
 use App\Project\Domain\Entity\Project;
 use App\Project\Domain\Entity\ProjectMember;
@@ -41,6 +44,7 @@ final class GetCardQueryHandlerTest extends TestCase
     private CommentRepository $commentRepository;
     private AttachmentRepository $attachmentRepository;
     private CardActivityRepository $activityRepository;
+    private CardOccurrenceRepository $occurrenceRepository;
 
     protected function setUp(): void
     {
@@ -52,6 +56,7 @@ final class GetCardQueryHandlerTest extends TestCase
         $this->commentRepository = $this->createMock(CommentRepository::class);
         $this->attachmentRepository = $this->createMock(AttachmentRepository::class);
         $this->activityRepository = $this->createMock(CardActivityRepository::class);
+        $this->occurrenceRepository = $this->createMock(CardOccurrenceRepository::class);
     }
 
     /**
@@ -68,6 +73,7 @@ final class GetCardQueryHandlerTest extends TestCase
         array $activities,
         array $attachments = [],
         ?Card $linkedCard = null,
+        ?\Closure $completedPeriods = null,
     ): GetCardQueryHandler {
         $this->cardRepository->method('findById')->willReturnCallback(
             static function (UuidInterface $id) use ($card, $linkedCard): ?Card {
@@ -86,6 +92,9 @@ final class GetCardQueryHandlerTest extends TestCase
         $this->commentRepository->method('findByCard')->willReturn($comments);
         $this->attachmentRepository->method('findByCard')->willReturn($attachments);
         $this->activityRepository->method('findByCard')->willReturn($activities);
+        $this->occurrenceRepository->method('findCompletedPeriodsByCards')->willReturnCallback(
+            $completedPeriods ?? static fn(): array => [],
+        );
 
         $guard = new CardGuard(
             $this->cardRepository,
@@ -100,6 +109,8 @@ final class GetCardQueryHandlerTest extends TestCase
             $this->commentRepository,
             $this->attachmentRepository,
             $this->activityRepository,
+            $this->occurrenceRepository,
+            new OccurrenceCalculator(),
         );
     }
 
@@ -135,6 +146,7 @@ final class GetCardQueryHandlerTest extends TestCase
         self::assertCount(2, $result['timeline']);
         self::assertTrue(in_array($comments[0], $result['timeline'], true));
         self::assertTrue(in_array($activities[0], $result['timeline'], true));
+        self::assertNull($result['occurrence']);
     }
 
     public function testReturnsLinkedCard(): void
@@ -197,6 +209,43 @@ final class GetCardQueryHandlerTest extends TestCase
         )->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
 
         self::assertSame([$moved, $secondComment, $created, $firstComment], $result['timeline']);
+    }
+
+    public function testReturnsPendingOccurrenceForRecurringCard(): void
+    {
+        [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $card->releaseEvents();
+        $today = (new \DateTimeImmutable())->format('Y-m-d');
+
+        $result = $this->handler($card, $column, $board, $member, [], [])
+            ->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
+
+        self::assertSame(['state' => 'pending', 'period' => $today], $result['occurrence']);
+    }
+
+    public function testReturnsCompletedOccurrenceWhenPeriodHasRow(): void
+    {
+        [$card, $column, $board, $project] = $this->context($actorId = Uuid::uuid4());
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $card->releaseEvents();
+        $today = (new \DateTimeImmutable())->format('Y-m-d');
+
+        $result = $this->handler(
+            $card,
+            $column,
+            $board,
+            $member,
+            [],
+            [],
+            [],
+            null,
+            static fn(): array => [(string) $card->id() => [$today]],
+        )->__invoke(new GetCardQuery((string) $card->id(), (string) $actorId));
+
+        self::assertSame(['state' => 'completed', 'period' => $today], $result['occurrence']);
     }
 
     public function testThrowsWhenCardMissing(): void

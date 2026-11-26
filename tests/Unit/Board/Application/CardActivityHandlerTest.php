@@ -10,6 +10,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
 use App\Board\Domain\Event\CardExecutorUnassigned;
@@ -17,8 +18,12 @@ use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Event\CardOccurrenceCompleted;
+use App\Board\Domain\Event\CardOccurrenceUncompleted;
+use App\Board\Domain\Event\CardRecurrenceChanged;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Event\CommentCreated;
 use App\Board\Domain\Event\CommentEdited;
 use App\Board\Domain\Repository\CardActivityRepository;
@@ -192,6 +197,71 @@ final class CardActivityHandlerTest extends TestCase
         $activity = $this->last();
         self::assertSame('executor_unassigned', $activity->type());
         self::assertSame(['userId' => $userId, 'userName' => 'Alice'], $activity->payload());
+    }
+
+    public function testOccurrenceCompleted(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardOccurrenceCompleted(new CardOccurrenceCompleted($cardId, '2026-11-26', $actorId));
+
+        $activity = $this->last();
+        self::assertSame('occurrence_completed', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['period' => '2026-11-26'], $activity->payload());
+    }
+
+    public function testOccurrenceUncompleted(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardOccurrenceUncompleted(new CardOccurrenceUncompleted($cardId, '2026-11-26', $actorId));
+
+        $activity = $this->last();
+        self::assertSame('occurrence_uncompleted', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['period' => '2026-11-26'], $activity->payload());
+    }
+
+    public function testCardCompleted(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardCompleted(new CardCompleted($cardId, $actorId));
+
+        $activity = $this->last();
+        self::assertSame('card_completed', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame([], $activity->payload());
+    }
+
+    public function testCardUncompleted(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardUncompleted(new CardUncompleted($cardId, $actorId));
+
+        $activity = $this->last();
+        self::assertSame('card_uncompleted', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame([], $activity->payload());
+    }
+
+    public function testRecurrenceChanged(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardRecurrenceChanged(new CardRecurrenceChanged($cardId, 'weekly', 'monthly', $actorId));
+
+        $activity = $this->last();
+        self::assertSame('card_recurrence_changed', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['oldKind' => 'weekly', 'newKind' => 'monthly'], $activity->payload());
     }
 
     public function testCommentAdded(): void

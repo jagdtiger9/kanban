@@ -16,7 +16,9 @@ final class CreateColumnCommand implements Command
         #[Assert\NotBlank]
         #[Assert\Length(max: 100)]
         public string $name,
-        public string $actorId,
+        #[Assert\Choice(choices: ['task', 'sticker'])]
+        public string $kind = 'task',
+        public string $actorId = '',
     ) {
     }
 }

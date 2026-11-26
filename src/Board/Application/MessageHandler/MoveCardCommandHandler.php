@@ -35,6 +35,7 @@ final class MoveCardCommandHandler
         if ($targetColumn === null || !$targetColumn->boardId()->equals($board->id())) {
             throw new ColumnNotFoundException('Column not found');
         }
+        $this->guard->requireSameColumnKind($card, $targetColumn);
 
         $oldColumnId = $card->columnId();
         $oldColumnCards = $this->cardRepository->findByColumn($oldColumnId);

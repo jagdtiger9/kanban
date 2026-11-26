@@ -7,6 +7,7 @@ namespace App\Board\Infrastructure\Controller;
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
 use App\Board\Application\Message\Command\ArchiveCardCommand;
+use App\Board\Application\Message\Command\CompleteCardCommand;
 use App\Board\Application\Message\Command\CreateCardCommand;
 use App\Board\Application\Message\Command\CreateColumnCommand;
 use App\Board\Application\Message\Command\CreateCommentCommand;
@@ -24,6 +25,8 @@ use App\Board\Application\Message\Command\SetCardDueDateCommand;
 use App\Board\Application\Message\Command\SetCardExecutorCommand;
 use App\Board\Application\Message\Command\SetCardLabelsCommand;
 use App\Board\Application\Message\Command\SetCardLinkedCardCommand;
+use App\Board\Application\Message\Command\SetCardRecurrenceCommand;
+use App\Board\Application\Message\Command\UncompleteCardCommand;
 use App\Board\Application\Message\Command\UpdateCardContentCommand;
 use App\Board\Application\Message\Command\UpdateCommentCommand;
 use App\Board\Application\Message\Command\UpdateLabelCommand;
@@ -56,6 +59,7 @@ final class BoardController extends AbstractController
 
         $result = $this->queryBus->query($query);
         $unseenCounts = $result['unseenCounts'];
+        $occurrences = $result['occurrences'];
 
         return $this->json([
             'boardId' => (string)$result['boardId'],
@@ -66,6 +70,7 @@ final class BoardController extends AbstractController
             'cards' => array_map(
                 fn(Card $card): array => $this->cardPayload($card) + [
                     'unseenCount' => $unseenCounts[(string)$card->id()] ?? 0,
+                    'occurrence' => $occurrences[(string)$card->id()] ?? null,
                 ],
                 $result['cards'],
             ),
@@ -94,7 +99,7 @@ final class BoardController extends AbstractController
         }
 
         return $this->json([
-            'card' => $this->cardPayload($result['card']),
+            'card' => $this->cardPayload($result['card']) + ['occurrence' => $result['occurrence']],
             'linkedCard' => $result['linkedCard'] === null ? null : [
                 'id' => (string)$result['linkedCard']->id(),
                 'title' => $result['linkedCard']->title(),
@@ -245,6 +250,30 @@ final class BoardController extends AbstractController
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
+    public function setCardRecurrence(SetCardRecurrenceCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    public function completeCard(CompleteCardCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    public function uncompleteCard(UncompleteCardCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
     public function createComment(CreateCommentCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);
@@ -310,7 +339,7 @@ final class BoardController extends AbstractController
     }
 
     /**
-     * @return array{id: string, name: string, position: int, createdAt: string}
+     * @return array{id: string, name: string, position: int, kind: string, createdAt: string}
      */
     private function columnPayload(Column $column): array
     {
@@ -318,6 +347,7 @@ final class BoardController extends AbstractController
             'id' => (string)$column->id(),
             'name' => $column->name(),
             'position' => $column->position(),
+            'kind' => $column->kind()->value,
             'createdAt' => $column->createdAt()->format(\DateTimeInterface::ATOM),
         ];
     }
@@ -333,9 +363,11 @@ final class BoardController extends AbstractController
      *     creatorId: string,
      *     executorId: ?string,
      *     linkedCardId: ?string,
+     *     recurrence: ?array{kind: string, weekdays: list<int>, monthDays: list<int>},
      *     createdAt: string,
      *     updatedAt: string,
      *     archived: bool,
+     *     completedAt: ?string,
      *     labelIds: list<string>,
      *     assigneeIds: list<string>,
      * }
@@ -352,9 +384,11 @@ final class BoardController extends AbstractController
             'creatorId' => (string)$card->creatorId(),
             'executorId' => $card->executorId()?->toString(),
             'linkedCardId' => $card->linkedCardId()?->toString(),
+            'recurrence' => $card->recurrence()?->toArray(),
             'createdAt' => $card->createdAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $card->updatedAt()->format(\DateTimeInterface::ATOM),
             'archived' => $card->isArchived(),
+            'completedAt' => $card->completedAt()?->format(\DateTimeInterface::ATOM),
             'labelIds' => array_map(
                 static fn(Label $label): string => (string)$label->id(),
                 $card->labels()->toArray(),

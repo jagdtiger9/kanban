@@ -9,6 +9,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
 use App\Board\Domain\Event\CardExecutorUnassigned;
@@ -16,8 +17,12 @@ use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Event\CardOccurrenceCompleted;
+use App\Board\Domain\Event\CardOccurrenceUncompleted;
+use App\Board\Domain\Event\CardRecurrenceChanged;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Event\CommentCreated;
 use App\Board\Domain\Event\CommentEdited;
 use App\Board\Domain\Repository\CardActivityRepository;
@@ -120,6 +125,43 @@ final class CardActivityHandler
         $this->store($event->cardId, $event->actorId, 'executor_unassigned', [
             'userId' => $event->userId,
             'userName' => $event->userName,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardOccurrenceCompleted(CardOccurrenceCompleted $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'occurrence_completed', [
+            'period' => $event->period,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardOccurrenceUncompleted(CardOccurrenceUncompleted $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'occurrence_uncompleted', [
+            'period' => $event->period,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardCompleted(CardCompleted $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'card_completed', []);
+    }
+
+    #[AsMessageHandler]
+    public function onCardUncompleted(CardUncompleted $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'card_uncompleted', []);
+    }
+
+    #[AsMessageHandler]
+    public function onCardRecurrenceChanged(CardRecurrenceChanged $event): void
+    {
+        $this->store($event->cardId, $event->actorId, 'card_recurrence_changed', [
+            'oldKind' => $event->oldKind,
+            'newKind' => $event->newKind,
         ]);
     }
 

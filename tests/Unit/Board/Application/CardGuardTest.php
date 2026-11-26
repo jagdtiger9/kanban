@@ -9,7 +9,9 @@ use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Exception\CardForbiddenException;
+use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Repository\BoardRepository;
@@ -300,5 +302,77 @@ final class CardGuardTest extends TestCase
         $result = $this->guard($card, $column, $board, null)->resolveBoard($card);
 
         self::assertSame($board, $result);
+    }
+
+    public function testRequireCompletableAllowsMemberWhenCardHasNoExecutor(): void
+    {
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), 'A', '', 0);
+
+        $this->expectNotToPerformAssertions();
+
+        $this->guard(null, null, null, null)->requireCompletable($card, Uuid::uuid4());
+    }
+
+    public function testRequireCompletableAllowsExecutor(): void
+    {
+        $executorId = Uuid::uuid4();
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), 'A', '', 0);
+        $card->assignExecutor(User::create($executorId, 'executor@example.com', 'hash', 'Executor'));
+
+        $this->expectNotToPerformAssertions();
+
+        $this->guard(null, null, null, null)->requireCompletable($card, $executorId);
+    }
+
+    public function testRequireCompletableThrowsForNonExecutor(): void
+    {
+        $card = Card::create(Uuid::uuid4(), Uuid::uuid4(), Uuid::uuid4(), 'A', '', 0);
+        $card->assignExecutor(User::create(Uuid::uuid4(), 'executor@example.com', 'hash', 'Executor'));
+
+        $this->expectException(CardForbiddenException::class);
+
+        $this->guard(null, null, null, null)->requireCompletable($card, Uuid::uuid4());
+    }
+
+    public function testRequireTaskCardPassesForTaskColumn(): void
+    {
+        $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'To Do', 0);
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
+
+        $this->expectNotToPerformAssertions();
+
+        $this->guard(null, $column, null, null)->requireTaskCard($card);
+    }
+
+    public function testRequireTaskCardThrowsForStickerColumn(): void
+    {
+        $column = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'Stickers', 0, ColumnKind::Sticker);
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
+
+        $this->expectException(CardKindMismatchException::class);
+
+        $this->guard(null, $column, null, null)->requireTaskCard($card);
+    }
+
+    public function testRequireSameColumnKindPassesWithinSameKind(): void
+    {
+        $source = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'To Do', 0, ColumnKind::Sticker);
+        $target = Column::create(Uuid::uuid4(), $source->boardId(), 'Done', 1, ColumnKind::Sticker);
+        $card = Card::create(Uuid::uuid4(), $source->id(), Uuid::uuid4(), 'A', '', 0);
+
+        $this->expectNotToPerformAssertions();
+
+        $this->guard(null, $source, null, null)->requireSameColumnKind($card, $target);
+    }
+
+    public function testRequireSameColumnKindThrowsForCrossKindMove(): void
+    {
+        $source = Column::create(Uuid::uuid4(), Uuid::uuid4(), 'To Do', 0);
+        $target = Column::create(Uuid::uuid4(), $source->boardId(), 'Stickers', 1, ColumnKind::Sticker);
+        $card = Card::create(Uuid::uuid4(), $source->id(), Uuid::uuid4(), 'A', '', 0);
+
+        $this->expectException(CardKindMismatchException::class);
+
+        $this->guard(null, $source, null, null)->requireSameColumnKind($card, $target);
     }
 }

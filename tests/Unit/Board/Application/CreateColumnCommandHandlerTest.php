@@ -8,6 +8,7 @@ use App\Board\Application\Message\Command\CreateColumnCommand;
 use App\Board\Application\MessageHandler\CreateColumnCommandHandler;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Event\ColumnCreated;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -76,7 +77,7 @@ final class CreateColumnCommandHandlerTest extends TestCase
         ));
 
         $result = $this->handler($project, $board, $admin, $existing)
-            ->__invoke(new CreateColumnCommand((string) $project->id(), 'Review', (string) $actorId));
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'Review', actorId: (string) $actorId));
 
         $events = $result->releaseEvents();
         self::assertCount(1, $events);
@@ -87,6 +88,7 @@ final class CreateColumnCommandHandlerTest extends TestCase
         self::assertSame($captured, $result);
         self::assertSame('Review', $result->name());
         self::assertSame(2, $result->position());
+        self::assertSame(ColumnKind::Task, $result->kind());
         self::assertTrue($result->boardId()->equals($board->id()));
     }
 
@@ -100,9 +102,24 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $this->columnRepository->expects($this->once())->method('save');
 
         $result = $this->handler($project, $board, $admin, [])
-            ->__invoke(new CreateColumnCommand((string) $project->id(), 'To Do', (string) $actorId));
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'To Do', actorId: (string) $actorId));
 
         self::assertSame(0, $result->position());
+    }
+
+    public function testCreatesStickerColumn(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $actorId = Uuid::uuid4();
+        $admin = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Admin);
+
+        $this->columnRepository->expects($this->once())->method('save');
+
+        $result = $this->handler($project, $board, $admin, [])
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'Stickers', kind: 'sticker', actorId: (string) $actorId));
+
+        self::assertSame(ColumnKind::Sticker, $result->kind());
     }
 
     public function testThrowsWhenProjectMissing(): void
@@ -110,7 +127,7 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $this->expectException(ProjectNotFoundException::class);
 
         $this->handler(null, null, null, [])
-            ->__invoke(new CreateColumnCommand((string) Uuid::uuid4(), 'X', (string) Uuid::uuid4()));
+            ->__invoke(new CreateColumnCommand((string) Uuid::uuid4(), 'X', actorId: (string) Uuid::uuid4()));
     }
 
     public function testThrowsWhenActorIsNotMember(): void
@@ -121,7 +138,7 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($project, $board, null, [])
-            ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', (string) Uuid::uuid4()));
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', actorId: (string) Uuid::uuid4()));
     }
 
     public function testThrowsWhenActorIsPlainMember(): void
@@ -136,6 +153,6 @@ final class CreateColumnCommandHandlerTest extends TestCase
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($project, $board, $member, [])
-            ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', (string) $actorId));
+            ->__invoke(new CreateColumnCommand((string) $project->id(), 'X', actorId: (string) $actorId));
     }
 }

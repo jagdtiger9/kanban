@@ -135,7 +135,6 @@ const closeExecutorMultiselect = () => {
 </script>
 
 <template>
-    <Divider class="my-4"/>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
             <div class="flex items-center gap-2">

@@ -10,6 +10,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
 use App\Board\Domain\Event\CardExecutorUnassigned;
@@ -17,8 +18,12 @@ use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Event\CardOccurrenceCompleted;
+use App\Board\Domain\Event\CardOccurrenceUncompleted;
+use App\Board\Domain\Event\CardRecurrenceChanged;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Event\ColumnCreated;
 use App\Board\Domain\Event\ColumnDeleted;
 use App\Board\Domain\Event\ColumnRenamed;
@@ -106,6 +111,36 @@ final class RealtimeEventForwarder
     public function onCardLabelRemoved(CardLabelRemoved $event): void
     {
         $this->notifyForCard($event->cardId, 'card.label_removed', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardOccurrenceCompleted(CardOccurrenceCompleted $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.occurrence_completed', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardOccurrenceUncompleted(CardOccurrenceUncompleted $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.occurrence_uncompleted', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardUncompleted(CardUncompleted $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.uncompleted', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardCompleted(CardCompleted $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.completed', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardRecurrenceChanged(CardRecurrenceChanged $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.recurrence_changed', $event->actorId);
     }
 
     #[AsMessageHandler]

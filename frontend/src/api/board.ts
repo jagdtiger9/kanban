@@ -1,11 +1,29 @@
 import { api, upload } from './client'
 import type { AttachmentPayload } from './attachments'
 
+export type ColumnKind = 'task' | 'sticker'
+
 export interface ColumnPayload {
     id: string
     name: string
     position: number
+    kind: ColumnKind
     createdAt: string
+}
+
+export type RecurrenceKind = 'weekly' | 'monthly'
+
+export interface RecurrenceRulePayload {
+    kind: RecurrenceKind
+    weekdays: number[]
+    monthDays: number[]
+}
+
+export type OccurrenceState = 'pending' | 'completed'
+
+export interface OccurrencePayload {
+    state: OccurrenceState
+    period: string
 }
 
 export interface CardPayload {
@@ -18,15 +36,18 @@ export interface CardPayload {
     creatorId: string
     executorId: string | null
     linkedCardId: string | null
+    recurrence: RecurrenceRulePayload | null
     createdAt: string
     updatedAt: string
     archived: boolean
+    completedAt: string | null
     labelIds: string[]
     assigneeIds: string[]
 }
 
 export interface BoardCardPayload extends CardPayload {
     unseenCount: number
+    occurrence: OccurrencePayload | null
 }
 
 export interface LabelPayload {
@@ -48,10 +69,10 @@ export function getBoard(projectId: string, includeArchived = false): Promise<Bo
     return api<BoardPayload>(`/projects/${projectId}/board${query}`)
 }
 
-export function createColumn(projectId: string, name: string): Promise<ColumnPayload> {
+export function createColumn(projectId: string, name: string, kind: ColumnKind): Promise<ColumnPayload> {
     return api<ColumnPayload>(`/projects/${projectId}/columns`, {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, kind }),
     })
 }
 
@@ -141,6 +162,21 @@ export function setCardLinkedCard(cardId: string, linkedCardId: string | null): 
     })
 }
 
+export function setCardRecurrence(cardId: string, recurrence: RecurrenceRulePayload | null): Promise<void> {
+    return api<void>(`/cards/${cardId}/recurrence`, {
+        method: 'PUT',
+        body: JSON.stringify({ recurrence }),
+    })
+}
+
+export function completeCard(cardId: string): Promise<void> {
+    return api<void>(`/cards/${cardId}/complete`, { method: 'POST' })
+}
+
+export function uncompleteCard(cardId: string): Promise<void> {
+    return api<void>(`/cards/${cardId}/uncomplete`, { method: 'POST' })
+}
+
 export function createLabel(projectId: string, name: string, color: string): Promise<LabelPayload> {
     return api<LabelPayload>(`/projects/${projectId}/labels`, {
         method: 'POST',
@@ -188,7 +224,7 @@ export interface LinkedCardPayload {
 }
 
 export interface CardDetailPayload {
-    card: CardPayload
+    card: CardPayload & { occurrence: OccurrencePayload | null }
     linkedCard: LinkedCardPayload | null
     attachments: AttachmentPayload[]
     timeline: TimelineItem[]

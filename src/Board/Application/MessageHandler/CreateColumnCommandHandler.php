@@ -6,6 +6,7 @@ namespace App\Board\Application\MessageHandler;
 
 use App\Board\Application\Message\Command\CreateColumnCommand;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Project\Application\Service\MembershipGuard;
@@ -46,6 +47,7 @@ final class CreateColumnCommandHandler
             $board->id(),
             $command->name,
             count($this->columnRepository->findByBoard($board->id())),
+            ColumnKind::from($command->kind),
             $actorId,
         );
         $this->columnRepository->save($column);

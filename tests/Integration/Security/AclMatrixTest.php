@@ -16,6 +16,7 @@ use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\CommentRepository;
 use App\Board\Domain\Repository\LabelRepository;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\News\Domain\Entity\NewsPost;
 use App\News\Domain\Repository\NewsPostRepository;
 use App\Project\Domain\Entity\Project;
@@ -118,10 +119,12 @@ final class AclMatrixTest extends DatabaseTestCase
     {
         /** @var RouterInterface $router */
         $router = self::getContainer()->get('router');
-        $apiRoutes = array_values(array_filter(
-            array_keys($router->getRouteCollection()->all()),
-            static fn(string $name): bool => str_starts_with($name, 'api_'),
-        ));
+        $apiRoutes = array_values(
+            array_filter(
+                array_keys($router->getRouteCollection()->all()),
+                static fn(string $name): bool => str_starts_with($name, 'api_'),
+            )
+        );
         $covered = array_keys(self::matrix());
 
         sort($apiRoutes);
@@ -182,6 +185,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_executor' => self::memberRoute(204),
             'api_card_due_date' => self::memberRoute(204),
             'api_card_linked_card' => self::memberRoute(204),
+            'api_card_recurrence' => self::memberRoute(204),
+            'api_card_complete' => self::memberRoute(204),
+            'api_card_uncomplete' => self::memberRoute(204),
             'api_card_comment_create' => self::memberRoute(201),
             'api_card_attachment_create' => self::memberRoute(201),
             'api_card_attachment_delete' => self::memberRoute(204),
@@ -271,7 +277,7 @@ final class AclMatrixTest extends DatabaseTestCase
 
     private function uploadedTextFile(): UploadedFile
     {
-        $path = (string) tempnam(sys_get_temp_dir(), 'kanban-acl-');
+        $path = (string)tempnam(sys_get_temp_dir(), 'kanban-acl-');
         file_put_contents($path, 'hello upload');
         $this->temporaryFiles[] = $path;
 
@@ -280,7 +286,7 @@ final class AclMatrixTest extends DatabaseTestCase
 
     private function uploadedImageFile(): UploadedFile
     {
-        $path = (string) tempnam(sys_get_temp_dir(), 'kanban-acl-');
+        $path = (string)tempnam(sys_get_temp_dir(), 'kanban-acl-');
         file_put_contents($path, self::imagePngBytes());
         $this->temporaryFiles[] = $path;
 
@@ -294,7 +300,7 @@ final class AclMatrixTest extends DatabaseTestCase
         ob_start();
         imagepng($image);
 
-        return (string) ob_get_clean();
+        return (string)ob_get_clean();
     }
 
     /**
@@ -347,6 +353,7 @@ final class AclMatrixTest extends DatabaseTestCase
         $this->repo(LabelRepository::class)->save($label);
 
         $card = Card::create(Uuid::uuid4(), $todo->id(), $users['member']->id(), 'Seed card', 'Seed description', 0);
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3]));
         $this->repo(CardRepository::class)->save($card);
 
         $comment = Comment::create(Uuid::uuid4(), $card->id(), $users['member']->id(), 'Seed comment');
@@ -399,7 +406,7 @@ final class AclMatrixTest extends DatabaseTestCase
         $storage->write('acl/notes.txt', 'hello upload');
         $storage->write('acl/photo-thumb.webp', 'thumbnail');
 
-        $avatarKey = 'avatars/'.$users['member']->id()->toString().'/acl.webp';
+        $avatarKey = 'avatars/' . $users['member']->id()->toString() . '/acl.webp';
         $users['member']->changeAvatar($avatarKey);
         $usersRepo->save($users['member']);
         $storage->write($avatarKey, self::imagePngBytes());
@@ -411,16 +418,16 @@ final class AclMatrixTest extends DatabaseTestCase
 
         return [
             'users' => $users,
-            'projectId' => (string) $project->id(),
-            'columnId' => (string) $todo->id(),
-            'column2Id' => (string) $done->id(),
-            'labelId' => (string) $label->id(),
-            'cardId' => (string) $card->id(),
-            'commentId' => (string) $comment->id(),
-            'newsPostId' => (string) $newsPost->id(),
-            'fileAttachmentId' => (string) $fileAttachment->id(),
-            'thumbnailAttachmentId' => (string) $imageAttachment->id(),
-            'commentAttachmentId' => (string) $commentAttachment->id(),
+            'projectId' => (string)$project->id(),
+            'columnId' => (string)$todo->id(),
+            'column2Id' => (string)$done->id(),
+            'labelId' => (string)$label->id(),
+            'cardId' => (string)$card->id(),
+            'commentId' => (string)$comment->id(),
+            'newsPostId' => (string)$newsPost->id(),
+            'fileAttachmentId' => (string)$fileAttachment->id(),
+            'thumbnailAttachmentId' => (string)$imageAttachment->id(),
+            'commentAttachmentId' => (string)$commentAttachment->id(),
             'confirmationToken' => $confirmationToken,
         ];
     }
@@ -438,9 +445,9 @@ final class AclMatrixTest extends DatabaseTestCase
         $card = $fx['cardId'];
         $comment = $fx['commentId'];
         $label = $fx['labelId'];
-        $memberId = (string) $fx['users']['member']->id();
-        $otherId = (string) $fx['users']['other']->id();
-        $candidateId = (string) $fx['users']['candidate']->id();
+        $memberId = (string)$fx['users']['member']->id();
+        $otherId = (string)$fx['users']['other']->id();
+        $candidateId = (string)$fx['users']['candidate']->id();
 
         return [
             'api_projects_list' => ['GET', '/api/projects', null],
@@ -459,7 +466,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_auth_password' => ['POST', '/api/auth/password', ['currentPassword' => 'secret123', 'newPassword' => 'newsecret123', 'newPasswordConfirmation' => 'newsecret123']],
             'api_user_avatar_update' => ['POST', '/api/users/me/avatar', null, ['file' => $this->uploadedImageFile()]],
             'api_user_avatar_delete' => ['DELETE', '/api/users/me/avatar', null],
-            'api_user_avatar_get' => ['GET', '/api/users/'.$memberId.'/avatar', null],
+            'api_user_avatar_get' => ['GET', '/api/users/' . $memberId . '/avatar', null],
             'api_user_color_update' => ['PUT', '/api/users/me/color', ['color' => '#112233']],
             'api_auth_register' => ['POST', '/api/auth/register', ['email' => 'newcomer@acl.test', 'password' => 'secret123', 'passwordConfirmation' => 'secret123', 'displayName' => 'Newcomer']],
             'api_auth_confirm' => ['POST', '/api/auth/confirm', ['token' => $fx['confirmationToken']]],
@@ -472,7 +479,11 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_call_join' => ['POST', "/api/projects/$project/call/join", ['sessionId' => 'acl-session-1']],
             'api_call_leave' => ['POST', "/api/projects/$project/call/leave", ['sessionId' => 'acl-session-1']],
             'api_call_heartbeat' => ['POST', "/api/projects/$project/call/heartbeat", ['sessionId' => 'acl-session-1']],
-            'api_call_signal' => ['POST', "/api/projects/$project/call/signal", ['sessionId' => 'acl-session-1', 'toUserId' => $otherId, 'toSessionId' => 'acl-session-2', 'kind' => 'offer', 'data' => ['sdp' => 'x']]],
+            'api_call_signal' => [
+                'POST',
+                "/api/projects/$project/call/signal",
+                ['sessionId' => 'acl-session-1', 'toUserId' => $otherId, 'toSessionId' => 'acl-session-2', 'kind' => 'offer', 'data' => ['sdp' => 'x']]
+            ],
             'api_call_invite' => ['POST', "/api/projects/$project/call/invite", ['userId' => $otherId]],
             'api_call_decline' => ['POST', "/api/projects/$project/call/decline", ['fromUserId' => $memberId]],
             'api_column_create' => ['POST', "/api/projects/$project/columns", ['name' => 'New column']],
@@ -487,6 +498,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_executor' => ['PUT', "/api/cards/$card/executor", ['executorId' => $memberId]],
             'api_card_due_date' => ['PUT', "/api/cards/$card/due-date", ['dueDate' => '2026-12-01']],
             'api_card_linked_card' => ['PUT', "/api/cards/$card/linked-card", ['linkedCardId' => null]],
+            'api_card_recurrence' => ['PUT', "/api/cards/$card/recurrence", ['recurrence' => ['kind' => 'weekly', 'weekdays' => [1, 2, 3]]]],
+            'api_card_complete' => ['POST', "/api/cards/$card/complete", null],
+            'api_card_uncomplete' => ['POST', "/api/cards/$card/uncomplete", null],
             'api_card_comment_create' => ['POST', "/api/cards/$card/comments", ['body' => 'Created comment']],
             'api_card_attachment_create' => ['POST', "/api/cards/$card/attachments", null, ['file' => $this->uploadedTextFile()]],
             'api_card_attachment_delete' => ['DELETE', "/api/cards/$card/attachments/{$fx['fileAttachmentId']}", null],

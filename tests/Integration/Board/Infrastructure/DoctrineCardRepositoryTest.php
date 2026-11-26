@@ -12,6 +12,7 @@ use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\LabelRepository;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\Tests\Integration\DatabaseTestCase;
 use App\User\Domain\Entity\User;
 use App\User\Domain\Repository\UserRepository;
@@ -122,6 +123,54 @@ final class DoctrineCardRepositoryTest extends DatabaseTestCase
         self::assertSame(2, $this->cards->countByColumn($column->id()));
         self::assertSame(1, $this->cards->countByColumn($otherColumn->id()));
         self::assertSame(0, $this->cards->countByColumn(Uuid::uuid4()));
+    }
+
+    public function testRecurrenceRuleRoundTrip(): void
+    {
+        $column = $this->column();
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'Recurring', '', 0);
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 3, 5]));
+        $this->cards->save($card);
+        $this->em()->clear();
+
+        $reloaded = $this->cards->findById($card->id());
+        self::assertNotNull($reloaded);
+        self::assertNotNull($reloaded->recurrence());
+        self::assertTrue(RecurrenceRule::weekly([1, 3, 5])->equals($reloaded->recurrence()));
+
+        $reloaded->changeRecurrence(null);
+        $this->cards->save($reloaded);
+        $this->em()->clear();
+
+        $cleared = $this->cards->findById($card->id());
+        self::assertNotNull($cleared);
+        self::assertNull($cleared->recurrence());
+    }
+
+    public function testCompletionRoundTrip(): void
+    {
+        $column = $this->column();
+        $user = User::create(Uuid::uuid4(), 'carol@example.com', 'hash', 'Carol');
+        $this->users->save($user);
+
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'Sticker', '', 0);
+        $card->complete($user->id());
+        $this->cards->save($card);
+        $this->em()->clear();
+
+        $reloaded = $this->cards->findById($card->id());
+        self::assertNotNull($reloaded);
+        self::assertNotNull($reloaded->completedAt());
+        self::assertTrue($reloaded->completedBy()?->equals($user->id()) ?? false);
+
+        $reloaded->uncomplete($user->id());
+        $this->cards->save($reloaded);
+        $this->em()->clear();
+
+        $cleared = $this->cards->findById($card->id());
+        self::assertNotNull($cleared);
+        self::assertNull($cleared->completedAt());
+        self::assertNull($cleared->completedBy());
     }
 
     private function column(): Column

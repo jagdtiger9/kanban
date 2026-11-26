@@ -135,6 +135,20 @@ function activityText(activity: ActivityPayload): string {
             return `made ${payloadString(p.userName)} the executor`
         case 'executor_unassigned':
             return `removed ${payloadString(p.userName)} as executor`
+        case 'occurrence_completed':
+            return `marked the task completed for ${payloadString(p.period)}`
+        case 'occurrence_uncompleted':
+            return `reopened the task for ${payloadString(p.period)}`
+        case 'card_completed':
+            return 'marked this card completed'
+        case 'card_uncompleted':
+            return 'reopened this card'
+        case 'card_recurrence_changed': {
+            const oldKind = payloadString(p.oldKind)
+            const newKind = payloadString(p.newKind)
+            if (newKind === '') return 'removed the recurrence'
+            return oldKind === '' ? `set the recurrence to ${newKind}` : `changed the recurrence from ${oldKind} to ${newKind}`
+        }
         case 'attachment_added':
             return `attached ${payloadString(p.fileName)}`
         case 'attachment_removed':
@@ -144,7 +158,7 @@ function activityText(activity: ActivityPayload): string {
     }
 }
 
-const timeLineFilter = ref<'all' | 'comment' | 'event'>('all')
+const timeLineFilter = ref<'all' | 'comment' | 'event'>('comment')
 const timelinePrint = computed((): TimelineItem[] => {
     if (timeLineFilter.value === 'all') {
         return props.timeline
@@ -302,7 +316,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
 </script>
 
 <template>
-    <aside class="min-w-0 space-y-3 lg:col-span-6 lg:max-h-[70vh] lg:overflow-y-auto p-3">
+    <aside>
         <div>
             <Textarea
                 v-model="newComment"
@@ -353,8 +367,14 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
         <p v-else-if="timeline.length === 0 && detailError === null" class="text-xs text-faint">No comments or activity yet.</p>
         <div v-else class="space-y-3">
             <div class="flex justify-end gap-3">
-                <Button text class="p-1" size="small" @click="timeLineFilter = 'all'">All</Button>
-                <Button text class="p-1" size="small" @click="timeLineFilter = 'comment'">Comments</Button>
+                <Button
+                    text :severity="timeLineFilter === 'comment' ? 'secondary' : 'primary'"
+                    class="p-1" size="small" @click="timeLineFilter = 'comment'">Comments
+                </Button>
+                <Button
+                    :severity="timeLineFilter === 'all' ? 'secondary' : 'primary'"
+                    text class="p-1" size="small" @click="timeLineFilter = 'all'">All
+                </Button>
             </div>
             <template
                 v-for="item in timelinePrint"

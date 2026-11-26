@@ -24,6 +24,7 @@ final class SetCardDueDateCommandHandler
         $actorId = Uuid::fromString($command->actorId);
 
         $card = $this->guard->requireCard(Uuid::fromString($command->cardId), $actorId);
+        $this->guard->requireTaskCard($card);
 
         $dueDate = $command->dueDate === null ? null : new \DateTimeImmutable($command->dueDate);
         $card->changeDueDate($dueDate, $actorId);

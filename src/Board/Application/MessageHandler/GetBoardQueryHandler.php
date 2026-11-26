@@ -11,10 +11,12 @@ use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Entity\ProjectView;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
+use App\Board\Domain\Repository\CardOccurrenceRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
 use App\Board\Domain\Repository\LabelRepository;
 use App\Board\Domain\Repository\ProjectViewRepository;
+use App\Board\Domain\Service\OccurrenceCalculator;
 use App\Project\Application\Service\MembershipGuard;
 use App\Project\Domain\Exception\ProjectNotFoundException;
 use App\Project\Domain\Repository\ProjectRepository;
@@ -33,12 +35,14 @@ final class GetBoardQueryHandler
         private LabelRepository $labelRepository,
         private ProjectViewRepository $projectViewRepository,
         private CardActivityRepository $cardActivityRepository,
+        private CardOccurrenceRepository $occurrenceRepository,
+        private OccurrenceCalculator $calculator,
         private MembershipGuard $guard,
     ) {
     }
 
     /**
-     * @return array{boardId: UuidInterface, columns: list<Column>, cards: list<Card>, labels: list<Label>, unseenCounts: array<string, int>}
+     * @return array{boardId: UuidInterface, columns: list<Column>, cards: list<Card>, labels: list<Label>, unseenCounts: array<string, int>, occurrences: array<string, array{state: string, period: string}>}
      */
     public function __invoke(GetBoardQuery $query): array
     {
@@ -85,6 +89,35 @@ final class GetBoardQueryHandler
                 $actorId,
                 $baseline->firstSeenAt(),
             ),
+            'occurrences' => $this->occurrences($cards),
         ];
+    }
+
+    /**
+     * @param list<Card> $cards
+     *
+     * @return array<string, array{state: string, period: string}>
+     */
+    private function occurrences(array $cards): array
+    {
+        $completed = $this->occurrenceRepository->findCompletedPeriodsByCards(
+            array_map(static fn(Card $card): UuidInterface => $card->id(), $cards),
+        );
+        $today = new \DateTimeImmutable();
+        $occurrences = [];
+        foreach ($cards as $card) {
+            $rule = $card->recurrence();
+            if ($rule === null) {
+                continue;
+            }
+            $period = $this->calculator->currentPeriod($rule, $today);
+            $completedPeriods = $completed[(string) $card->id()] ?? [];
+            $occurrences[(string) $card->id()] = [
+                'state' => $this->calculator->state($rule, $completedPeriods, $today)->value,
+                'period' => $period,
+            ];
+        }
+
+        return $occurrences;
     }
 }

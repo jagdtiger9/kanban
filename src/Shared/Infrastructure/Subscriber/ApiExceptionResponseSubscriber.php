@@ -9,12 +9,14 @@ use App\Board\Domain\Exception\AttachmentForbiddenException;
 use App\Board\Domain\Exception\AttachmentLimitException;
 use App\Board\Domain\Exception\AttachmentNotFoundException;
 use App\Board\Domain\Exception\CardForbiddenException;
+use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Exception\CardLinkException;
 use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Exception\ColumnNotEmptyException;
 use App\Board\Domain\Exception\ColumnNotFoundException;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Exception\CommentNotFoundException;
+use App\Board\Domain\Exception\InvalidRecurrenceException;
 use App\Board\Domain\Exception\LabelNotFoundException;
 use App\News\Domain\Exception\NewsPostForbiddenException;
 use App\News\Domain\Exception\NewsPostNotFoundException;
@@ -116,7 +118,10 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
         if ($throwable instanceof InvalidUserEventCursorException) {
             return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
         }
-        if ($throwable instanceof CardLinkException) {
+        if ($throwable instanceof CardLinkException
+            || $throwable instanceof CardKindMismatchException
+            || $throwable instanceof InvalidRecurrenceException
+        ) {
             return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
         }
         if ($throwable instanceof ProjectNotFoundException

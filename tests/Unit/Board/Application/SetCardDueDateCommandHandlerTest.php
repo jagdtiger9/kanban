@@ -10,7 +10,9 @@ use App\Board\Application\Service\CardGuard;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Event\CardFieldChanged;
+use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Repository\BoardRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\ColumnRepository;
@@ -59,10 +61,12 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
 
     private function releasedFieldChange(Card $card): CardFieldChanged
     {
-        $events = array_values(array_filter(
-            $card->releaseEvents(),
-            static fn (object $event): bool => $event instanceof CardFieldChanged,
-        ));
+        $events = array_values(
+            array_filter(
+                $card->releaseEvents(),
+                static fn(object $event): bool => $event instanceof CardFieldChanged,
+            )
+        );
         self::assertCount(1, $events);
 
         return $events[0];
@@ -81,7 +85,7 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $this->cardRepository->expects($this->once())->method('save');
 
         $this->handler($card, $column, $board, $member)
-            ->__invoke(new SetCardDueDateCommand((string) $card->id(), '2026-12-01', (string) $actorId));
+            ->__invoke(new SetCardDueDateCommand((string)$card->id(), '2026-12-01', (string)$actorId));
 
         $event = $this->releasedFieldChange($card);
         self::assertSame('due_date', $event->field);
@@ -103,7 +107,7 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $this->cardRepository->expects($this->once())->method('save');
 
         $this->handler($card, $column, $board, $member)
-            ->__invoke(new SetCardDueDateCommand((string) $card->id(), null, (string) $actorId));
+            ->__invoke(new SetCardDueDateCommand((string)$card->id(), null, (string)$actorId));
 
         $event = $this->releasedFieldChange($card);
         self::assertSame('due_date', $event->field);
@@ -125,9 +129,27 @@ final class SetCardDueDateCommandHandlerTest extends TestCase
         $this->cardRepository->expects($this->once())->method('save');
 
         $this->handler($card, $column, $board, $member)
-            ->__invoke(new SetCardDueDateCommand((string) $card->id(), '2026-12-01', (string) $actorId));
+            ->__invoke(new SetCardDueDateCommand((string)$card->id(), '2026-12-01', (string)$actorId));
 
         self::assertSame('due_date', $this->releasedFieldChange($card)->field);
         self::assertSame('2026-12-01', $card->dueDate()?->format('Y-m-d'));
+    }
+
+    public function testRejectsStickerCard(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $column = Column::create(Uuid::uuid4(), $board->id(), 'Stickers', 0, ColumnKind::Sticker);
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $card = Card::create(Uuid::uuid4(), $column->id(), Uuid::uuid4(), 'A', '', 0);
+        $card->releaseEvents();
+
+        $this->cardRepository->expects($this->never())->method('save');
+
+        $this->expectException(CardKindMismatchException::class);
+
+        $this->handler($card, $column, $board, $member)
+            ->__invoke(new SetCardDueDateCommand((string)$card->id(), '2026-12-01', (string)$actorId));
     }
 }

@@ -12,8 +12,10 @@ use App\Board\Domain\Entity\CardActivity;
 use App\Board\Domain\Entity\Comment;
 use App\Board\Domain\Repository\AttachmentRepository;
 use App\Board\Domain\Repository\CardActivityRepository;
+use App\Board\Domain\Repository\CardOccurrenceRepository;
 use App\Board\Domain\Repository\CardRepository;
 use App\Board\Domain\Repository\CommentRepository;
+use App\Board\Domain\Service\OccurrenceCalculator;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -26,6 +28,8 @@ final class GetCardQueryHandler
         private CommentRepository $commentRepository,
         private AttachmentRepository $attachmentRepository,
         private CardActivityRepository $activityRepository,
+        private CardOccurrenceRepository $occurrenceRepository,
+        private OccurrenceCalculator $calculator,
     ) {
     }
 
@@ -37,6 +41,7 @@ final class GetCardQueryHandler
      *     attachments: list<Attachment>,
      *     activities: list<CardActivity>,
      *     timeline: list<Comment|CardActivity>,
+     *     occurrence: array{state: string, period: string}|null,
      * }
      */
     public function __invoke(GetCardQuery $query): array
@@ -52,6 +57,24 @@ final class GetCardQueryHandler
             'attachments' => $this->attachmentRepository->findByCard($card->id()),
             'activities' => $activities,
             'timeline' => $this->timeline($comments, $activities),
+            'occurrence' => $this->occurrence($card),
+        ];
+    }
+
+    /** @return array{state: string, period: string}|null */
+    private function occurrence(Card $card): ?array
+    {
+        $rule = $card->recurrence();
+        if ($rule === null) {
+            return null;
+        }
+        $today = new \DateTimeImmutable();
+        $period = $this->calculator->currentPeriod($rule, $today);
+        $completed = $this->occurrenceRepository->findCompletedPeriodsByCards([$card->id()])[(string) $card->id()] ?? [];
+
+        return [
+            'state' => $this->calculator->state($rule, $completed, $today)->value,
+            'period' => $period,
         ];
     }
 

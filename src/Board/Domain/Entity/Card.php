@@ -8,6 +8,7 @@ use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
 use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
 use App\Board\Domain\Event\CardExecutorUnassigned;
@@ -15,9 +16,12 @@ use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Event\CardRecurrenceChanged;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Exception\CardLinkException;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\User\Domain\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -60,6 +64,12 @@ final class Card implements DomainEventAwareInterface
     #[ORM\Column(type: 'uuid', nullable: true)]
     private ?UuidInterface $linkedCardId;
 
+    /** @var array<string, mixed>|null */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $recurrence;
+
+    private ?RecurrenceRule $recurrenceRule = null;
+
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
 
@@ -68,6 +78,12 @@ final class Card implements DomainEventAwareInterface
 
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE', nullable: true)]
     private ?\DateTimeImmutable $archivedAt;
+
+    #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE', nullable: true)]
+    private ?\DateTimeImmutable $completedAt;
+
+    #[ORM\Column(type: 'uuid', nullable: true)]
+    private ?UuidInterface $completedBy;
 
     /** @var Collection<int, Label> */
     #[ORM\ManyToMany(targetEntity: Label::class)]
@@ -98,6 +114,7 @@ final class Card implements DomainEventAwareInterface
         $this->creatorId = $creatorId;
         $this->executorId = null;
         $this->linkedCardId = null;
+        $this->recurrence = null;
         $this->title = $title;
         $this->description = $description;
         $this->position = $position;
@@ -105,6 +122,8 @@ final class Card implements DomainEventAwareInterface
         $this->createdAt = $createdAt;
         $this->updatedAt = $createdAt;
         $this->archivedAt = null;
+        $this->completedAt = null;
+        $this->completedBy = null;
         $this->labels = new ArrayCollection();
         $this->assignees = new ArrayCollection();
     }
@@ -177,6 +196,15 @@ final class Card implements DomainEventAwareInterface
         return $this->linkedCardId;
     }
 
+    public function recurrence(): ?RecurrenceRule
+    {
+        if ($this->recurrenceRule === null && $this->recurrence !== null) {
+            $this->recurrenceRule = RecurrenceRule::fromArray($this->recurrence);
+        }
+
+        return $this->recurrenceRule;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -195,6 +223,16 @@ final class Card implements DomainEventAwareInterface
     public function isArchived(): bool
     {
         return $this->archivedAt !== null;
+    }
+
+    public function completedAt(): ?\DateTimeImmutable
+    {
+        return $this->completedAt;
+    }
+
+    public function completedBy(): ?UuidInterface
+    {
+        return $this->completedBy;
     }
 
     /** @return Collection<int, Label> */
@@ -239,6 +277,10 @@ final class Card implements DomainEventAwareInterface
 
     public function changeDueDate(?\DateTimeImmutable $dueDate, ?UuidInterface $actorId = null): void
     {
+        if ($dueDate !== null) {
+            $this->clearRecurrence($actorId);
+        }
+
         $new = $dueDate?->format('Y-m-d');
         $old = $this->dueDate?->format('Y-m-d');
         if ($new === $old) {
@@ -265,6 +307,31 @@ final class Card implements DomainEventAwareInterface
         $this->linkedCardId = $linkedCardId;
         $this->touch();
         $this->recordEvent(new CardFieldChanged($this->id->toString(), 'linked_card', $old, $new, $actorId?->toString()));
+    }
+
+    public function changeRecurrence(?RecurrenceRule $recurrence, ?UuidInterface $actorId = null): void
+    {
+        if ($recurrence !== null) {
+            $this->clearDueDate($actorId);
+        }
+
+        $old = $this->recurrence();
+        if ($old === null && $recurrence === null) {
+            return;
+        }
+        if ($old !== null && $recurrence !== null && $old->equals($recurrence)) {
+            return;
+        }
+
+        $this->recurrence = $recurrence?->toArray();
+        $this->recurrenceRule = $recurrence;
+        $this->touch();
+        $this->recordEvent(new CardRecurrenceChanged(
+            $this->id->toString(),
+            $old?->kind()->value,
+            $recurrence?->kind()->value,
+            $actorId?->toString(),
+        ));
     }
 
     public function moveTo(UuidInterface $newColumnId, int $newPosition, ?UuidInterface $actorId = null): void
@@ -315,6 +382,28 @@ final class Card implements DomainEventAwareInterface
 
         $this->archivedAt = null;
         $this->recordEvent(new CardRestored($this->id->toString(), $actorId?->toString()));
+    }
+
+    public function complete(?UuidInterface $actorId = null): void
+    {
+        if ($this->completedAt !== null) {
+            return;
+        }
+
+        $this->completedAt = new \DateTimeImmutable();
+        $this->completedBy = $actorId;
+        $this->recordEvent(new CardCompleted($this->id->toString(), $actorId?->toString()));
+    }
+
+    public function uncomplete(?UuidInterface $actorId = null): void
+    {
+        if ($this->completedAt === null) {
+            return;
+        }
+
+        $this->completedAt = null;
+        $this->completedBy = null;
+        $this->recordEvent(new CardUncompleted($this->id->toString(), $actorId?->toString()));
     }
 
     public function addLabel(Label $label, ?UuidInterface $actorId = null): void
@@ -375,6 +464,31 @@ final class Card implements DomainEventAwareInterface
 
         $this->executorId = null;
         $this->recordEvent(new CardExecutorUnassigned($this->id->toString(), $user->id()->toString(), $user->displayName(), $actorId?->toString()));
+    }
+
+    private function clearDueDate(?UuidInterface $actorId): void
+    {
+        if ($this->dueDate === null) {
+            return;
+        }
+
+        $old = $this->dueDate->format('Y-m-d');
+        $this->dueDate = null;
+        $this->touch();
+        $this->recordEvent(new CardFieldChanged($this->id->toString(), 'due_date', $old, null, $actorId?->toString()));
+    }
+
+    private function clearRecurrence(?UuidInterface $actorId): void
+    {
+        $rule = $this->recurrence();
+        if ($rule === null) {
+            return;
+        }
+
+        $this->recurrence = null;
+        $this->recurrenceRule = null;
+        $this->touch();
+        $this->recordEvent(new CardRecurrenceChanged($this->id->toString(), $rule->kind()->value, null, $actorId?->toString()));
     }
 
     private function touch(): void

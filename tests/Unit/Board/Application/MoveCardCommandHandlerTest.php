@@ -10,7 +10,9 @@ use App\Board\Application\Service\CardGuard;
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Column;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Exception\ColumnNotFoundException;
 use App\Board\Domain\Repository\BoardRepository;
@@ -112,12 +114,14 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->cardRepository->expects($this->exactly(3))->method('save');
 
         $this->handler($moved, $source, $board, $member, $target, [$moved, $b], [$c])
-            ->__invoke(new MoveCardCommand((string) $moved->id(), (string) $target->id(), 0, (string) $actorId));
+            ->__invoke(new MoveCardCommand((string)$moved->id(), (string)$target->id(), 0, (string)$actorId));
 
-        $events = array_values(array_filter(
-            $moved->releaseEvents(),
-            static fn (object $event): bool => $event instanceof CardMoved,
-        ));
+        $events = array_values(
+            array_filter(
+                $moved->releaseEvents(),
+                static fn(object $event): bool => $event instanceof CardMoved,
+            )
+        );
         self::assertCount(1, $events);
         self::assertSame($actorId->toString(), $events[0]->actorId);
         self::assertSame($source->id()->toString(), $events[0]->oldColumnId);
@@ -143,12 +147,14 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->cardRepository->expects($this->exactly(3))->method('save');
 
         $this->handler($moved, $source, $board, $member, $source, [$moved, $b, $c], [$moved, $b, $c])
-            ->__invoke(new MoveCardCommand((string) $moved->id(), (string) $source->id(), 1, (string) $actorId));
+            ->__invoke(new MoveCardCommand((string)$moved->id(), (string)$source->id(), 1, (string)$actorId));
 
-        $events = array_values(array_filter(
-            $moved->releaseEvents(),
-            static fn (object $event): bool => $event instanceof CardMoved,
-        ));
+        $events = array_values(
+            array_filter(
+                $moved->releaseEvents(),
+                static fn(object $event): bool => $event instanceof CardMoved,
+            )
+        );
         self::assertCount(1, $events);
         self::assertSame(1, $events[0]->newPosition);
         self::assertSame(0, $b->position());
@@ -168,7 +174,7 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->expectException(ColumnNotFoundException::class);
 
         $this->handler($card, $source, $board, $member, null, [$card], [])
-            ->__invoke(new MoveCardCommand((string) $card->id(), (string) Uuid::uuid4(), 0, (string) $actorId));
+            ->__invoke(new MoveCardCommand((string)$card->id(), (string)Uuid::uuid4(), 0, (string)$actorId));
     }
 
     public function testThrowsWhenTargetColumnBelongsToAnotherBoard(): void
@@ -186,7 +192,7 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->expectException(ColumnNotFoundException::class);
 
         $this->handler($card, $source, $board, $member, $foreign, [$card], [])
-            ->__invoke(new MoveCardCommand((string) $card->id(), (string) $foreign->id(), 0, (string) $actorId));
+            ->__invoke(new MoveCardCommand((string)$card->id(), (string)$foreign->id(), 0, (string)$actorId));
     }
 
     public function testThrowsWhenActorIsNotMember(): void
@@ -199,7 +205,7 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->expectException(ProjectForbiddenException::class);
 
         $this->handler($card, $source, $board, null, $source, [$card], [$card])
-            ->__invoke(new MoveCardCommand((string) $card->id(), (string) $source->id(), 0, (string) Uuid::uuid4()));
+            ->__invoke(new MoveCardCommand((string)$card->id(), (string)$source->id(), 0, (string)Uuid::uuid4()));
     }
 
     public function testThrowsWhenCardMissing(): void
@@ -211,6 +217,23 @@ final class MoveCardCommandHandlerTest extends TestCase
         $this->expectException(CardNotFoundException::class);
 
         $this->handler(null, $source, $board, null, $source, [], [])
-            ->__invoke(new MoveCardCommand((string) Uuid::uuid4(), (string) $source->id(), 0, (string) Uuid::uuid4()));
+            ->__invoke(new MoveCardCommand((string)Uuid::uuid4(), (string)$source->id(), 0, (string)Uuid::uuid4()));
+    }
+
+    public function testThrowsWhenMovingBetweenStickerAndTaskColumns(): void
+    {
+        $project = Project::create(Uuid::uuid4(), 'P');
+        $board = Board::create(Uuid::uuid4(), $project->id(), 'P');
+        $source = Column::create(Uuid::uuid4(), $board->id(), 'Stickers', 0, ColumnKind::Sticker);
+        $target = Column::create(Uuid::uuid4(), $board->id(), 'To Do', 1);
+        $actorId = Uuid::uuid4();
+        $member = ProjectMember::create(Uuid::uuid4(), $project->id(), $actorId, MemberRole::Member);
+        $card = Card::create(Uuid::uuid4(), $source->id(), $actorId, 'A', '', 0);
+
+        $this->cardRepository->expects($this->never())->method('save');
+        $this->expectException(CardKindMismatchException::class);
+
+        $this->handler($card, $source, $board, $member, $target, [$card], [])
+            ->__invoke(new MoveCardCommand((string)$card->id(), (string)$target->id(), 0, (string)$actorId));
     }
 }

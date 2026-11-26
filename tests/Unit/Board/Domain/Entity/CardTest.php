@@ -8,6 +8,7 @@ use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
 use App\Board\Domain\Event\CardExecutorUnassigned;
@@ -15,9 +16,12 @@ use App\Board\Domain\Event\CardFieldChanged;
 use App\Board\Domain\Event\CardLabelAdded;
 use App\Board\Domain\Event\CardLabelRemoved;
 use App\Board\Domain\Event\CardMoved;
+use App\Board\Domain\Event\CardRecurrenceChanged;
 use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
+use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Exception\CardLinkException;
+use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\User\Domain\Entity\User;
 use PHPUnit\Framework\TestCase;
 use Ramsey\Uuid\Uuid;
@@ -179,6 +183,48 @@ final class CardTest extends TestCase
         self::assertSame([], $card->releaseEvents());
     }
 
+    public function testCompleteIsIdempotentAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $actorId = Uuid::uuid4();
+
+        $card->complete($actorId);
+
+        self::assertNotNull($card->completedAt());
+        self::assertTrue($card->completedBy()?->equals($actorId) ?? false);
+
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardCompleted::class, $events[0]);
+        self::assertSame($card->id()->toString(), $events[0]->cardId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+
+        $card->complete($actorId);
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testUncompleteIsIdempotentAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $card->complete(Uuid::uuid4());
+        $card->releaseEvents();
+        $actorId = Uuid::uuid4();
+
+        $card->uncomplete($actorId);
+
+        self::assertNull($card->completedAt());
+        self::assertNull($card->completedBy());
+
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardUncompleted::class, $events[0]);
+        self::assertSame($card->id()->toString(), $events[0]->cardId);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+
+        $card->uncomplete($actorId);
+        self::assertSame([], $card->releaseEvents());
+    }
+
     public function testAddAndRemoveLabel(): void
     {
         $card = $this->createCard();
@@ -324,5 +370,119 @@ final class CardTest extends TestCase
         $this->expectException(CardLinkException::class);
 
         $card->changeLinkedCard($card->id());
+    }
+
+    public function testNewCardHasNoRecurrence(): void
+    {
+        self::assertNull($this->createCard()->recurrence());
+    }
+
+    public function testChangeRecurrenceSetsRuleAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $actorId = Uuid::uuid4();
+
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 3]), $actorId);
+
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardRecurrenceChanged::class, $events[0]);
+        self::assertNull($events[0]->oldKind);
+        self::assertSame('weekly', $events[0]->newKind);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+        self::assertTrue(RecurrenceRule::weekly([1, 3])->equals($card->recurrence()));
+    }
+
+    public function testChangeRecurrenceToEqualRuleRecordsNoEvent(): void
+    {
+        $card = $this->createCard();
+        $card->changeRecurrence(RecurrenceRule::weekly([3, 1]));
+        $card->releaseEvents();
+
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 3, 3]));
+
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testChangeRecurrenceCanRemoveTheRule(): void
+    {
+        $card = $this->createCard();
+        $card->changeRecurrence(RecurrenceRule::weekly([5]));
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $card->releaseEvents();
+
+        $card->changeRecurrence(null);
+
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertSame('weekly', $events[0]->oldKind);
+        self::assertNull($events[0]->newKind);
+        self::assertNull($card->recurrence());
+
+        $card->changeRecurrence(null);
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testChangingRecurrenceClearsTheDueDate(): void
+    {
+        $card = $this->createCard();
+        $actorId = Uuid::uuid4();
+        $card->changeDueDate(new \DateTimeImmutable('2026-12-01'), $actorId);
+        $card->releaseEvents();
+
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 3]), $actorId);
+
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        self::assertInstanceOf(CardFieldChanged::class, $events[0]);
+        self::assertSame('due_date', $events[0]->field);
+        self::assertSame('2026-12-01', $events[0]->oldValue);
+        self::assertNull($events[0]->newValue);
+        self::assertInstanceOf(CardRecurrenceChanged::class, $events[1]);
+        self::assertNull($events[1]->oldKind);
+        self::assertSame('weekly', $events[1]->newKind);
+        self::assertNull($card->dueDate());
+    }
+
+    public function testChangingDueDateClearsTheRecurrence(): void
+    {
+        $card = $this->createCard();
+        $actorId = Uuid::uuid4();
+        $card->changeRecurrence(RecurrenceRule::weekly([6, 7]), $actorId);
+        $card->releaseEvents();
+
+        $card->changeDueDate(new \DateTimeImmutable('2026-12-01'), $actorId);
+
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        self::assertInstanceOf(CardRecurrenceChanged::class, $events[0]);
+        self::assertSame('weekly', $events[0]->oldKind);
+        self::assertNull($events[0]->newKind);
+        self::assertInstanceOf(CardFieldChanged::class, $events[1]);
+        self::assertSame('due_date', $events[1]->field);
+        self::assertNull($events[1]->oldValue);
+        self::assertSame('2026-12-01', $events[1]->newValue);
+        self::assertNull($card->recurrence());
+        self::assertSame('2026-12-01', $card->dueDate()?->format('Y-m-d'));
+    }
+
+    public function testClearingOneScheduleDoesNotClearTheOther(): void
+    {
+        $card = $this->createCard();
+        $card->changeDueDate(new \DateTimeImmutable('2026-12-01'));
+        $card->releaseEvents();
+
+        $card->changeRecurrence(null);
+        self::assertSame([], $card->releaseEvents());
+        self::assertSame('2026-12-01', $card->dueDate()?->format('Y-m-d'));
+
+        $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3, 4, 5, 6, 7]));
+        $card->releaseEvents();
+
+        $card->changeDueDate(null);
+        self::assertSame([], $card->releaseEvents());
+        $rule = $card->recurrence();
+        self::assertNotNull($rule);
+        self::assertSame('weekly', $rule->kind()->value);
     }
 }

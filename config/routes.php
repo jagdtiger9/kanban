@@ -337,6 +337,21 @@ $config = Routes::config([
         'controller' => [BoardController::class, 'setCardLinkedCard'],
         'methods' => ['PUT'],
     ],
+    'api_card_recurrence' => [
+        'path' => '/api/cards/{cardId}/recurrence',
+        'controller' => [BoardController::class, 'setCardRecurrence'],
+        'methods' => ['PUT'],
+    ],
+    'api_card_complete' => [
+        'path' => '/api/cards/{cardId}/complete',
+        'controller' => [BoardController::class, 'completeCard'],
+        'methods' => ['POST'],
+    ],
+    'api_card_uncomplete' => [
+        'path' => '/api/cards/{cardId}/uncomplete',
+        'controller' => [BoardController::class, 'uncompleteCard'],
+        'methods' => ['POST'],
+    ],
     'api_card_get' => [
         'path' => '/api/cards/{cardId}',
         'controller' => [BoardController::class, 'getCard'],

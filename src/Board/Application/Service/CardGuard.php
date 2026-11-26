@@ -6,8 +6,11 @@ namespace App\Board\Application\Service;
 
 use App\Board\Domain\Entity\Board;
 use App\Board\Domain\Entity\Card;
+use App\Board\Domain\Entity\Column;
 use App\Board\Domain\Entity\Comment;
+use App\Board\Domain\Enum\ColumnKind;
 use App\Board\Domain\Exception\CardForbiddenException;
+use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Exception\CardNotFoundException;
 use App\Board\Domain\Exception\CommentForbiddenException;
 use App\Board\Domain\Repository\BoardRepository;
@@ -49,6 +52,27 @@ final class CardGuard
         return $card;
     }
 
+    public function requireCompletable(Card $card, UuidInterface $actorId): void
+    {
+        if ($card->executorId() !== null && !$card->executorId()->equals($actorId)) {
+            throw new CardForbiddenException('Only the card executor can mark this card completed');
+        }
+    }
+
+    public function requireTaskCard(Card $card): void
+    {
+        if ($this->column($card)->kind() !== ColumnKind::Task) {
+            throw new CardKindMismatchException('Sticker cards have no schedule');
+        }
+    }
+
+    public function requireSameColumnKind(Card $card, Column $targetColumn): void
+    {
+        if ($this->column($card)->kind() !== $targetColumn->kind()) {
+            throw new CardKindMismatchException('Cards cannot be moved between task and sticker columns');
+        }
+    }
+
     public function requireCommentDeletable(Comment $comment, UuidInterface $actorId): void
     {
         $card = $this->requireCard($comment->cardId(), $actorId);
@@ -73,13 +97,19 @@ final class CardGuard
         return $this->guard->effectiveRole($this->resolveBoard($card)->projectId(), $actorId);
     }
 
-    public function resolveBoard(Card $card): Board
+    public function column(Card $card): Column
     {
         $column = $this->columnRepository->findById($card->columnId());
         if ($column === null) {
             throw new \LogicException('Column must exist for every card');
         }
-        $board = $this->boardRepository->findById($column->boardId());
+
+        return $column;
+    }
+
+    public function resolveBoard(Card $card): Board
+    {
+        $board = $this->boardRepository->findById($this->column($card)->boardId());
         if ($board === null) {
             throw new \LogicException('Board must exist for every column');
         }
