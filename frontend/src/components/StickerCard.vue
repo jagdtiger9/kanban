@@ -23,13 +23,13 @@ function onTitleClick(): void {
 <template>
     <div
         class="board-card group flex w-full shrink-0 items-center gap-2 rounded-lg border border-line bg-raised p-3 shadow-card transition-colors hover:border-line-emphasis"
-        :class="{ 'opacity-50': card.archived }"
+        :class="{ 'opacity-50': card.archived, 'border-2! border-blue-500!' : card.completedAt === null }"
         :data-card-id="card.id">
         <button
             v-if="canToggle"
             type="button"
             class="sticker-check shrink-0 cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-brand"
-            :class="card.completedAt === null ? 'text-muted hover:text-strong' : 'text-brand-text'"
+            :class="card.completedAt === null ? 'text-brand-text' : 'text-muted hover:text-strong'"
             :title="card.completedAt === null ? 'Mark done' : 'Mark not done'"
             :aria-label="card.completedAt === null ? 'Mark done' : 'Mark not done'"
             @click.stop="emit('toggle')">
