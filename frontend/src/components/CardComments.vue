@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
@@ -30,6 +30,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     refresh: []
     error: [message: string | null]
+    dirty: [dirty: boolean]
 }>()
 
 const auth = useAuthStore()
@@ -43,6 +44,18 @@ const commentFiles = ref<File[]>([])
 const commentFileInput = ref<HTMLInputElement | null>(null)
 const editingId = ref<string | null>(null)
 const editBody = ref('')
+const editOriginalBody = ref('')
+
+const hasDraft = computed(
+    () =>
+        newComment.value.trim() !== '' ||
+        commentFiles.value.length > 0 ||
+        (editingId.value !== null &&
+            editBody.value.trim() !== '' &&
+            editBody.value !== editOriginalBody.value),
+)
+
+watch(hasDraft, (dirty) => emit('dirty', dirty), { immediate: true })
 
 const memberNames = computed(() => {
     const names = new Map<string, string>()
@@ -252,6 +265,7 @@ function askRemoveCommentAttachment(comment: CommentPayload, target: AttachmentP
 function startEdit(comment: CommentPayload): void {
     editingId.value = comment.id
     editBody.value = comment.body
+    editOriginalBody.value = comment.body
 }
 
 function cancelEdit(): void {

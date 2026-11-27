@@ -101,6 +101,36 @@ const editingTitle = ref(false)
 const titleDraft = ref('')
 const titleSaving = ref(false)
 
+const commentsDirty = ref(false)
+
+const titleDirty = computed(
+    () => editingTitle.value && titleDraft.value.trim() !== '' && titleDraft.value.trim() !== title.value,
+)
+const descriptionDirty = computed(
+    () => editingDescription.value && descriptionDraft.value !== description.value,
+)
+const unsavedParts = computed((): string[] => {
+    const parts: string[] = []
+    if (titleDirty.value) parts.push('title')
+    if (descriptionDirty.value) parts.push('description')
+    if (commentsDirty.value) parts.push('comment')
+    return parts
+})
+
+function requestClose(): void {
+    if (unsavedParts.value.length === 0) {
+        emit('close')
+        return
+    }
+    confirm.require({
+        header: 'Unsaved changes',
+        message: `You have unsaved changes (${unsavedParts.value.join(', ')}). Close the card and discard them?`,
+        acceptProps: { label: 'Discard and close', severity: 'danger' },
+        rejectProps: { label: 'Keep editing', severity: 'secondary' },
+        accept: () => emit('close'),
+    })
+}
+
 const cardFileInput = ref<HTMLInputElement | null>(null)
 const attachmentBusy = ref(false)
 const attachmentError = ref<string | null>(null)
@@ -599,7 +629,7 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
 </script>
 
 <template>
-    <Modal size="xl" @close="emit('close')">
+    <Modal size="xl" @close="requestClose">
         <template #title>
             <div v-if="editingTitle" class="flex flex-wrap gap-1 md:gap-3">
                     <Textarea
@@ -858,7 +888,8 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                         :loading="detailLoading"
                         :detail-error="detailError"
                         @refresh="onCommentsRefresh"
-                        @error="detailError = $event"/>
+                        @error="detailError = $event"
+                        @dirty="commentsDirty = $event"/>
                 </div>
             </div>
 
