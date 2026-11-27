@@ -10,6 +10,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -141,6 +142,12 @@ final class RealtimeEventForwarder
     public function onCardRecurrenceChanged(CardRecurrenceChanged $event): void
     {
         $this->notifyForCard($event->cardId, 'card.recurrence_changed', $event->actorId);
+    }
+
+    #[AsMessageHandler]
+    public function onCardChecklistChanged(CardChecklistChanged $event): void
+    {
+        $this->notifyForCard($event->cardId, 'card.checklist_changed', $event->actorId);
     }
 
     #[AsMessageHandler]

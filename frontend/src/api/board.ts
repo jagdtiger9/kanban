@@ -26,6 +26,12 @@ export interface OccurrencePayload {
     period: string
 }
 
+export interface ChecklistItemPayload {
+    id: string
+    text: string
+    done: boolean
+}
+
 export interface CardPayload {
     id: string
     columnId: string
@@ -37,6 +43,7 @@ export interface CardPayload {
     executorId: string | null
     linkedCardId: string | null
     recurrence: RecurrenceRulePayload | null
+    checklist: ChecklistItemPayload[]
     createdAt: string
     updatedAt: string
     archived: boolean
@@ -167,6 +174,24 @@ export function setCardRecurrence(cardId: string, recurrence: RecurrenceRulePayl
         method: 'PUT',
         body: JSON.stringify({ recurrence }),
     })
+}
+
+export function addChecklistItem(cardId: string, text: string): Promise<ChecklistItemPayload> {
+    return api<ChecklistItemPayload>(`/cards/${cardId}/checklist`, {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+    })
+}
+
+export function setChecklistItemDone(cardId: string, itemId: string, done: boolean): Promise<void> {
+    return api<void>(`/cards/${cardId}/checklist/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ done }),
+    })
+}
+
+export function removeChecklistItem(cardId: string, itemId: string): Promise<void> {
+    return api<void>(`/cards/${cardId}/checklist/${itemId}`, { method: 'DELETE' })
 }
 
 export function completeCard(cardId: string): Promise<void> {

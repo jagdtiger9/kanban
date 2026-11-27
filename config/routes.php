@@ -342,6 +342,21 @@ $config = Routes::config([
         'controller' => [BoardController::class, 'setCardRecurrence'],
         'methods' => ['PUT'],
     ],
+    'api_card_checklist_item_add' => [
+        'path' => '/api/cards/{cardId}/checklist',
+        'controller' => [BoardController::class, 'addChecklistItem'],
+        'methods' => ['POST'],
+    ],
+    'api_card_checklist_item_done' => [
+        'path' => '/api/cards/{cardId}/checklist/{itemId}',
+        'controller' => [BoardController::class, 'setChecklistItemDone'],
+        'methods' => ['PUT'],
+    ],
+    'api_card_checklist_item_remove' => [
+        'path' => '/api/cards/{cardId}/checklist/{itemId}',
+        'controller' => [BoardController::class, 'removeChecklistItem'],
+        'methods' => ['DELETE'],
+    ],
     'api_card_complete' => [
         'path' => '/api/cards/{cardId}/complete',
         'controller' => [BoardController::class, 'completeCard'],

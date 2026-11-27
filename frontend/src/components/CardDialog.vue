@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import DatePicker from 'primevue/datepicker'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
@@ -12,6 +14,7 @@ import { useToast } from 'primevue/usetoast'
 import * as boardApi from '../api/board'
 import type {
     CardPayload,
+    ChecklistItemPayload,
     ColumnPayload,
     LabelPayload,
     LinkedCardPayload,
@@ -68,6 +71,14 @@ const dueDate = ref<string | null>(props.card.dueDate)
 const dueDateModel = computed(() => fromYmd(dueDate.value))
 const recurrence = ref<RecurrenceRulePayload | null>(props.card.recurrence)
 const scheduleMode = computed((): ScheduleMode => (recurrence.value === null ? 'single' : 'recurring'))
+
+const checklist = ref<ChecklistItemPayload[]>([...props.card.checklist])
+const checklistText = ref('')
+const checklistBusy = ref(false)
+const checklistAdding = ref(false)
+const checklistInput = ref<ComponentPublicInstance | null>(null)
+const pendingChecklistItems = new Set<string>()
+const checklistDone = computed(() => checklist.value.filter((item) => item.done).length)
 
 const error = ref<string | null>(null)
 const saving = ref(false)
@@ -148,6 +159,13 @@ watch(
     () => props.card.recurrence,
     (value) => {
         recurrence.value = value
+    },
+)
+
+watch(
+    () => props.card.checklist,
+    (items) => {
+        checklist.value = [...items]
     },
 )
 
@@ -409,6 +427,75 @@ function toggleMonthDay(day: number): void {
     void applyRecurrence({ ...rule, monthDays: toggleNumber(rule.monthDays, day) })
 }
 
+function syncChecklist(items: ChecklistItemPayload[]): void {
+    checklist.value = items
+    emit('updated', { checklist: items })
+}
+
+async function startAddingChecklistItem(): Promise<void> {
+    checklistAdding.value = true
+    await nextTick()
+    const element = checklistInput.value?.$el
+    if (element instanceof HTMLInputElement) element.focus()
+}
+
+function cancelChecklistItem(): void {
+    checklistAdding.value = false
+    checklistText.value = ''
+}
+
+async function addChecklistItem(): Promise<void> {
+    const text = checklistText.value.trim()
+    if (text === '' || checklistBusy.value) return
+    checklistBusy.value = true
+    error.value = null
+    try {
+        const item = await boardApi.addChecklistItem(props.card.id, text)
+        syncChecklist([...checklist.value, item])
+        checklistText.value = ''
+        checklistAdding.value = false
+    } catch (e) {
+        error.value = e instanceof ApiError ? e.message : 'Failed to add checklist item'
+    } finally {
+        checklistBusy.value = false
+    }
+}
+
+async function toggleChecklistItem(item: ChecklistItemPayload): Promise<void> {
+    if (pendingChecklistItems.has(item.id)) return
+    pendingChecklistItems.add(item.id)
+    syncChecklist(checklist.value.map((current) => (
+        current.id === item.id ? { ...current, done: !item.done } : current
+    )))
+    error.value = null
+    try {
+        await boardApi.setChecklistItemDone(props.card.id, item.id, !item.done)
+    } catch (e) {
+        syncChecklist(checklist.value.map((current) => (
+            current.id === item.id ? { ...current, done: item.done } : current
+        )))
+        error.value = e instanceof ApiError ? e.message : 'Failed to update checklist item'
+    } finally {
+        pendingChecklistItems.delete(item.id)
+    }
+}
+
+async function removeChecklistItem(item: ChecklistItemPayload): Promise<void> {
+    if (pendingChecklistItems.has(item.id)) return
+    const previous = checklist.value
+    pendingChecklistItems.add(item.id)
+    syncChecklist(checklist.value.filter((current) => current.id !== item.id))
+    error.value = null
+    try {
+        await boardApi.removeChecklistItem(props.card.id, item.id)
+    } catch (e) {
+        syncChecklist(previous)
+        error.value = e instanceof ApiError ? e.message : 'Failed to remove checklist item'
+    } finally {
+        pendingChecklistItems.delete(item.id)
+    }
+}
+
 async function archive(): Promise<void> {
     saving.value = true
     error.value = null
@@ -584,7 +671,6 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                     </div>
 
                     <div class="flex flex-col gap-1">
-                        <div class="font-medium text-body">Attachments</div>
                         <div class="flex items-center gap-2">
                             <span v-if="attachmentBusy" class="text-xs text-faint">Working…</span>
                             <input
@@ -613,6 +699,75 @@ async function saveFromMarkdownEditor(text: string): Promise<void> {
                         <p v-else class="text-xs text-faint">No attachments yet.</p>
                     </div>
 
+                    <div>
+                        <div class="mb-1.5 flex items-baseline justify-between">
+                            <span class="font-medium text-body">Checklist</span>
+                            <span v-if="checklist.length > 0" class="text-xs text-faint">
+                                {{ checklistDone }}/{{ checklist.length }}
+                            </span>
+                        </div>
+                        <ul v-if="checklist.length > 0" class="space-y-1">
+                            <li
+                                v-for="item in checklist"
+                                :key="item.id"
+                                class="group flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-raised/60">
+                                <Checkbox
+                                    :model-value="item.done"
+                                    binary
+                                    :input-id="`checklist-${item.id}`"
+                                    @update:model-value="toggleChecklistItem(item)"/>
+                                <label
+                                    :for="`checklist-${item.id}`"
+                                    class="min-w-0 cursor-pointer break-words text-sm"
+                                    :class="item.done ? 'text-faint line-through' : 'text-body'">
+                                    {{ item.text }}
+                                </label>
+                                <button
+                                    type="button"
+                                    class="ml-auto shrink-0 cursor-pointer text-muted opacity-0 transition-opacity hover:text-danger-text focus:opacity-100 group-hover:opacity-100"
+                                    title="Remove item"
+                                    @click="removeChecklistItem(item)">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </li>
+                        </ul>
+                        <p v-else class="text-xs text-faint">No checklist items yet.</p>
+                        <!-- Add check item block -->
+                        <Button
+                            v-if="!checklistAdding"
+                            severity="primary"
+                            text
+                            size="small"
+                            label="Add item"
+                            class="mt-2 p-1 pl-0"
+                            @click="startAddingChecklistItem"/>
+                        <div v-else class="mt-2 flex items-center gap-2">
+                            <InputText
+                                ref="checklistInput"
+                                v-model="checklistText"
+                                size="small"
+                                class="w-full"
+                                placeholder="Add a checklist item"
+                                maxlength="500"
+                                :disabled="checklistBusy"
+                                @keyup.enter="addChecklistItem"
+                                @keyup.esc="cancelChecklistItem"/>
+                            <Button
+                                label="Add"
+                                size="small"
+                                outlined
+                                :disabled="checklistBusy || checklistText.trim() === ''"
+                                @click="addChecklistItem"/>
+                            <Button
+                                label="Cancel"
+                                size="small"
+                                text
+                                :disabled="checklistBusy"
+                                @click="cancelChecklistItem"/>
+                        </div>
+                    </div>
+
+                    <Divider class="my-4"/>
                     <div>
                         <p class="mb-1.5 font-medium text-body">Labels</p>
                         <div v-if="props.labels.length > 0" class="flex flex-wrap gap-1.5">

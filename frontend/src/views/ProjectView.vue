@@ -44,6 +44,7 @@ const CARD_EVENT_VERBS: Record<string, string> = {
     'card.completed': 'completed',
     'card.uncompleted': 'reopened',
     'card.recurrence_changed': 'changed the recurrence of',
+    'card.checklist_changed': 'updated the checklist of',
     'comment.created': 'commented on',
     'comment.updated': 'edited a comment on',
     'comment.deleted': 'deleted a comment on',
@@ -166,7 +167,7 @@ const newCardTitle = ref('')
 
 const openColumnMenuId = ref<string | null>(null)
 const cardMenuPopover = ref<InstanceType<typeof Popover> | null>(null)
-const cardMenuCard = ref<BoardCardPayload | null>(null)
+const openedMenuCard = ref<BoardCardPayload | null>(null)
 const renameTarget = ref<ColumnPayload | null>(null)
 const deleting = ref(false)
 
@@ -452,7 +453,7 @@ async function moveCardToColumn(card: BoardCardPayload, targetColumnId: string):
 }
 
 const moveTargets = computed((): ColumnPayload[] => {
-    const card = cardMenuCard.value
+    const card = openedMenuCard.value
     if (card === null) return []
     const kind = columns.value.find((column) => column.id === card.columnId)?.kind
     return columns.value.filter((column) => column.kind === kind)
@@ -462,17 +463,18 @@ function toggleCardMenu(event: Event, card: BoardCardPayload): void {
     openColumnMenuId.value = null
     const popover = cardMenuPopover.value
     if (popover === null) return
-    if (cardMenuCard.value?.id === card.id) {
+    if (openedMenuCard.value?.id === card.id) {
         popover.hide()
+        openedMenuCard.value = null
         return
     }
-    cardMenuCard.value = card
+    openedMenuCard.value = card
     popover.show(event)
     void nextTick(() => popover.alignOverlay())
 }
 
-function onCardMenuColumn(columnId: string | null): void {
-    const card = cardMenuCard.value
+function onCardMenuColumnChange(columnId: string | null): void {
+    const card = openedMenuCard.value
     cardMenuPopover.value?.hide()
     if (card === null || columnId === null) return
     void moveCardToColumn(card, columnId)
@@ -581,6 +583,7 @@ async function onLabelsChanged(): Promise<void> {
 
 function onDocumentClick(): void {
     openColumnMenuId.value = null
+    openedMenuCard.value = null
 }
 
 onMounted(async () => {
@@ -600,7 +603,7 @@ onBeforeUnmount(() => {
 watch(projectId, async () => {
     openColumnMenuId.value = null
     cardMenuPopover.value?.hide()
-    cardMenuCard.value = null
+    openedMenuCard.value = null
     addingColumn.value = false
     newColumnName.value = ''
     newColumnKind.value = 'task'
@@ -804,7 +807,7 @@ function openUsersDialog(): void {
                                                     class="occurrence-pill mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-sm font-semibold"
                                                     :class="card.occurrence.state === 'pending' ? 'bg-brand/15 text-brand-text' : 'bg-active text-muted'"
                                                     :title="occurrenceTitle(card)"
-                                                    :aria-label="occurrenceTitle(card)">==
+                                                    :aria-label="occurrenceTitle(card)">
                                                     <i :class="card.occurrence.state === 'pending' ? 'fa-regular fa-circle-check' : 'fa-solid fa-circle-check'" aria-hidden="true"/>
                                                 </span>
                                             </template>
@@ -884,16 +887,13 @@ function openUsersDialog(): void {
         </div>
 
         <Popover ref="cardMenuPopover" class="w-56" :pt="{ content: 'p-2' }">
-            <div v-if="cardMenuCard">
+            <div v-if="openedMenuCard">
                 <p class="mb-1.5 text-xs font-medium text-muted">Move to column</p>
                 <Select
-                    :model-value="cardMenuCard.columnId"
-                    :options="moveTargets"
-                    option-label="name"
-                    option-value="id"
-                    size="small"
-                    fluid
-                    @change="onCardMenuColumn($event.value)"/>
+                    :model-value="openedMenuCard.columnId"
+                    :options="moveTargets" option-label="name" option-value="id"
+                    size="small" fluid
+                    @change="onCardMenuColumnChange($event.value)"/>
             </div>
         </Popover>
 

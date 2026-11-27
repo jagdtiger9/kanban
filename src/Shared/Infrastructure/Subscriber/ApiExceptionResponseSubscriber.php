@@ -12,6 +12,8 @@ use App\Board\Domain\Exception\CardForbiddenException;
 use App\Board\Domain\Exception\CardKindMismatchException;
 use App\Board\Domain\Exception\CardLinkException;
 use App\Board\Domain\Exception\CardNotFoundException;
+use App\Board\Domain\Exception\ChecklistItemNotFoundException;
+use App\Board\Domain\Exception\ChecklistLimitException;
 use App\Board\Domain\Exception\ColumnNotEmptyException;
 use App\Board\Domain\Exception\ColumnNotFoundException;
 use App\Board\Domain\Exception\CommentForbiddenException;
@@ -121,6 +123,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
         if ($throwable instanceof CardLinkException
             || $throwable instanceof CardKindMismatchException
             || $throwable instanceof InvalidRecurrenceException
+            || $throwable instanceof ChecklistLimitException
         ) {
             return [Response::HTTP_BAD_REQUEST, $throwable->getMessage()];
         }
@@ -128,6 +131,7 @@ final class ApiExceptionResponseSubscriber implements EventSubscriberInterface
             || $throwable instanceof ProjectMemberNotFoundException
             || $throwable instanceof ColumnNotFoundException
             || $throwable instanceof CardNotFoundException
+            || $throwable instanceof ChecklistItemNotFoundException
             || $throwable instanceof LabelNotFoundException
             || $throwable instanceof CommentNotFoundException
             || $throwable instanceof AttachmentNotFoundException

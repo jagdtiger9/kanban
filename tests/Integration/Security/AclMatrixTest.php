@@ -186,6 +186,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_due_date' => self::memberRoute(204),
             'api_card_linked_card' => self::memberRoute(204),
             'api_card_recurrence' => self::memberRoute(204),
+            'api_card_checklist_item_add' => self::memberRoute(201),
+            'api_card_checklist_item_done' => self::memberRoute(204),
+            'api_card_checklist_item_remove' => self::memberRoute(204),
             'api_card_complete' => self::memberRoute(204),
             'api_card_uncomplete' => self::memberRoute(204),
             'api_card_comment_create' => self::memberRoute(201),
@@ -309,7 +312,7 @@ final class AclMatrixTest extends DatabaseTestCase
      * with no project membership; news holds the news-maker role; outsider has no
      * access at all; candidate is unconfirmed with a pending token.
      *
-     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string}
+     * @return array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, checklistItemId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string}
      */
     private function seedFixture(): array
     {
@@ -354,6 +357,8 @@ final class AclMatrixTest extends DatabaseTestCase
 
         $card = Card::create(Uuid::uuid4(), $todo->id(), $users['member']->id(), 'Seed card', 'Seed description', 0);
         $card->changeRecurrence(RecurrenceRule::weekly([1, 2, 3]));
+        $checklistItemId = Uuid::uuid4();
+        $card->addChecklistItem($checklistItemId, 'Seed checklist item');
         $this->repo(CardRepository::class)->save($card);
 
         $comment = Comment::create(Uuid::uuid4(), $card->id(), $users['member']->id(), 'Seed comment');
@@ -423,6 +428,7 @@ final class AclMatrixTest extends DatabaseTestCase
             'column2Id' => (string)$done->id(),
             'labelId' => (string)$label->id(),
             'cardId' => (string)$card->id(),
+            'checklistItemId' => (string)$checklistItemId,
             'commentId' => (string)$comment->id(),
             'newsPostId' => (string)$newsPost->id(),
             'fileAttachmentId' => (string)$fileAttachment->id(),
@@ -433,7 +439,7 @@ final class AclMatrixTest extends DatabaseTestCase
     }
 
     /**
-     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string} $fx
+     * @param array{users: array<string, User>, projectId: string, columnId: string, column2Id: string, labelId: string, cardId: string, checklistItemId: string, commentId: string, newsPostId: string, fileAttachmentId: string, thumbnailAttachmentId: string, commentAttachmentId: string, confirmationToken: string} $fx
      *
      * @return array<string, array{0: string, 1: string, 2: array<string, mixed>|null, 3?: array<string, UploadedFile>}>
      */
@@ -499,6 +505,9 @@ final class AclMatrixTest extends DatabaseTestCase
             'api_card_due_date' => ['PUT', "/api/cards/$card/due-date", ['dueDate' => '2026-12-01']],
             'api_card_linked_card' => ['PUT', "/api/cards/$card/linked-card", ['linkedCardId' => null]],
             'api_card_recurrence' => ['PUT', "/api/cards/$card/recurrence", ['recurrence' => ['kind' => 'weekly', 'weekdays' => [1, 2, 3]]]],
+            'api_card_checklist_item_add' => ['POST', "/api/cards/$card/checklist", ['text' => 'Created checklist item']],
+            'api_card_checklist_item_done' => ['PUT', "/api/cards/$card/checklist/{$fx['checklistItemId']}", ['done' => true]],
+            'api_card_checklist_item_remove' => ['DELETE', "/api/cards/$card/checklist/{$fx['checklistItemId']}", null],
             'api_card_complete' => ['POST', "/api/cards/$card/complete", null],
             'api_card_uncomplete' => ['POST', "/api/cards/$card/uncomplete", null],
             'api_card_comment_create' => ['POST', "/api/cards/$card/comments", ['body' => 'Created comment']],

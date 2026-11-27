@@ -149,6 +149,10 @@ function activityText(activity: ActivityPayload): string {
             if (newKind === '') return 'removed the recurrence'
             return oldKind === '' ? `set the recurrence to ${newKind}` : `changed the recurrence from ${oldKind} to ${newKind}`
         }
+        case 'checklist_item_added':
+            return `added checklist item “${payloadString(p.itemText)}”`
+        case 'checklist_item_removed':
+            return `removed checklist item “${payloadString(p.itemText)}”`
         case 'attachment_added':
             return `attached ${payloadString(p.fileName)}`
         case 'attachment_removed':

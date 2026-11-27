@@ -8,6 +8,7 @@ use Aljerom\SymfonyBoilerplate\DomainEvents\DomainEventAwareInterface;
 use Aljerom\SymfonyBoilerplate\DomainEvents\EventStoreTrait;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -21,6 +22,8 @@ use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
 use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Exception\CardLinkException;
+use App\Board\Domain\Exception\ChecklistItemNotFoundException;
+use App\Board\Domain\Exception\ChecklistLimitException;
 use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\User\Domain\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -35,6 +38,9 @@ use Ramsey\Uuid\UuidInterface;
 final class Card implements DomainEventAwareInterface
 {
     use EventStoreTrait;
+
+    public const CHECKLIST_MAX_ITEMS = 100;
+    public const CHECKLIST_TEXT_MAX_LENGTH = 500;
 
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
@@ -69,6 +75,10 @@ final class Card implements DomainEventAwareInterface
     private ?array $recurrence;
 
     private ?RecurrenceRule $recurrenceRule = null;
+
+    /** @var list<array{id: string, text: string, done: bool}>|null */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $checklist;
 
     #[ORM\Column(type: 'datetimetz_micro', columnDefinition: 'TIMESTAMP(6) WITH TIME ZONE')]
     private \DateTimeImmutable $createdAt;
@@ -115,6 +125,7 @@ final class Card implements DomainEventAwareInterface
         $this->executorId = null;
         $this->linkedCardId = null;
         $this->recurrence = null;
+        $this->checklist = null;
         $this->title = $title;
         $this->description = $description;
         $this->position = $position;
@@ -203,6 +214,12 @@ final class Card implements DomainEventAwareInterface
         }
 
         return $this->recurrenceRule;
+    }
+
+    /** @return list<array{id: string, text: string, done: bool}> */
+    public function checklist(): array
+    {
+        return $this->checklist ?? [];
     }
 
     public function createdAt(): \DateTimeImmutable
@@ -332,6 +349,89 @@ final class Card implements DomainEventAwareInterface
             $recurrence?->kind()->value,
             $actorId?->toString(),
         ));
+    }
+
+    public function addChecklistItem(UuidInterface $itemId, string $text, ?UuidInterface $actorId = null): void
+    {
+        $text = trim($text);
+        if ($text === '') {
+            throw new \InvalidArgumentException('Checklist item text must not be empty');
+        }
+        if (mb_strlen($text) > self::CHECKLIST_TEXT_MAX_LENGTH) {
+            throw new \InvalidArgumentException(sprintf('Checklist item text must not exceed %d characters', self::CHECKLIST_TEXT_MAX_LENGTH));
+        }
+
+        $checklist = $this->checklist();
+        if (count($checklist) >= self::CHECKLIST_MAX_ITEMS) {
+            throw new ChecklistLimitException(sprintf('A card cannot have more than %d checklist items', self::CHECKLIST_MAX_ITEMS));
+        }
+
+        $checklist[] = ['id' => $itemId->toString(), 'text' => $text, 'done' => false];
+        $this->checklist = $checklist;
+        $this->touch();
+        $this->recordEvent(new CardChecklistChanged(
+            $this->id->toString(),
+            CardChecklistChanged::ACTION_ADDED,
+            $itemId->toString(),
+            $text,
+            false,
+            $actorId?->toString(),
+        ));
+    }
+
+    public function setChecklistItemDone(UuidInterface $itemId, bool $done, ?UuidInterface $actorId = null): void
+    {
+        $checklist = $this->checklist();
+        foreach ($checklist as $index => $item) {
+            if ($item['id'] !== $itemId->toString()) {
+                continue;
+            }
+            if ($item['done'] === $done) {
+                return;
+            }
+
+            $checklist[$index]['done'] = $done;
+            $this->checklist = $checklist;
+            $this->touch();
+            $this->recordEvent(new CardChecklistChanged(
+                $this->id->toString(),
+                CardChecklistChanged::ACTION_TOGGLED,
+                $item['id'],
+                $item['text'],
+                $done,
+                $actorId?->toString(),
+            ));
+
+            return;
+        }
+
+        throw new ChecklistItemNotFoundException(sprintf('Checklist item "%s" not found', $itemId->toString()));
+    }
+
+    public function removeChecklistItem(UuidInterface $itemId, ?UuidInterface $actorId = null): void
+    {
+        $checklist = $this->checklist();
+        foreach ($checklist as $index => $item) {
+            if ($item['id'] !== $itemId->toString()) {
+                continue;
+            }
+
+            array_splice($checklist, $index, 1);
+            $this->checklist = $checklist;
+            $this->touch();
+            $this->recordEvent(new CardChecklistChanged(
+                $this->id->toString(),
+                CardChecklistChanged::ACTION_REMOVED,
+                $item['id'],
+                $item['text'],
+                false,
+                $actorId?->toString(),
+            ));
+
+            return;
+        }
+
+        throw new ChecklistItemNotFoundException(sprintf('Checklist item "%s" not found', $itemId->toString()));
     }
 
     public function moveTo(UuidInterface $newColumnId, int $newPosition, ?UuidInterface $actorId = null): void

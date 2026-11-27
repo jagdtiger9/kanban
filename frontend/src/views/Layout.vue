@@ -230,10 +230,11 @@ const openSettings = (event: Event) => {
                     @click="drawerOpen = !drawerOpen"
                 />
                 <RouterLink to="/" class="font-semibold">
-                    <i class="fa-solid fa-dharmachakra fa-xl dark:text-yellow-400 text-blue-600"></i>
+<!--                    <i class="fa-solid fa-dharmachakra"></i>-->
+                    <i class="fa-solid fa-spinner fa-xl dark:text-yellow-400 text-blue-600"></i>
                 </RouterLink>
                 <RouterLink to="/" class="font-semibold">
-                    Command Deck
+                    Flow keeper
                 </RouterLink>
             </div>
             <div class="lg:hidden">

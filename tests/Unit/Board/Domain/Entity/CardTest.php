@@ -8,6 +8,7 @@ use App\Board\Domain\Entity\Card;
 use App\Board\Domain\Entity\Label;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -21,6 +22,8 @@ use App\Board\Domain\Event\CardRestored;
 use App\Board\Domain\Event\CardUnassigned;
 use App\Board\Domain\Event\CardUncompleted;
 use App\Board\Domain\Exception\CardLinkException;
+use App\Board\Domain\Exception\ChecklistItemNotFoundException;
+use App\Board\Domain\Exception\ChecklistLimitException;
 use App\Board\Domain\ValueObject\RecurrenceRule;
 use App\User\Domain\Entity\User;
 use PHPUnit\Framework\TestCase;
@@ -484,5 +487,137 @@ final class CardTest extends TestCase
         $rule = $card->recurrence();
         self::assertNotNull($rule);
         self::assertSame('weekly', $rule->kind()->value);
+    }
+
+    public function testNewCardHasEmptyChecklist(): void
+    {
+        self::assertSame([], $this->createCard()->checklist());
+    }
+
+    public function testAddChecklistItemAppendsInOrderAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $actorId = Uuid::uuid4();
+        $first = Uuid::uuid4();
+        $second = Uuid::uuid4();
+
+        $card->addChecklistItem($first, '  First  ', $actorId);
+        $card->addChecklistItem($second, 'Second', $actorId);
+
+        self::assertSame(
+            [
+                ['id' => $first->toString(), 'text' => 'First', 'done' => false],
+                ['id' => $second->toString(), 'text' => 'Second', 'done' => false],
+            ],
+            $card->checklist(),
+        );
+
+        $events = $card->releaseEvents();
+        self::assertCount(2, $events);
+        self::assertInstanceOf(CardChecklistChanged::class, $events[0]);
+        self::assertSame('added', $events[0]->action);
+        self::assertSame($first->toString(), $events[0]->itemId);
+        self::assertSame('First', $events[0]->itemText);
+        self::assertFalse($events[0]->done);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+    }
+
+    public function testAddChecklistItemRejectsEmptyText(): void
+    {
+        $card = $this->createCard();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $card->addChecklistItem(Uuid::uuid4(), '   ');
+    }
+
+    public function testAddChecklistItemRejectsTextOverTheLimit(): void
+    {
+        $card = $this->createCard();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $card->addChecklistItem(Uuid::uuid4(), str_repeat('a', Card::CHECKLIST_TEXT_MAX_LENGTH + 1));
+    }
+
+    public function testAddChecklistItemEnforcesTheItemLimit(): void
+    {
+        $card = $this->createCard();
+        for ($i = 0; $i < Card::CHECKLIST_MAX_ITEMS; $i++) {
+            $card->addChecklistItem(Uuid::uuid4(), 'Item ' . $i);
+        }
+        $card->releaseEvents();
+
+        $this->expectException(ChecklistLimitException::class);
+
+        $card->addChecklistItem(Uuid::uuid4(), 'One too many');
+    }
+
+    public function testSetChecklistItemDoneTogglesAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $itemId = Uuid::uuid4();
+        $card->addChecklistItem($itemId, 'Task');
+        $card->releaseEvents();
+        $actorId = Uuid::uuid4();
+
+        $card->setChecklistItemDone($itemId, true, $actorId);
+
+        self::assertTrue($card->checklist()[0]['done']);
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardChecklistChanged::class, $events[0]);
+        self::assertSame('toggled', $events[0]->action);
+        self::assertSame($itemId->toString(), $events[0]->itemId);
+        self::assertSame('Task', $events[0]->itemText);
+        self::assertTrue($events[0]->done);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+
+        $card->setChecklistItemDone($itemId, true, $actorId);
+        self::assertSame([], $card->releaseEvents());
+    }
+
+    public function testSetChecklistItemDoneUnknownItemThrows(): void
+    {
+        $card = $this->createCard();
+
+        $this->expectException(ChecklistItemNotFoundException::class);
+
+        $card->setChecklistItemDone(Uuid::uuid4(), true);
+    }
+
+    public function testRemoveChecklistItemRemovesItAndRecordsEvent(): void
+    {
+        $card = $this->createCard();
+        $kept = Uuid::uuid4();
+        $removed = Uuid::uuid4();
+        $card->addChecklistItem($kept, 'Keep');
+        $card->addChecklistItem($removed, 'Remove');
+        $card->releaseEvents();
+        $actorId = Uuid::uuid4();
+
+        $card->removeChecklistItem($removed, $actorId);
+
+        self::assertSame(
+            [['id' => $kept->toString(), 'text' => 'Keep', 'done' => false]],
+            $card->checklist(),
+        );
+        $events = $card->releaseEvents();
+        self::assertCount(1, $events);
+        self::assertInstanceOf(CardChecklistChanged::class, $events[0]);
+        self::assertSame('removed', $events[0]->action);
+        self::assertSame($removed->toString(), $events[0]->itemId);
+        self::assertSame('Remove', $events[0]->itemText);
+        self::assertFalse($events[0]->done);
+        self::assertSame($actorId->toString(), $events[0]->actorId);
+    }
+
+    public function testRemoveChecklistItemUnknownItemThrows(): void
+    {
+        $card = $this->createCard();
+
+        $this->expectException(ChecklistItemNotFoundException::class);
+
+        $card->removeChecklistItem(Uuid::uuid4());
     }
 }

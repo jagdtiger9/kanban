@@ -10,6 +10,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -262,6 +263,62 @@ final class CardActivityHandlerTest extends TestCase
         self::assertSame('card_recurrence_changed', $activity->type());
         self::assertSame($actorId, $activity->actorId()?->toString());
         self::assertSame(['oldKind' => 'weekly', 'newKind' => 'monthly'], $activity->payload());
+    }
+
+    public function testChecklistItemAdded(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $itemId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardChecklistChanged(new CardChecklistChanged(
+            $cardId,
+            CardChecklistChanged::ACTION_ADDED,
+            $itemId,
+            'Write docs',
+            false,
+            $actorId,
+        ));
+
+        $activity = $this->last();
+        self::assertSame('checklist_item_added', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['itemId' => $itemId, 'itemText' => 'Write docs'], $activity->payload());
+    }
+
+    public function testChecklistItemRemoved(): void
+    {
+        $cardId = Uuid::uuid4()->toString();
+        $itemId = Uuid::uuid4()->toString();
+        $actorId = Uuid::uuid4()->toString();
+
+        $this->handler()->onCardChecklistChanged(new CardChecklistChanged(
+            $cardId,
+            CardChecklistChanged::ACTION_REMOVED,
+            $itemId,
+            'Write docs',
+            false,
+            $actorId,
+        ));
+
+        $activity = $this->last();
+        self::assertSame('checklist_item_removed', $activity->type());
+        self::assertSame($actorId, $activity->actorId()?->toString());
+        self::assertSame(['itemId' => $itemId, 'itemText' => 'Write docs'], $activity->payload());
+    }
+
+    public function testChecklistItemToggleIsNotRecorded(): void
+    {
+        $this->handler()->onCardChecklistChanged(new CardChecklistChanged(
+            Uuid::uuid4()->toString(),
+            CardChecklistChanged::ACTION_TOGGLED,
+            Uuid::uuid4()->toString(),
+            'Write docs',
+            true,
+            Uuid::uuid4()->toString(),
+        ));
+
+        self::assertSame([], $this->saved);
     }
 
     public function testCommentAdded(): void

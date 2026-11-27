@@ -9,6 +9,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -162,6 +163,19 @@ final class CardActivityHandler
         $this->store($event->cardId, $event->actorId, 'card_recurrence_changed', [
             'oldKind' => $event->oldKind,
             'newKind' => $event->newKind,
+        ]);
+    }
+
+    #[AsMessageHandler]
+    public function onCardChecklistChanged(CardChecklistChanged $event): void
+    {
+        if ($event->action === CardChecklistChanged::ACTION_TOGGLED) {
+            return;
+        }
+
+        $this->store($event->cardId, $event->actorId, 'checklist_item_' . $event->action, [
+            'itemId' => $event->itemId,
+            'itemText' => $event->itemText,
         ]);
     }
 

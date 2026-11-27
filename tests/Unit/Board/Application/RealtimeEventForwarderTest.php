@@ -14,6 +14,7 @@ use App\Board\Domain\Event\AttachmentAdded;
 use App\Board\Domain\Event\AttachmentRemoved;
 use App\Board\Domain\Event\CardArchived;
 use App\Board\Domain\Event\CardAssigned;
+use App\Board\Domain\Event\CardChecklistChanged;
 use App\Board\Domain\Event\CardCompleted;
 use App\Board\Domain\Event\CardCreated;
 use App\Board\Domain\Event\CardExecutorAssigned;
@@ -173,6 +174,7 @@ final class RealtimeEventForwarderTest extends TestCase
         yield 'card completed' => [new CardCompleted($cardId, $actorId), 'onCardCompleted', 'card.completed'];
         yield 'card uncompleted' => [new CardUncompleted($cardId, $actorId), 'onCardUncompleted', 'card.uncompleted'];
         yield 'card recurrence changed' => [new CardRecurrenceChanged($cardId, 'weekly', 'monthly', $actorId), 'onCardRecurrenceChanged', 'card.recurrence_changed'];
+        yield 'card checklist changed' => [new CardChecklistChanged($cardId, CardChecklistChanged::ACTION_ADDED, Uuid::uuid4()->toString(), 'Task', false, $actorId), 'onCardChecklistChanged', 'card.checklist_changed'];
         yield 'comment created' => [new CommentCreated($cardId, $commentId, $userId), 'onCommentCreated', 'comment.created'];
         yield 'comment edited' => [new CommentEdited($cardId, $commentId, $userId), 'onCommentEdited', 'comment.updated'];
         yield 'comment deleted' => [new CommentDeleted($cardId, $commentId, $actorId), 'onCommentDeleted', 'comment.deleted'];

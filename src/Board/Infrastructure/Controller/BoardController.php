@@ -6,6 +6,7 @@ namespace App\Board\Infrastructure\Controller;
 
 use Aljerom\SymfonyBoilerplate\CQRS\CommandBus;
 use Aljerom\SymfonyBoilerplate\CQRS\QueryBus;
+use App\Board\Application\Message\Command\AddChecklistItemCommand;
 use App\Board\Application\Message\Command\ArchiveCardCommand;
 use App\Board\Application\Message\Command\CompleteCardCommand;
 use App\Board\Application\Message\Command\CreateCardCommand;
@@ -17,6 +18,7 @@ use App\Board\Application\Message\Command\DeleteCommentCommand;
 use App\Board\Application\Message\Command\DeleteLabelCommand;
 use App\Board\Application\Message\Command\MarkCardSeenCommand;
 use App\Board\Application\Message\Command\MoveCardCommand;
+use App\Board\Application\Message\Command\RemoveChecklistItemCommand;
 use App\Board\Application\Message\Command\RenameColumnCommand;
 use App\Board\Application\Message\Command\ReorderColumnCommand;
 use App\Board\Application\Message\Command\RestoreCardCommand;
@@ -26,6 +28,7 @@ use App\Board\Application\Message\Command\SetCardExecutorCommand;
 use App\Board\Application\Message\Command\SetCardLabelsCommand;
 use App\Board\Application\Message\Command\SetCardLinkedCardCommand;
 use App\Board\Application\Message\Command\SetCardRecurrenceCommand;
+use App\Board\Application\Message\Command\SetChecklistItemDoneCommand;
 use App\Board\Application\Message\Command\UncompleteCardCommand;
 use App\Board\Application\Message\Command\UpdateCardContentCommand;
 use App\Board\Application\Message\Command\UpdateCommentCommand;
@@ -274,6 +277,32 @@ final class BoardController extends AbstractController
         return new Response(status: Response::HTTP_NO_CONTENT);
     }
 
+    public function addChecklistItem(AddChecklistItemCommand $command, Security $security): JsonResponse
+    {
+        $command->actorId = $this->actorId($security);
+
+        return $this->json(
+            $this->commandBus->dispatch($command),
+            Response::HTTP_CREATED,
+        );
+    }
+
+    public function setChecklistItemDone(SetChecklistItemDoneCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
+    public function removeChecklistItem(RemoveChecklistItemCommand $command, Security $security): Response
+    {
+        $command->actorId = $this->actorId($security);
+        $this->commandBus->dispatch($command);
+
+        return new Response(status: Response::HTTP_NO_CONTENT);
+    }
+
     public function createComment(CreateCommentCommand $command, Security $security): JsonResponse
     {
         $command->actorId = $this->actorId($security);
@@ -364,6 +393,7 @@ final class BoardController extends AbstractController
      *     executorId: ?string,
      *     linkedCardId: ?string,
      *     recurrence: ?array{kind: string, weekdays: list<int>, monthDays: list<int>},
+     *     checklist: list<array{id: string, text: string, done: bool}>,
      *     createdAt: string,
      *     updatedAt: string,
      *     archived: bool,
@@ -385,6 +415,7 @@ final class BoardController extends AbstractController
             'executorId' => $card->executorId()?->toString(),
             'linkedCardId' => $card->linkedCardId()?->toString(),
             'recurrence' => $card->recurrence()?->toArray(),
+            'checklist' => $card->checklist(),
             'createdAt' => $card->createdAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $card->updatedAt()->format(\DateTimeInterface::ATOM),
             'archived' => $card->isArchived(),
